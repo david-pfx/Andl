@@ -1,0 +1,371 @@
+﻿/// Andl is A New Data Language. See andl.org.
+///
+/// Copyright © David M. Bennett 2015 as an unpublished work. All rights reserved.
+///
+/// If you have received this file directly from me then you are hereby granted 
+/// permission to use it for personal study. For any other use you must ask my 
+/// permission. Not to be copied, distributed or used commercially without my 
+/// explicit written permission.
+///
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Linq.Expressions;
+using System.Reflection;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+
+namespace Andl.Runtime {
+  public enum Opcodes {
+    NOP,
+    CALL,       // call with fixed args
+    CALLV,      // call with variable args (CodeValue)
+    CALLVT,     // call with variable args (TypedValue)
+    LDACC,      // load value from accumulator by number
+    LDACCBLK,   // load current accumulator block as object value
+    LDAGG,      // load aggregation value
+    LDCAT,      // load value from catalog by name
+    LDCATR,     // load raw (unevaluated) value from catalog by name
+    LDCOMP,     // load value from UDT component by name
+    LDFIELD,    // load field value via lookup
+    LDLOOKUP,   // load current lookup as object value
+    LDSEG,      // load segment of code to be executed as arg
+    LDVALUE,    // load actual value
+  };
+
+  public struct ByteCode {
+    public byte[] bytes;
+    public int Length { get { return bytes == null ? 0 : bytes.Length; } }
+  }
+
+  /// <summary>
+  /// Join operation implemented by this function
+  /// Note: LCR must be numerically same as MergeOps
+  /// </summary>
+  [Flags]
+  public enum JoinOps {
+    // basic values
+    NUL, LEFT = 1, COMMON = 2, RIGHT = 4,
+    SETL = 8, SETC = 16, SETR = 32,
+    ANTI = 64, SET = 128, REV = 256, ERROR = 512,
+    // mask combos
+    MERGEOPS = LEFT | COMMON | RIGHT,
+    SETOPS = SETL | SETC | SETR,
+    OTHEROPS = ANTI | REV | ERROR,
+    // joins
+    JOIN = LEFT | COMMON | RIGHT,
+    COMPOSE = LEFT | RIGHT,
+    DIVIDE = LEFT,
+    RDIVIDE = RIGHT,
+    SEMIJOIN = LEFT | COMMON,
+    RSEMIJOIN = RIGHT | COMMON,
+    // antijoins
+    ANTIJOIN = ANTI | LEFT | COMMON,
+    ANTIJOINL = ANTI | LEFT,
+    RANTIJOIN = ANTI | RIGHT | COMMON | REV,
+    RANTIJOINR = ANTI | RIGHT | REV,
+    // set
+    UNION = SET | COMMON | SETL | SETC | SETR,
+    INTERSECT = SET | COMMON | SETC,
+    SYMDIFF = SET | COMMON | SETL | SETR,
+    MINUS = SET | COMMON | SETL,
+    RMINUS = SET | COMMON | SETR | REV,
+  };
+
+  public interface ILookupValue {
+    bool LookupValue(string name, ref TypedValue value);
+  }
+  
+  /// <summary>
+  /// Implements a compiler and runtime for expression evaluation
+  /// Can only be created by a compilation, which may set Error.
+  /// </summary>
+  public class Evaluator {
+    public static Evaluator Current { get; private set; }
+    public int ErrorCount { get; private set; }
+    public bool Valid { get { return ErrorCount == 0; } }
+    //public SymbolTable SymbolTable { get; private set; }
+    Catalog _catalog;
+
+    // runtime
+    Stack<ILookupValue> _lookups = new Stack<ILookupValue>();
+    List<object> _scode = new List<object>();
+    Stack<TypedValue> _stack = new Stack<TypedValue>();
+
+    // Create with catalog 
+    public static Evaluator Create(Catalog catalog) {
+      DataTypes.Init();
+      var ev = new Evaluator() {
+        _catalog = catalog,
+      };
+      return ev;
+    }
+
+    // Common entry point for executing code
+    public TypedValue Exec(ByteCode code, ILookupValue lookup = null, TypedValue aggregate = null, AccumulatorBlock accblock = null) {
+      Logger.WriteLine(5, "Exec {0} {1} {2} {3}", code.Length, lookup, aggregate, accblock);
+      Builtin.Catalog = _catalog;
+      if (code.Length == 0) return VoidValue.Void;
+      if (lookup != null) PushLookup(lookup);
+      Current = this;
+      try {
+        Run(code, aggregate, accblock);
+      } catch (TargetInvocationException ex) {
+        throw ex.InnerException;
+      }
+      if (lookup != null) PopLookup();
+      return (_stack.Count > 0) ? _stack.Pop() : VoidValue.Void;
+    }
+
+    // used by Invoke
+    public void PushLookup(ILookupValue lookup) {
+      Logger.WriteLine(4, "Push lookup {0}", lookup);
+      _lookups.Push(lookup);
+    }
+
+    public void PopLookup() {
+      Logger.WriteLine(4, "Pop lookup {0}", _lookups.Peek());
+      _lookups.Pop();
+    }
+
+    // Perform a value lookup for project
+    public TypedValue Lookup(string name, ILookupValue lookup = null) {
+      if (lookup != null)
+        _lookups.Push(lookup);
+      var value = TypedValue.Empty;
+      var ok = LookupValue(name, ref value);
+      Logger.Assert(ok, name);
+      if (lookup != null)
+        _lookups.Pop();
+      return value;
+    }
+
+    ///=================================================================
+    /// Implementation
+    /// 
+
+    void PopStack(int n) {
+      while (n-- > 0)
+        _stack.Pop();
+    }
+
+    void PushStack(TypedValue value) {
+      _stack.Push(value);
+    }
+
+    // Find value for token in lookup by name
+    bool LookupValue(string token, ref TypedValue value) {
+      foreach (var lookup in _lookups) {
+        if (lookup.LookupValue(token, ref value))
+          return true;
+      }
+      return false;
+    }
+
+    // Evaluation engine for ByteCode
+    void Run(ByteCode bcode, TypedValue aggregate, AccumulatorBlock accblock) {
+      var reader = PersistReader.Create(bcode.bytes);
+      while (reader.More) {
+        var opcode = reader.ReadOpcode();
+        switch (opcode) {
+        // Known literal, do not translate into value
+        case Opcodes.LDVALUE:
+          PushStack(reader.ReadValue());
+          break;
+        // Known catalog variable, look up value
+        case Opcodes.LDCAT:
+          var val = EvaluatorSupport.GetValue(reader.ReadString());
+          if (val.DataType != DataTypes.Void)
+            _stack.Push(val);
+          break;
+        case Opcodes.LDCATR:
+          PushStack(_catalog.Get(reader.ReadString()));
+          break;
+        // Load value obtained using lookup by name
+        case Opcodes.LDFIELD:
+          var value = TypedValue.Empty;
+          var ok = LookupValue(reader.ReadString(), ref value);
+          Logger.Assert(ok, opcode);
+          PushStack(value);
+          break;
+        // Load aggregate value or use specified start value if not available
+        case Opcodes.LDAGG:
+          var agvalue = reader.ReadValue();
+          PushStack(aggregate ?? agvalue);
+          break;
+        // load accumulator by index, or fixed value if not available
+        case Opcodes.LDACC:
+          var accnum = reader.ReadInteger();
+          var defval = reader.ReadValue();
+          PushStack(accblock == null ? defval : accblock[accnum]);
+          break;
+        // Load a segment of code for later call
+        case Opcodes.LDSEG:
+          var cvalue = CodeValue.Create(reader.ReadCode());
+          //cvalue.Value.Evaluator = this;
+          PushStack(cvalue);
+          break;
+        case Opcodes.LDLOOKUP:
+          var bv = TypedValue.Create(_lookups.Peek() as object);
+          PushStack(bv);
+          break;
+        case Opcodes.LDACCBLK:
+          var acb = TypedValue.Create(accblock as object);
+          PushStack(acb);
+          break;
+        case Opcodes.LDCOMP:
+          var udtval = _stack.Pop() as UserValue;
+          var compval = udtval.GetComponentValue(reader.ReadString());
+          PushStack(compval);
+          break;
+        // Call a function, fixed or variable arg count
+        case Opcodes.CALL:
+        case Opcodes.CALLV:
+        case Opcodes.CALLVT:
+          var name = reader.ReadString();
+          var meth = typeof(Builtin).GetMethod(name);
+          var nargs = reader.ReadByte();
+          var nvargs = reader.ReadByte();
+          var args = new object[nargs];
+          var argx = args.Length - 1;
+          if (opcode == Opcodes.CALLV) {
+            var vargs = new CodeValue[nvargs];
+            for (var j = vargs.Length - 1; j >= 0; --j)
+              vargs[j] = _stack.Pop() as CodeValue;
+            args[argx--] = vargs;
+          } else if (opcode == Opcodes.CALLVT) {
+            var vargs = new TypedValue[nvargs];
+            for (var j = vargs.Length - 1; j >= 0; --j)
+              vargs[j] = _stack.Pop() as TypedValue;
+            args[argx--] = vargs;
+          }
+          for (; argx >= 0; --argx)
+            args[argx] = _stack.Pop();
+          var ret = meth.Invoke(null, args) as TypedValue;
+          if (ret.DataType != DataTypes.Void)
+            _stack.Push(ret);
+          break;
+        default:
+          throw new NotImplementedException(opcode.ToString());
+        }
+      }
+    }
+
+    // Evaluation engine for SCode (objects)
+    // OBS:
+    void Run(IReadOnlyList<object> scode, TypedValue aggregate, AccumulatorBlock accblock) {
+      for (var pc = 0; pc < scode.Count; ) {
+        var opcode = (Opcodes)scode[pc++];
+        switch (opcode) {
+        // Known literal, do not translate into value
+        case Opcodes.LDVALUE:
+          PushStack(scode[pc] as TypedValue);
+          pc += 1;
+          break;
+        // Known catalog variable, look up value
+        case Opcodes.LDCAT:
+          PushStack(EvaluatorSupport.GetValue(scode[pc] as string));
+          pc += 1;
+          break;
+        case Opcodes.LDCATR:
+          PushStack(_catalog.Get(scode[pc] as string));
+          pc += 1;
+          break;
+        // Load value obtained using lookup by name
+        case Opcodes.LDFIELD:
+          var value = TypedValue.Empty;
+          var ok = LookupValue(scode[pc] as string, ref value);
+          Logger.Assert(ok, opcode);
+          PushStack(value);
+          pc += 1;
+          break;
+        // Load aggregate value or use specified start value if not available
+        case Opcodes.LDAGG:
+          if (aggregate == null) { // seed value
+            aggregate = scode[pc] as TypedValue;
+          }
+          Logger.Assert(aggregate.DataType != null, aggregate.DataType);
+          pc += 1;
+          PushStack(aggregate);
+          break;
+        // load accumulator by index, or fixed value if not available
+        case Opcodes.LDACC:
+          var accnum = (int)scode[pc];
+          var defval = scode[pc+1] as TypedValue;
+          pc += 2;
+          PushStack(accblock == null ? defval : accblock[accnum]);
+          break;
+        // Load a segment of code for later call
+        case Opcodes.LDSEG:
+          var cb = scode[pc] as CodeValue;
+          //cb.Value.Evaluator = this;
+          PushStack(cb);
+          pc += 1;
+          break;
+        case Opcodes.LDLOOKUP:
+          var bv = TypedValue.Create(_lookups.Peek() as object);
+          PushStack(bv);
+          break;
+        case Opcodes.LDACCBLK:
+          var acb = TypedValue.Create(accblock as object);
+          PushStack(acb);
+          break;
+        case Opcodes.LDCOMP:
+          var udtval = _stack.Pop() as UserValue;
+          var compval = udtval.GetComponentValue(scode[pc] as string);
+          PushStack(compval);
+          pc += 1;
+          break;
+        // Call a function, fixed or variable arg count
+        case Opcodes.CALL:
+        case Opcodes.CALLV:
+        case Opcodes.CALLVT:
+          var meth = scode[pc] as MethodInfo;
+          var rtype = scode[pc + 1] as DataType;
+          var args = new object[meth.GetParameters().Length];
+          var argx = args.Length - 1;
+          if (opcode == Opcodes.CALLV) {
+            var vargs = new CodeValue[(int)scode[pc + 2]];
+            for (var j = vargs.Length - 1; j >= 0; --j)
+              vargs[j] = _stack.Pop() as CodeValue;
+            args[argx--] = vargs;
+          } else if (opcode == Opcodes.CALLVT) {
+              var vargs = new TypedValue[(int)scode[pc + 2]];
+              for (var j = vargs.Length - 1; j >= 0; --j)
+                vargs[j] = _stack.Pop() as TypedValue;
+              args[argx--] = vargs;
+          }
+          for ( ; argx >= 0; --argx)
+            args[argx] = _stack.Pop();
+          var ret = meth.Invoke(rtype, args);
+          if (rtype != DataTypes.Void)
+            _stack.Push(ret as TypedValue);
+          pc += (opcode == Opcodes.CALL) ?  2 : 3;
+          break;
+        default:
+          throw new NotImplementedException(opcode.ToString());
+        }
+      }
+    }
+  }
+
+  /// <summary>
+  /// Functions for internal use by evaluator only
+  /// </summary>
+  public class EvaluatorSupport {
+
+    // Get the value of a variable
+    public static TypedValue GetValue(string name) {
+      if (name == "input") {
+        var line = Console.ReadLine();
+        return TypedValue.Create(line);
+      }
+      var ret = Builtin.Catalog.GetValue(name);
+      Logger.Assert(ret != null, name);
+      return ret;
+    }
+  }
+}

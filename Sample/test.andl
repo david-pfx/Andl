@@ -1,0 +1,5 @@
+﻿// test.andl -- is automatically loaded and run if no other file is specified
+// 
+// Use this for quickly testing out ideas
+
+'Hello world!'

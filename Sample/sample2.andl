@@ -1,0 +1,162 @@
+﻿// Andl samples 2 -- basic relational
+// These are the basic relational features of Andl
+
+// Depends on catalog created by setup.andl
+#catalog
+
+// ===== Relational types =====
+
+// Tuples - not used much
+{}
+{name := 'Smith', age := 17}
+t1 := {age := 17, name := 'Smith'}
+t1
+
+// Relations - used heavily
+{{:}}       // empty relation, no attributes, no tuples
+{{:}()}     // ditto, one tuple
+{{}}        // same, with type derived by inference
+{{},{},{},{},{},{},{},{}}        // exactly the same value (duplicates discarded)
+{{:}(),(),(),(),(),(),()}         // exactly the same value (heading format)
+wait
+
+// Relation literal can be just a comma separate list of tuples
+// all the same -- order does not matter
+{{name := 'Smith', age := 17},{name := 'Jones', age := 35},{age :=199,name:='Frankenstein' }}
+{{name := 'Smith', age := 17},{age :=199,name:='Frankenstein' },{age := 35, name := 'Jones'}}
+
+// or it can have a header and a list of selectors with values in the same order
+{{name:text,age:number}
+    ('Smith', 17),
+    ('Jones', 35),
+    ('Frankenstein', 199)
+}
+
+// assignment
+r1 := {{name := 'Smith', age := 17},{name := 'Jones', age := 35},{age :=199,name:='Frankenstein' }}
+r1
+
+wait
+// Built in functions
+seq(5)     // relation of N integers {{ N:number }}
+schema(r1)       // relation of attributes
+count(r1)        // cardinality
+degree(r1)       // degree
+
+// Again can use either function or dot notation
+5 .seq     // note: '5.' would mean something different
+r1.schema
+r1.count
+r1.degree
+
+wait
+//===== Basic operations =====
+
+S
+P
+SP
+S.schema
+S.count
+S.degree
+
+wait
+//==== monadics =====
+// all monadic operations are inside brackets in a fixed sequence [?()$(%-){*}]
+
+// restriction - remove rows
+S [ ?(CITY = 'Paris') ]
+S [ ?(STATUS > 15 or CITY = 'London') ]
+S [ ?(SNAME =~ 'a.*k') ]    // regular expression
+
+// --- rename - change column names
+// rename all
+S [ { F1 := S#, F2 := SNAME, F3 := STATUS, F4 := CITY }]
+// rename some, the * means keep the rest unchanged
+S [ { * F1 := SNAME }]
+
+// --- projection - remove columns
+// name all to be kept
+S [ { S#, SNAME, CITY }]
+// * means keep all but the ones named
+S [ { * SNAME, CITY }]
+
+wait
+// --- extension - add new columns
+// Here * means keep all, add new ones
+S [ { * Initial := left(SNAME, 1) }]
+
+// --- combine all three
+S [ { CITY, F := STATUS, Initial := left(SNAME, 1) }]
+S [ { * SNAME, Initial := left(SNAME, 1) }]
+
+wait
+// --- aggregated projection - projection with totalling
+S [ { CITY, 
+    total := fold(+,STATUS), 
+    max := fold(max,STATUS), 
+    min := fold(min,STATUS), 
+    average := fold(+,STATUS)/fold(+,1) 
+} ]
+
+// Note: fold() is only allowed in projection, but looks nicer in a function
+sum(n:0) => fold(+,n)
+hi(n:0) => fold(max,n)
+lo(n:0) => fold(min,n)
+ave(n:0) => fold(+,n)/fold(+,1)
+S [ { CITY, total := sum(STATUS), max := hi(STATUS), min := lo(STATUS), average := ave(STATUS) } ]
+
+// --- ordering for display sort
+P[$(WEIGHT)]
+P[$(COLOR,-WEIGHT)]     // descending
+
+// --- lift anonymous value out of singleton relation
+S [ { fold(+,STATUS) } ]    // aggregated value
+S [ { ave(STATUS) } ]       // via defined function
+S [ { (STATUS) } ]          // first tuple (indeterminate)
+S [?(false) { (STATUS) } ]  // no tuples so default value
+wait
+
+//==== dyadics =====
+
+// prepare some subsets
+S3 := S [?( S# = 'S3')]    // one single supplier S3
+SX := S [?( S# <> 'S3')]   // all suppliers except S3 to make this work better
+SY := S [?( S# <> 'S1')]   // all suppliers except S1
+
+// set membership -- all true
+S3 sub S        // subset
+S sup SX        // superset
+S3 sep SX       // separate
+
+wait
+// joins
+
+S join SP       // natural join preserves all columns for matching tuples
+S compose SP    // projects onto non-common attributes
+S semijoin SP   // projects onto left and common attributes
+S divide SP     // projects onto left only attributes
+S rsemijoin SP  // projects onto right and common attributes
+S rdivide SP    // projects onto right only attributes
+
+wait
+// antijoins
+
+SX ajoin SP      // antijoin preserves all left attributes for non-matching
+SX ajoinl SP     // projects onto left only attributes
+SX rajoin SP     // reverse antijoin has right and common attributes
+SX rajoinr SP    // projects onto right only attributes
+
+wait
+// set operations
+
+SX union SY      // combines all tuples
+SX intersect SY  // keep common tuples
+SX symdiff SY    // keep non-common tuples
+SX minus SY      // keep left minus right
+SX rminus SY     // keep right minus left
+
+// set operations with different headings project onto common attributes
+S union P
+S minus P
+
+// end

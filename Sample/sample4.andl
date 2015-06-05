@@ -1,0 +1,106 @@
+﻿// Andl samples 4 -- putting it together
+// Aim here is to show some code that combines multiple features
+
+// Depends on catalog created by setup.andl
+#catalog
+
+// ===== Advanced Usage =====
+
+// --- Transitive closure
+
+// define a relational type
+xyt := {{x:='',y:=''}}
+
+// define a recursive function that takes a relation of that type as an argument
+// Note: relvar needs to be local to function, not in database
+tranclo:xyt(xy:xyt) => do {
+    $ttt := xy[{*z := y}] compose xy[{*z := x}] union xy
+    if($ttt = xy, $ttt, tranclo($ttt))
+}
+
+tclosedemo => do {
+    // MM has tuples representing part/subpart assemblies
+    MM := {{ MAJOR_P#:text,MINOR_P#:text}
+      ( "P1", "P2" ),
+      ( "P1", "P3" ),
+      ( "P2", "P3" ),
+      ( "P2", "P4" ),
+      ( "P3", "P5" ),
+      ( "P4", "P6" )
+    }
+    // call with MM as argument, renaming attributes to match
+    tranclo(MM[ {x:=MAJOR_P#, y:= MINOR_P# } ]) [{MAJOR_P#:=x, MINOR_P#:=y }]
+}
+tclosedemo
+
+wait
+// === a sample of every type ===
+
+typedemo => do {
+    types := {{ name:'', text:'', format:'', pp:'' }}
+    addval(a:'',b:'',c:'',d:'') => do {
+        types := union {{ name:= a, text := b, format:=c, pp := d }}
+    }
+    bo5 := true
+    addval(bo5.type, bo5.text, bo5.format, bo5.pp)
+    nu5 := 123.456
+    addval(nu5.type, nu5.text, nu5.format, nu5.pp)
+    st5 := 'abcdef'
+    addval(st5.type, st5.text, st5.format, st5.pp)
+    ti5 := t'2015/12/31 23:59:59'
+    addval(ti5.type, ti5.text, ti5.format, ti5.pp)
+    dt5 := dateymd(2015,12,31)
+    addval(dt5.type, dt5.text, dt5.format, dt5.pp)
+    bi5 := b'0102030405aaBBcCDdEEf'
+    addval(bi5.type, bi5.text, bi5.format, bi5.pp)
+    tu5 := { name:='Smith', age := 99}
+    addval(tu5.type, tu5.text, tu5.format, tu5.pp)
+    re5 := {{ n:='Smith', a := 99},{ n:='Jones', a := 98}}
+    addval(re5.type, re5.text, re5.format, '<omitted>')
+    def :ut5(name:'', age:0)
+    uv5 := ut5('Brown', 97)
+    addval(uv5.type, uv5.text, uv5.format, uv5.pp)
+    types
+}
+typedemo
+
+wait
+// An implementation of 99 bottles
+
+bottlesdemo(bottles:0) => do {
+    hundred := seq(bottles) [{ nbot := N+1 }]
+    line1 := hundred [{ seq := nbot*2+1, 
+                        text := nbot & " bottle" & 
+                                if(nbot=1,"","s") & " of beer on the wall, " & nbot & " bottle" & 
+                                if(nbot=1,"","s") & " of beer."}]
+    line2 := hundred [{ seq := nbot*2, 
+                        text := "Take one down and pass it around, " & (nbot-1) & " bottle" & 
+                                if(nbot=2,"","s") & " of beer on the wall."}]
+    line3 := {{ seq:number, text:text}
+        (1, "No more bottles of beer on the wall, no more bottles of beer."),
+        (0, "Go to the store and buy some more, " & bottles & " bottles of beer on the wall.") 
+    }
+    lines := line1 union line2 union line3
+
+    crlf := h'd a'
+    intro := crlf & "The lyrics for the song of the " & bottles & " bottles of beer..." & crlf
+
+    // this is the clever line: fold ordered lines of text by concatenation
+    intro & lines[$(-seq)] [{ fold(&, text & crlf)} ]
+}
+// just 9 bottles for now
+output := bottlesdemo(9)
+
+wait
+// User-defined types are intended to be used easily for relation attributes, for example:
+
+def :sid(text:text), :pid(text:text), :scity(text:text), :pcity(text:text)
+userdemo => do {
+    Supp := S[{ Sid := sid(S#), Sname := SNAME, Status := STATUS, Scity := scity(CITY) }]
+    Part := P[{ Pid := pid(P#), Pname := PNAME, Pcolor := COLOR, Pweight := WEIGHT, Pcity := pcity(CITY) }]
+    SuppPart := SP[{ Sid := sid(S#), Pid := pid(P#), Qty := QTY }]
+    Supp join SuppPart join Part
+}
+userdemo
+
+// end
