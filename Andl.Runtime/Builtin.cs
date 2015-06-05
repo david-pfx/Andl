@@ -174,6 +174,7 @@ namespace Andl.Runtime {
     public static RelationValue Read(TextValue arg1, TextValue arg2) {
       var source = DataSourceStream.Create("txt", arg1.Value);
       var rel = source.Input(arg2.Value, false);
+      if (rel == null) RuntimeError.Fatal("Builtin Read", "cannot open {0}", arg2.Value);
       return RelationValue.Create(rel);
     }
 
