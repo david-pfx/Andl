@@ -1,6 +1,4 @@
-Andl is A New Data Language. See andl.org.
-
-Andl is A New Data Language.
+Andl is A New Database Language. See andl.org.
 
 Andl does what SQL does, but it is not SQL. Andl has been developed as a fully 
 featured database programming language following the principles set out by Date 
@@ -11,7 +9,9 @@ expressive syntax.
 
 FIRST DO THIS
 
-Go to the Test folder in a command prompt and run the following commands.
+Grab the binary release and unzip it somewhere.
+
+Go to the Sample folder in a command prompt and run the following commands.
     C>run /?
     C>run 
     C>run setup.andl
