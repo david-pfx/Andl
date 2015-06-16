@@ -73,7 +73,13 @@ namespace Andl.Runtime {
     public static AddinInfo[] GetAddinInfo() {
       var addins = new List<AddinInfo>();
       addins.Add(AddinInfo.Create("type", 1, DataTypes.Text, "Type"));
+
+      addins.Add(AddinInfo.Create("binary", 1, DataTypes.Binary, "Binary"));
+      addins.Add(AddinInfo.Create("bool", 1, DataTypes.Bool, "Bool"));
+      addins.Add(AddinInfo.Create("number", 1, DataTypes.Number, "Number"));
+      addins.Add(AddinInfo.Create("time", 1, DataTypes.Time, "Time,TimeD")); //FIX:
       addins.Add(AddinInfo.Create("text", 1, DataTypes.Text, "Text"));
+
       addins.Add(AddinInfo.Create("format", 1, DataTypes.Text, "Format"));
       addins.Add(AddinInfo.Create("pp", 1, DataTypes.Text, "PrettyPrint"));
       addins.Add(AddinInfo.Create("length", 1, DataTypes.Number, "Length"));
@@ -86,6 +92,12 @@ namespace Andl.Runtime {
       addins.Add(AddinInfo.Create("toupper", 1, DataTypes.Text, "ToUpper"));
       addins.Add(AddinInfo.Create("tolower", 1, DataTypes.Text, "ToLower"));
 
+      addins.Add(AddinInfo.Create("bget", 1, DataTypes.Number, "BinaryGet"));
+      addins.Add(AddinInfo.Create("bset", 1, DataTypes.Binary, "BinarySet"));
+      addins.Add(AddinInfo.Create("blength", 1, DataTypes.Binary, "BinaryLength"));
+
+      addins.Add(AddinInfo.Create("now", 0, DataTypes.Time, "Now"));
+
       addins.Add(AddinInfo.Create("date", 1, Builtin.DateValue.StaticDatatype, "Create"));
       addins.Add(AddinInfo.Create("dateymd", 3, Builtin.DateValue.StaticDatatype, "CreateYmd"));
       addins.Add(AddinInfo.Create("year", 1, DataTypes.Number, "Year"));
@@ -93,7 +105,7 @@ namespace Andl.Runtime {
       addins.Add(AddinInfo.Create("day", 1, DataTypes.Number, "Day"));
       addins.Add(AddinInfo.Create("dow", 1, DataTypes.Number, "DayOfWeek"));
       addins.Add(AddinInfo.Create("daysdiff", 2, DataTypes.Number, "DaysDifference"));
-      addins.Add(AddinInfo.Create("time", 1, DataTypes.Time, "Time"));
+      //addins.Add(AddinInfo.Create("time", 1, DataTypes.Time, "TimeD"));
 
       addins.Add(AddinInfo.Create("count", 1, DataTypes.Number, "Count"));
       addins.Add(AddinInfo.Create("degree", 1, DataTypes.Number, "Degree"));
@@ -161,7 +173,7 @@ namespace Andl.Runtime {
       Logger.WriteLine(3, "Invoke {0} accbase={1} ({2})", funcarg, accbasarg, String.Join(",", valargs.Select(a => a.ToString()).ToArray()));
       var args = DataRow.Create(funcarg.Value.Lookup, valargs);
       var accbase = (int)accbasarg.Value;
-      var ret = (funcarg.Value.HasFold) 
+      var ret = (funcarg.Value.HasFold)
         ? funcarg.Value.EvalHasFold(args, accblkarg.Value as AccumulatorBlock, accbase)
         : funcarg.Value.EvalOpen(args);
       if (ret is RelationValue && !(ret.AsTable() is DataTableLocal))
@@ -345,6 +357,15 @@ namespace Andl.Runtime {
       var heading = DataHeading.Create(tranexprs);
       var relnew = rel.TransformOrdered(heading, tranexprs, orderexps);
       Logger.WriteLine(3, "[TrO {0}]", relnew);
+      return RelationValue.Create(relnew);
+    }
+
+    // Recursive expansion
+    public static RelationValue Recurse(RelationValue relarg, NumberValue flags, CodeValue exprarg) {
+      Logger.WriteLine(3, "Recurse {0} {1} {2}", relarg, flags, exprarg);
+
+      var relnew = relarg.Value.Recurse((int)flags.Value, exprarg.Value);
+      Logger.WriteLine(3, "[Rec {0}]", relnew);
       return RelationValue.Create(relnew);
     }
 
@@ -648,6 +669,65 @@ namespace Andl.Runtime {
 
     ///=================================================================
     ///
+    /// 
+
+    public static BoolValue Bool(TextValue value) {
+      if (String.Equals(value.Value, "true", StringComparison.InvariantCultureIgnoreCase)) return BoolValue.True;
+      if (String.Equals(value.Value, "false", StringComparison.InvariantCultureIgnoreCase)) return BoolValue.False;
+      RuntimeError.Fatal("Bool", "bad string format");
+      return BoolValue.Default;
+    }
+
+    public static NumberValue Number(TextValue value) {
+      decimal d;
+      if (Decimal.TryParse(value.Value, out d)) return NumberValue.Create(d);
+      RuntimeError.Fatal("Number", "bad string format");
+      return NumberValue.Default;
+    }
+
+    public static TimeValue Time(TextValue value) {
+      DateTime t;
+      if (DateTime.TryParse(value.Value, out t)) return TimeValue.Create(t);
+      RuntimeError.Fatal("Time", "bad string format");
+      return TimeValue.Default;
+    }
+
+    ///=================================================================
+    ///
+    /// bianry operations
+    /// 
+
+    public static BinaryValue Binary(TypedValue value) {
+      if (value.DataType == DataTypes.Text)
+        return BinaryValue.Default;
+      if (value.DataType == DataTypes.Number) {
+        var size = (int)((NumberValue)value).Value;
+        return BinaryValue.Create(new byte[size]);
+      }
+      RuntimeError.Fatal("Binary", "invalid arg type");
+      return BinaryValue.Default;
+    }
+
+    public static NumberValue BinaryLength(BinaryValue arg1) {
+      return NumberValue.Create(arg1.Value.Length);
+    }
+    
+    public static NumberValue BinaryGet(BinaryValue value, NumberValue index) {
+      if (index.Value < 0 || index.Value > value.Value.Length)
+        RuntimeError.Fatal("Binary get", "index out of range");
+      return NumberValue.Create(value.Value[(int)index.Value]);
+    }
+
+    public static BinaryValue BinarySet(BinaryValue value, NumberValue index, NumberValue newvalue) {
+      if (index.Value < 0 || index.Value > value.Value.Length)
+        RuntimeError.Fatal("Binary set", "index out of range");
+      var b = value.Value.Clone() as byte[];
+      b[(int)index.Value] = (byte)newvalue.Value;
+      return BinaryValue .Create(b);
+    }
+
+    ///=================================================================
+    ///
     /// Text string operations
     /// 
 
@@ -713,6 +793,11 @@ namespace Andl.Runtime {
       return NumberValue.Create(arg1.Value.Length);
     }
 
+    public static TimeValue Now() {
+      var now = DateTime.Now;
+      return TimeValue.Create(now);
+    }
+
     ///=================================================================
     ///
     /// More types
@@ -743,17 +828,17 @@ namespace Andl.Runtime {
       return new DateValue { Value = new DateTime((int)year.Value, (int)month.Value, (int)day.Value) };
     }
 
-    public static TimeValue Time(DateValue arg1) { return TimeValue.Create(arg1.Value); }
+    public static TimeValue TimeD(DateValue arg1) { return TimeValue.Create(arg1.Value); }
     public static NumberValue Year(DateValue arg1) { return NumberValue.Create(arg1.Value.Year); }
     public static NumberValue Month(DateValue arg1) { return NumberValue.Create(arg1.Value.Month); }
     public static NumberValue Day(DateValue arg1) { return NumberValue.Create(arg1.Value.Day); }
 
-    public static NumberValue DayOfWeek(DateValue arg1) { 
-      return NumberValue.Create((int)arg1.Value.DayOfWeek); 
+    public static NumberValue DayOfWeek(DateValue arg1) {
+      return NumberValue.Create((int)arg1.Value.DayOfWeek);
     }
 
-    public static NumberValue DaysDifference(DateValue arg1, DateValue arg2) { 
-      return NumberValue.Create((int)arg1.Value.Subtract(arg2.Value).TotalDays); 
+    public static NumberValue DaysDifference(DateValue arg1, DateValue arg2) {
+      return NumberValue.Create((int)arg1.Value.Subtract(arg2.Value).TotalDays);
     }
   }
 }

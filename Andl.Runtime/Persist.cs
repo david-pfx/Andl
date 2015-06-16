@@ -60,7 +60,7 @@ namespace Andl.Runtime {
     // Store typed value on file stream
     public void Store(string name, TypedValue value) {
       var path = Path.Combine(_basepath, name + "." + VariableExtension);
-      Logger.WriteLine(2, "Storing {0} type={1}", name, value.DataType.ToString());
+      Logger.WriteLine(3, "Storing {0} type={1}", name, value.DataType.ToString());
       try {
         using (var writer = new BinaryWriter(File.Open(path, FileMode.Create))) {
           var w = PersistWriter.Create(writer);
@@ -203,6 +203,7 @@ namespace Andl.Runtime {
     // Write a typed value bare
     public void Write(TypedValue value) {
       // call specific routine (which will be generic for relation, tuple and user)
+      Logger.Assert(_writerdict.ContainsKey(value.DataType.BaseType), value.DataType.BaseType);
       _writerdict[value.DataType.BaseType](this, value);
     }
 

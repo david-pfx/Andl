@@ -160,7 +160,7 @@ namespace Andl.Compiler {
       do {
         if (ParseUserType(out datatype) || ParseConnect(out datatype)) {
 
-        } else if (ParseDecl(out idsym)) {
+        } else if (ParseDecl(out idsym)) {  //FIX: what does this mean?
 
         } else return ErrExpect("declaration");
       } while (Match(Atoms.SEP));
@@ -268,13 +268,13 @@ namespace Andl.Compiler {
 
       Match(Atoms.LA);
       var joinsym = Take();
-      if (joinsym.JoinKind == JoinOps.NUL) return ErrExpect("joinable operator");
+      if (joinsym.JoinOp == JoinOps.NUL) return ErrExpect("joinable operator");
 
       DataType datatype;
       if (!(ParseExpression(out datatype) && datatype.Equals(varsym.DataType)))
         return ErrSyntax("relational expression with same heading expected");
 
-      _emitter.OutLoad(NumberValue.Create((int)joinsym.JoinKind));
+      _emitter.OutLoad(NumberValue.Create((int)joinsym.JoinOp));
       _emitter.OutCall(SymbolTable.Find(Symbol.UpdateJoin));
       return true;
     }
@@ -314,6 +314,9 @@ namespace Andl.Compiler {
         return false;
       var symbol = Symbol.Mark;
       while (!Error) {
+        // experimental: look past EOL to BINOP
+        if (LookOverEol(1).Kind == SymKinds.BINOP)
+          TakeEol();
         if (Look().Kind == SymKinds.BINOP && (symbol.Atom == Atoms.MARK || symbol.Precedence < Look().Precedence)) {
           _typestack.Push(datatype);
           _symstack.Push(symbol);
@@ -335,11 +338,11 @@ namespace Andl.Compiler {
     //------------------------------------------------------------------
     // Primary :== simp-prim { trn-op|dot-op }
     bool ParsePrimary(out DataType datatype) {
-      if (!ParseSimplePrimary(out datatype) || Error) return Error;
-      while (ParseTransform(ref datatype) 
-          || ParseDot(ref datatype)) {
-        if (Error) return true;
-      }
+      if (!ParseSimplePrimary(out datatype)) return false;
+      while (!Error &&
+        (ParseTransform(ref datatype)
+        || ParseRecurse(ref datatype)
+        || ParseDot(ref datatype))) { }
       return true;
     }
 
@@ -446,6 +449,31 @@ namespace Andl.Compiler {
       return true;
     }
 
+    // Parse a recursive relational expression
+    // TODO: keyword for DEPTH first
+    bool ParseRecurse(ref DataType datatype) {
+      if (!(LookOverEol().Kind == SymKinds.RECURSE)) return false;
+      TakeEol();
+      var funcsym = Take();
+      if (!(datatype is DataTypeRelation)) return ErrSyntax("recurse invalid for type {0}", datatype);
+      if (!Match(Atoms.LP)) return ErrCheck(Atoms.LP);
+      //var opsym = Take();
+      //if (!(opsym.JoinOp == JoinOps.UNION)) return ErrExpect("union");
+      //if (!Match(Atoms.SEP)) return ErrCheck(Atoms.SEP);
+
+      Scope.Push(datatype);
+      ExprInfo expr;
+      if (!(ParseOpenExpression(out expr) && expr.DataType == datatype))
+        return ErrExpect("expression of same type");
+      if (!Match(Atoms.RP)) return ErrCheck(Atoms.RP);
+      Scope.Pop();
+
+      _emitter.OutLoad(NumberValue.Create(0)); // reserved
+      _emitter.OutSeg(expr.Expression());
+      _emitter.OutCall(funcsym);
+      return true;
+    }
+
     //------------------------------------------------------------------
     // Transform, a combo of restrict, rename, project, extend, aggregate, order, group
     // No attempt to optimise here. Leave that to runtime pipelining.
@@ -488,7 +516,7 @@ namespace Andl.Compiler {
     // This is the ONLY place that opens a tuple scope
     bool ParseTransformTail(DataType datatype, out TransformInfo trinfo) {
       trinfo = null;
-      if (!Match(Atoms.LB)) return false;
+      if (!MatchOverEol(Atoms.LB)) return false;
       if (!(datatype is DataTypeRelation)) return ErrSyntax("type {0} cannot have transform", datatype);
       // === open a new scope
       Scope.Push(datatype);
@@ -630,7 +658,7 @@ namespace Andl.Compiler {
     // Handles functions with exactly one argument
     // Value of type datatype already on stack
     bool ParseDot(ref DataType datatype) {
-      if (!Match(Atoms.DOT)) return false;
+      if (!MatchOverEol(Atoms.DOT)) return false;
       var funsym = Take();
       if (funsym.IsDefFunc) {
         _emitter.OutName(Opcodes.LDCATR, funsym);
@@ -889,7 +917,7 @@ namespace Andl.Compiler {
         return true;
       if (!Match(Atoms.RC)) return ErrCheck(Atoms.RC);
 
-      var ebs = (all) ? MakeProject(Scope.Current.Heading) 
+      var ebs = (all) ? MakeProject(Scope.Current.Heading ?? DataHeading.Empty) 
                       : attrs.Select(a => a.Expression());
       var newcols = ebs.Select(e => e.MakeDataColumn());
       var dups = newcols.GroupBy(c => c.Name).Where(g => g.Count() > 1).Select(g => g.Key).ToArray();
@@ -1114,7 +1142,7 @@ namespace Andl.Compiler {
       Match(Atoms.COLON);
       var symbol = Take();
 
-      if (!Match(Atoms.LP)) return ErrCheck(Atoms.RP);
+      if (!Match(Atoms.LP)) return ErrCheck(Atoms.LP);
       var source = TextValue.Default;
       if (Look().Kind == SymKinds.SOURCE) {
         source = Take().Value as TextValue;
@@ -1356,6 +1384,12 @@ namespace Andl.Compiler {
     bool Match() {
       _lexer.Next();
       return true;
+    }
+
+    bool MatchOverEol(Atoms atom) {
+      if (atom != LookOverEol().Atom) return false;
+      TakeEol();
+      return Match(atom);
     }
 
     bool Match(Atoms atom) {

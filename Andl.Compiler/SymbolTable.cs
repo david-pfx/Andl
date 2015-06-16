@@ -60,6 +60,7 @@ namespace Andl.Compiler {
     COMPONENT,  // for UDT
     SOURCE,
     DB,
+    RECURSE,
   }
 
   /// <summary>
@@ -141,13 +142,15 @@ namespace Andl.Compiler {
     public CallInfo CallInfo { get; set; }
     public TypedValue Seed { get; set; }
     public FoldSeeds FoldSeed { get; set; }
-    public MergeOps MergeOp { get; set; }
-    public JoinOps JoinKind { get; set; }
+    //public MergeOps MergeOp { get; set; }
+    public JoinOps JoinOp { get; set; }
     public CallKinds CallKind { get; set; }
     public FoldableFlags Foldable { get; set; }
     public Symbol Link { get; set; }
     public Symbol[] ArgList { get; set; }
     public int Level { get; set; }
+
+    public MergeOps MergeOp { get { return (MergeOps)(JoinOp & JoinOps.MERGEOPS); } }
     
     public static Symbol None = new Symbol() { Atom = Atoms.NUL, Name = "" };
     public static Symbol Mark = new Symbol() { Atom = Atoms.MARK };
@@ -450,6 +453,7 @@ namespace Andl.Compiler {
       AddFunction("fold", Atoms.IDENT, 0, DataTypes.Unknown, CallKinds.FUNC, "Fold", SymKinds.FOLD);
       AddFunction("cfold", Atoms.IDENT, 2, DataTypes.Unknown, CallKinds.FUNC, "CumFold", SymKinds.FOLD);
       AddFunction("if", Atoms.IDENT, 3, DataTypes.Unknown, CallKinds.FUNC, "If", SymKinds.IF);
+      AddFunction("recurse", Atoms.IDENT, 2, DataTypes.Unknown, CallKinds.FUNC, "Recurse", SymKinds.RECURSE);
 
       AddFunction("ord", Atoms.IDENT, 0, DataTypes.Number, CallKinds.LFUNC, "Ordinal");
       AddFunction("ordg", Atoms.IDENT, 0, DataTypes.Number, CallKinds.LFUNC, "OrdinalGroup");
@@ -559,8 +563,7 @@ namespace Andl.Compiler {
         CallKind = CallKinds.JFUNC,
         NumArgs = numargs,
         Precedence = precedence,
-        JoinKind = joinop,
-        MergeOp = (MergeOps)(joinop & JoinOps.MERGEOPS),
+        JoinOp = joinop,
         DataType = DataTypes.Unknown,
         CallInfo = CallInfo.Get(method),
         Foldable = (joinop.HasFlag(JoinOps.LEFT) == joinop.HasFlag(JoinOps.RIGHT)) ? FoldableFlags.ANY : FoldableFlags.NUL,

@@ -569,8 +569,9 @@ namespace Andl.Runtime {
         var oldrow = _rows[ord];
         oldrow.OrderedIndex = ordidx;     // so row functions can access it
         //FIX: find a nicer way to test if this is the start of a new group
-        var prevord = ordidx.Offset(oldrow, 1, OffsetModes.Lag);
-        if (prevord == -1)
+        //var prevord = ordidx.Offset(oldrow, 1, OffsetModes.Lag);
+        //if (prevord == -1)
+        if (ordidx.IsBreak)
           accblk = AccumulatorBlock.Create(numacc);
         DataRow newrow = oldrow.TransformAggregate(newheading, accblk, exprs);
         newtable.AddRaw(newrow);
@@ -578,6 +579,25 @@ namespace Andl.Runtime {
       Logger.WriteLine(4, "[{0}]", newtable);
       return newtable;
     }
+
+    // Recursive expansion
+    // Creates new empty table, add seed, join op (only union for now) and expression
+    public override DataTable Recurse(int flags, ExpressionBlock expr) {
+      Logger.WriteLine(4, "Recurse {0} {1}", flags, expr);
+      Logger.Assert(expr.DataType == DataType);
+
+      var newtable = DataTableLocal.Create(Heading);
+      foreach (var row in _rows)
+        AddRaw(row);
+
+      for (var ord = 0; ord < _rows.Count; ++ord) {
+        var newrows = expr.EvalOpen(_rows[ord]).AsTable();
+        foreach (var row in newrows.GetRows())
+          AddRow(row);
+      }
+      return this;
+    }
+
 
     ///=================================================================
     ///
@@ -782,5 +802,6 @@ namespace Andl.Runtime {
       Logger.WriteLine(4, "[UpSelect={0}]", this);
       return this;
     }
+
   }
 }

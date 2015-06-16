@@ -41,6 +41,7 @@ namespace Andl.Runtime {
     public abstract DataTable Transform(DataHeading newheading, ExpressionBlock[] exprs);
     public abstract DataTable TransformAggregate(DataHeading newheading, ExpressionBlock[] exprs);
     public abstract DataTable TransformOrdered(DataHeading newheading, ExpressionBlock[] exprs, ExpressionBlock[] orderexps);
+    public abstract DataTable Recurse(int flags, ExpressionBlock expr);
     public abstract DataTable DyadicJoin(DataTable other, JoinOps joinops, DataHeading newheading);
     public abstract DataTable DyadicAntijoin(DataTable other, JoinOps joinops, DataHeading newheading);
     public abstract DataTable DyadicSet(DataTable other, JoinOps joinops, DataHeading newheading);

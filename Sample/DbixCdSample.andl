@@ -6,53 +6,53 @@ cd      := {{ cdid:0, artistid:0, title:'', year:0 }}
 track   := {{ trackid:0, cdid:0, title:'' }}
 
 // some data in temporary relvars, with auto-generated ordinals
-artist_data := {
-  { name := 'Michael Jackson'}, 
-  { name := 'Eminem' }
+$artist_data := {{name:''}
+  ( 'Michael Jackson' ), 
+  ( 'Eminem' ),
 } [{ *artistid := ord() }]
 
-cd_data := {
-  { title := 'Thriller', name := 'Michael Jackson' },
-  { title := 'Bad', name := 'Michael Jackson' },
-  { title := 'The Marshall Mathers LP', name := 'Eminem' }
+$cd_data := {{ title:'', name:'' }
+  ( 'Thriller',                'Michael Jackson' ),
+  ( 'Bad',                     'Michael Jackson' ),
+  ( 'The Marshall Mathers LP', 'Eminem' ),
 } [{ *cdid := ord() }]
 
-track_data := {
-   { title := 'Beat It'         , cd := 'Thriller' },
-   { title := 'Billie Jean'     , cd := 'Thriller' },
-   { title := 'Dirty Diana'     , cd := 'Bad' },
-   { title := 'Smooth Criminal' , cd := 'Bad' },
-   { title := 'Leave Me Alone'  , cd := 'Bad' },
-   { title := 'Stan'            , cd := 'The Marshall Mathers LP' },
-   { title := 'The Way I Am'    , cd := 'The Marshall Mathers LP' }
+$track_data := {{ title:'', cd:'' }
+   ( 'Beat It'         , 'Thriller' ),
+   ( 'Billie Jean'     , 'Thriller' ),
+   ( 'Dirty Diana'     , 'Bad' ),
+   ( 'Smooth Criminal' , 'Bad' ),
+   ( 'Leave Me Alone'  , 'Bad' ),
+   ( 'Stan'            , 'The Marshall Mathers LP' ),
+   ( 'The Way I Am'    , 'The Marshall Mathers LP' ),
  } [{ *trackid := ord() }]
 
 // update the database relvars
-artist := union artist_data
-cd := union (cd_data join artist)[{ title, cdid, artistid,year:=0}]
-track := union (track_data join cd[{ *cd := title }]) [{ trackid, title, cdid }]
+artist := union $artist_data
+cd := union ($cd_data join artist) [{ title, cdid, artistid, year:=0}]
+track := union ($track_data join cd [{ *cd := title }]) [{ trackid, title, cdid }]
 
 // functions to answer various queries
-get_tracks_by_cd(t) => cd[ ?(title = t) {*title} ] join track
-get_tracks_by_artist(a) => (artist[ ?(name = a) {*name}] join cd) [{cdid}] join track
-get_cd_by_track(t) => track [ ?(title = t) {cdid} ] join cd
-get_cds_by_artist(a) => artist [?(name = a) {artistid} ] join cd
-get_artist_by_track(t) => (track [?(title = t) { cdid }] join cd) [{artistid}] join artist
-get_artist_by_cd(t) => (cd [?(title = t) { cdid }] join cd) [{artistid}] join artist
+get_tracks_by_cd(t) => cd[ ?(title = t) { *title } ] join track
+get_tracks_by_artist(a) => (artist[ ?(name = a) { *name }] join cd) [{ cdid }] join track
+get_cd_by_track(t) => track [ ?(title = t) { cdid } ] join cd
+get_cds_by_artist(a) => artist [?(name = a) { artistid } ] join cd
+get_artist_by_track(t) => (track [?(title = t) { cdid }] join cd) [{ artistid }] join artist
+get_artist_by_cd(t) => (cd [?(title = t) { cdid }] join cd) [{ artistid }] join artist
 
 // first show the raw data
 
 crlf := h'd a'
 output := crlf & "=== Sample data ===" & crlf
-output := artist
-output := crlf
-output := cd
-output := crlf
-output := track
+output := artist.pp
+output := crlf.pp
+output := cd.pp
+output := crlf.pp
+output := track.pp
 
 // now do the queries
 
-show(title, data:{{str:''}}) => do {
+show(title, data:{{ str:'' }}) => do {
     output := title & crlf & data[ {fold(&, "  " & str & crlf)} ]
 }
 

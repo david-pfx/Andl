@@ -441,5 +441,9 @@ namespace Andl.Runtime {
       }
       return this;
     }
+
+    public override DataTable Recurse(int flags, ExpressionBlock expr) {
+      throw new NotImplementedException();
+    }
   }
 }

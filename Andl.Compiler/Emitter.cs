@@ -75,7 +75,7 @@ namespace Andl.Compiler {
         OutCall(Opcodes.CALLVT, ci.Name, ci.NumArgs, varargs);
         break;
       case CallKinds.JFUNC:
-        OutLoad(NumberValue.Create((int)symbol.JoinKind));
+        OutLoad(NumberValue.Create((int)symbol.JoinOp));
         OutCall(Opcodes.CALL, ci.Name, ci.NumArgs, varargs);
         break;
       case CallKinds.LFUNC:
