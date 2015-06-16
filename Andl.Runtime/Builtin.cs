@@ -72,6 +72,10 @@ namespace Andl.Runtime {
 
     public static AddinInfo[] GetAddinInfo() {
       var addins = new List<AddinInfo>();
+      addins.Add(AddinInfo.Create("read", 1, DataTypes.Text, "Read"));
+      addins.Add(AddinInfo.Create("write", 1, DataTypes.Void, "Write"));
+      addins.Add(AddinInfo.Create("pause", 1, DataTypes.Void, "Pause"));
+
       addins.Add(AddinInfo.Create("type", 1, DataTypes.Text, "Type"));
 
       addins.Add(AddinInfo.Create("binary", 1, DataTypes.Binary, "Binary"));
@@ -111,9 +115,7 @@ namespace Andl.Runtime {
       addins.Add(AddinInfo.Create("degree", 1, DataTypes.Number, "Degree"));
       addins.Add(AddinInfo.Create("schema", 1, DataTypeRelation.Get(DataHeading.Create("Name", "Type")), "Schema"));
       addins.Add(AddinInfo.Create("seq", 1, DataTypeRelation.Get(DataHeading.Create("N:number")), "Sequence"));
-      addins.Add(AddinInfo.Create("read", 2, DataTypeRelation.Get(DataHeading.Create("Line:text")), "Read"));
 
-      addins.Add(AddinInfo.Create("pause", 1, DataTypes.Void, "Pause"));
       return addins.ToArray();
     }
   }
@@ -141,9 +143,7 @@ namespace Andl.Runtime {
         Catalog.SetValue(name, exprarg);
       } else {
         var value = exprarg.Value.Evaluate();
-        if (name == "output")
-          Console.WriteLine(value.ToString());
-        else Catalog.SetValue(name, value);
+        Catalog.SetValue(name, value);
       }
       Logger.WriteLine(3, "[Ass]");
       return VoidValue.Default;
@@ -182,22 +182,6 @@ namespace Andl.Runtime {
       return ret;
     }
 
-    // Obtain a relation value by reading a text file
-    public static RelationValue Read(TextValue arg1, TextValue arg2) {
-      var source = DataSourceStream.Create("txt", arg1.Value);
-      var rel = source.Input(arg2.Value, false);
-      if (rel == null) RuntimeError.Fatal("Builtin Read", "cannot open {0}", arg2.Value);
-      return RelationValue.Create(rel);
-    }
-
-    // Connect to a known persisted relvar, and make entry in catalog
-    public static VoidValue Connect(TextValue namearg, TextValue sourcearg, HeadingValue heading) {
-      if (!Catalog.LinkRelvar(namearg.Value, sourcearg.Value, heading.Value))
-        RuntimeError.Fatal("cannot connect: {0}", namearg.Value);
-      return VoidValue.Default;
-      //return RelationValue.Create(rel);
-    }
-
     // Create a row by evaluating named expressions against a heading
     // TODO:no heading
     public static TupleValue Row(TypedValue hdgarg, params CodeValue[] exprargs) {
@@ -222,6 +206,13 @@ namespace Andl.Runtime {
     public static UserValue UserSelector(TextValue typename, TypedValue[] valargs) {
       var usertype = DataTypeUser.Find(typename.Value);
       return usertype.CreateValue(valargs);
+    }
+
+    // Connect to a known persisted relvar, and make entry in catalog
+    public static VoidValue Connect(TextValue namearg, TextValue sourcearg, HeadingValue heading) {
+      if (!Catalog.LinkRelvar(namearg.Value, sourcearg.Value, heading.Value))
+        RuntimeError.Fatal("cannot connect: {0}", namearg.Value);
+      return VoidValue.Default;
     }
 
     ///=================================================================
@@ -594,16 +585,6 @@ namespace Andl.Runtime {
     /// Add-in functions
     /// 
 
-    // optional pause
-    public static VoidValue Pause(TextValue value) {
-      if (Catalog.InteractiveFlag) {
-        if (value.Value.Length > 0)
-          Console.WriteLine(value.Value);
-        Console.ReadLine();
-      }
-      return VoidValue.Default;
-    }
-
     // basic string
     public static TextValue Text(TypedValue value) {
       return TextValue.Create(value.ToString());
@@ -796,6 +777,32 @@ namespace Andl.Runtime {
     public static TimeValue Now() {
       var now = DateTime.Now;
       return TimeValue.Create(now);
+    }
+
+    ///=================================================================
+    /// Sequential IO
+    /// 
+
+    // Write a text value to the console
+    public static VoidValue Write(TextValue line) {
+      Console.WriteLine(line.Value);
+      return VoidValue.Default;
+    }
+
+    // Obtain a text value by reading from the console
+    public static TextValue Read() {
+      var input = Console.ReadLine();
+      return TextValue.Create(input);
+    }
+
+    // optional pause (only when interactive)
+    public static VoidValue Pause(TextValue value) {
+      if (Catalog.InteractiveFlag) {
+        if (value.Value.Length > 0)
+          Console.WriteLine(value.Value);
+        Console.ReadLine();
+      }
+      return VoidValue.Default;
     }
 
     ///=================================================================

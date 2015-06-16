@@ -1,0 +1,39 @@
+// recursive.andl
+
+{{ z:=0 }} recurse( {{z:=z+1}} [?(z<10)] )
+
+{{ x:= 1 }} recurse( {{ x:=x*2 }} [?(x<=5000000000)] )
+
+def orgchart:db(csv)
+orgchart
+ua := {{ name:= 'Alice', level := 0 }} recurse( {{ boss := name, level := level+1 }} compose orgchart)
+ua
+ua [{ t:=fill('.', level*3) & name }]
+
+//{{ name:= 'Alice', level := 0 }} recurse(
+//    ({{ boss := name, level := level+1 }} compose orgchart)[$(-level)]
+//    )
+
+def family_tree:db(csv)
+family_tree
+
+family_tree [ ?(id=1) { id, firstname, lastname, level:=0 }] 
+    recurse( {{ father_id:=id, level:=level+1 }} compose family_tree[{id, firstname, lastname,father_id}] )
+
+def MM:db(csv)
+MM
+MM recurse( {{ z:=MAJOR_P#, MINOR_P# }} compose MM[{ MAJOR_P#, z:=MINOR_P# }] )
+MM recurse( {{ MAJOR_P#, z:=MINOR_P# }} compose MM[{ z:=MAJOR_P#, MINOR_P# }] )
+//{{ MAJOR_P#:'',MINOR_P#:'' }} recurse( {{ z:=MAJOR_P#, MINOR_P# }})
+
+//WITH RECURSIVE
+//  under_alice(name,level) AS (
+//    VALUES('Alice',0)
+//    UNION ALL
+//    SELECT org.name, under_alice.level+1
+//      FROM org JOIN under_alice ON org.boss=under_alice.name
+//     ORDER BY 2
+//  )
+//SELECT substr('..........',1,level*3) || name FROM under_alice;
+
+#stop

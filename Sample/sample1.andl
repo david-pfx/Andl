@@ -91,19 +91,15 @@ wait
 v1 := 'Hello World!'
 v1
 
-// Assignment to output sends direct to standard output (console)
-output := v1
+// Send text to standard output (console)
+write(v1)
 
-// Input reads a line of text from the standard input (console)
+// Read a line of text from the standard input (console)
 // Uncomment this to see it work
-//vin := input
+//vin := read()
 //output := 'You typed <' & vin & '>'
 
 // read a file as a relation of lines of text {{ Line:text }}
-read('.', 'test.txt')
-
-// or in updateable form:
-
 def test:db(txt)
 test
 

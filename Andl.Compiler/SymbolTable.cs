@@ -52,7 +52,6 @@ namespace Andl.Compiler {
     FUNC,       // callable function with args
     FOLD,       // special function
     IF,         // special function
-    DEVICE,     // special function
     WITH,       // special function
     VALUE,      // special function
     RANK,       // special function
@@ -315,7 +314,7 @@ namespace Andl.Compiler {
         var value = entry.Value;
         var datatype = (value.DataType == DataTypes.Code) ? (value as CodeValue).Value.DataType : value.DataType;
         if (_catalogscope.Find(entry.Name) == null)
-          Logger.WriteLine(2, "From catalog add {0}:{1}", entry.Name, datatype.BaseType.Name);
+          Logger.WriteLine(3, "From catalog add {0}:{1}", entry.Name, datatype.BaseType.Name);
         if (entry.Kind == EntryKinds.Type)
           _catalogscope.Add(Create(entry.Name, datatype as DataTypeUser));
         else _catalogscope.Add(new Symbol {
@@ -392,8 +391,6 @@ namespace Andl.Compiler {
 
       AddLiteral("true", BoolValue.True, DataTypes.Bool);
       AddLiteral("false", BoolValue.False, DataTypes.Bool);
-      AddIdent("output", SymKinds.DEVICE, TextValue.Create("output"), DataTypes.Text);
-      AddIdent("input", SymKinds.DEVICE, TextValue.Create("input"), DataTypes.Text);
       AddIdent("csv", SymKinds.SOURCE, TextValue.Create("csv"), DataTypes.Text);
       AddIdent("txt", SymKinds.SOURCE, TextValue.Create("txt"), DataTypes.Text);
       AddIdent("sql", SymKinds.SOURCE, TextValue.Create("sql"), DataTypes.Text);

@@ -109,14 +109,11 @@ namespace Andl.Compiler {
         var marker = _emitter.GetMarker();
         var datatype = DataTypes.Void;
         var result = ParseStatement(out datatype);
-        //if (!result) ErrSyntax("unrecognised statement");
 
         // wrap return value so it will print out
         if (result && datatype != DataTypes.Void) {
           _emitter.OutCall(SymbolTable.Find("pp"));
-          var eb = ExpressionBlock.Create("output", ExpressionKinds.Closed, _emitter.GetSeg(marker), DataTypes.Text);
-          _emitter.OutLoad(CodeValue.Create(eb));
-          _emitter.OutCall(SymbolTable.Find(Symbol.Assign));
+          _emitter.OutCall(SymbolTable.Find("write"));
         }
         var code = _emitter.GetSeg(marker, true);
         if (Logger.Level >= 3)
@@ -183,8 +180,9 @@ namespace Andl.Compiler {
         return ErrSyntax("already defined: {0}", expr.Sym.Name);
       } else {
         expr.Sym.DataType = expr.DataType;
-        if (expr.Sym.Kind != SymKinds.DEVICE)
-          SymbolTable.DefineVar(expr.Sym);
+        SymbolTable.DefineVar(expr.Sym);
+        //if (expr.Sym.Kind != SymKinds.DEVICE)
+        //  SymbolTable.DefineVar(expr.Sym);
       }
       EmitAssignableValue(expr.Sym, expr);
       _emitter.OutCall(SymbolTable.Find(Symbol.Assign));
@@ -382,7 +380,6 @@ namespace Andl.Compiler {
         return true;
       case SymKinds.FIELD:
       case SymKinds.CATVAR:
-      case SymKinds.DEVICE:
       case SymKinds.PARAM:
         if (symbol.IsField) Scope.Current.LookupItems.Add(DataColumn.Create(symbol.Name, symbol.DataType));
         _emitter.OutName(symbol.IsLookup ? Opcodes.LDFIELD : Opcodes.LDCAT, symbol);

@@ -359,10 +359,6 @@ namespace Andl.Runtime {
 
     // Get the value of a variable
     public static TypedValue GetValue(string name) {
-      if (name == "input") {
-        var line = Console.ReadLine();
-        return TypedValue.Create(line);
-      }
       var ret = Builtin.Catalog.GetValue(name);
       Logger.Assert(ret != null, name);
       return ret;
