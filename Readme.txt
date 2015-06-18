@@ -21,9 +21,6 @@ Go to the Sample folder in a command prompt and run the following commands.
     C>run sample4.andl
     C>run sample5.andl
 
-Or just run the batch file:
-    C>runsamples
-
 NOW DO THIS
 
 This version of Andl can use Sqlite. If you don't already have it somewhere 
