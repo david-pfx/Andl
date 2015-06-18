@@ -1,0 +1,60 @@
+﻿// sudoku-logic.andl -- sudoku solver logic only, no guessing
+// 
+
+// fixed data structures
+digits := {{ sdigit:= '1', ndigit := 1}} recurse( {{ sdigit:=text(ndigit+1), ndigit:=ndigit+1 }} [?(ndigit <= 9)] )
+digitsx := digits union {{ sdigit := '.', ndigit := 0 }}
+units := {{ index := 0, row := 0, col := 0, box := 0 }} recurse( 
+        {{ index := index + 1, 
+          row := (index + 1) div 9, 
+          col := (index + 1) mod 9, 
+          box := (index + 1) div 3 mod 3 + (index + 1) div 27 * 3 }} [?(index <= 80)] )
+poss := units [{ index }] join digits [{ ndigit }]
+possu := units join digits [{ ndigit }]
+
+// useful functions
+showb(t:text) => do {
+    seq(11)[{ N, line:= 
+        if(N mod 4 = 3, 
+           fill('-', 9), 
+           right(left(t, 9 + (N - N div 4) * 9), 9))}]
+}
+
+// Show a set of knowns. First fill out all index values, then convert to text
+showunk(k:poss) => do {
+    t := (k union (units ajoin k)[{ index, ndigit := 0}]) join digitsx[{ ndigit, sdigit }]
+    showb(t [$(index)][{ fold(&, sdigit) }])
+}
+
+// original raw data
+inp := {{ sud := '53..7....6..195....98....6.8...6...34..8.3..17...2...6.6....28....419..5....8..79' }}
+//inp := {{ sud := '1....7.9..3..2...8..96..5....53..9...1..8...26....4...3......1..4......7..7...3..' }}
+inp
+board := ((units join inp) [{ * sud, sdigit := right(left(sud, index + 1), 1) }] compose digitsx) [{ index, ndigit }]
+knowns := board [?( ndigit <> 0)]
+'Knowns=' & knowns.count
+showunk(knowns)
+
+// algorithm
+// The solver, recurses as long as it can make progress. After this need to guess.
+solution := knowns recurse( 
+    do {
+        // start with the 729 possiblities, progressively remove conflicts with knowns
+        knownsu := knowns join units
+        allowedu := possu ajoin knownsu[{ index }]
+                    ajoin knownsu[{ row, ndigit }]
+                    ajoin knownsu[{ col, ndigit }]
+                    ajoin knownsu[{ box, ndigit }]
+
+        // algorithm 1 - a cell with only one possible digit must be that digit
+        new1 := allowedu [{ index, tot:=fold(+,1) }] [?(tot=1)] join allowedu
+
+        // algorithm 2 - a digit with only one place in a unit must go there
+        new2a := allowedu [{ ndigit, row, tot:=fold(+,1) }] [?(tot=1)] join allowedu
+        new2b := allowedu [{ ndigit, col, tot:=fold(+,1) }] [?(tot=1)] join allowedu
+        new2c := allowedu [{ ndigit, box, tot:=fold(+,1) }] [?(tot=1)] join allowedu
+
+        new1[{ index, ndigit }] union new2a union new2b union new2c
+    }
+)
+showunk(solution)

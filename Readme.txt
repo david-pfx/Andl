@@ -21,6 +21,9 @@ Go to the Sample folder in a command prompt and run the following commands.
     C>run sample4.andl
     C>run sample5.andl
 
+Or just run the batch file:
+    C>runsamples
+
 NOW DO THIS
 
 This version of Andl can use Sqlite. If you don't already have it somewhere 
@@ -56,6 +59,9 @@ Also take a look at:
     C>run DbixCdSample.andl
     C>run family_tree.andl
     C>run SPPsample1.andl
+    C>run recursive.andl
+    C>run mandelbrot.andl
+    C>run sudoku-orig.andl
 
 BUILDING ANDL
 
