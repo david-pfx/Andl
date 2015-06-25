@@ -86,28 +86,29 @@ namespace Andl.Runtime {
       CodeArray = DataType.Create("code[]", typeof(CodeValue[]));
       ValueArray = DataType.Create("value[]", typeof(TypedValue[]));
       Void = DataType.Create("void", typeof(VoidValue));
-      Code = DataType.Create("code", typeof(CodeValue), 
+      Code = DataType.Create("code", typeof(CodeValue), null, 
         v => CodeValue.Create((ExpressionBlock)v), () => CodeValue.Default);
-      Bool = DataType.Create("bool", typeof(BoolValue), 
+      Bool = DataType.Create("bool", typeof(BoolValue), typeof(bool),
         v => BoolValue.Create((bool)v), () => BoolValue.Default, TypeFlags.Variable);
-      Binary = DataType.Create("binary", typeof(BinaryValue), 
+      Binary = DataType.Create("binary", typeof(BinaryValue), typeof(byte[]),
         v => null, () => BinaryValue.Default, TypeFlags.Variable);
-      Pointer = DataType.Create("reference", typeof(PointerValue),
+      Pointer = DataType.Create("reference", typeof(PointerValue), typeof(IntPtr),
         v => null, () => PointerValue.Default, TypeFlags.Variable);
-      Number = DataType.Create("number", typeof(NumberValue), 
+      Number = DataType.Create("number", typeof(NumberValue), typeof(decimal),
         v => NumberValue.Create((decimal)v), () => NumberValue.Default, TypeFlags.Ordered | TypeFlags.Ordinal | TypeFlags.Variable);
-      Time = DataType.Create("time", typeof(TimeValue), 
+      Time = DataType.Create("time", typeof(TimeValue), typeof(DateTime),
         v => TimeValue.Create((DateTime)v), () => TimeValue.Default, TypeFlags.Ordered | TypeFlags.Ordinal | TypeFlags.Variable);
-      Text = DataType.Create("text", typeof(TextValue), 
+      Text = DataType.Create("text", typeof(TextValue), typeof(string),
         v => TextValue.Create((string)v), () => TextValue.Default, TypeFlags.Ordered | TypeFlags.Variable);
-      Heading = DataType.Create("heading", typeof(HeadingValue), 
+      Heading = DataType.Create("heading", typeof(HeadingValue), null,
         v => HeadingValue.Create((DataHeading)v), () => HeadingValue.Default, TypeFlags.HasHeading);
       // specials -- actually subtypes, one created here, more by user code
-      Row = DataType.Create("tuple", typeof(TupleValue),
+      // defaults will be overwritten for generated types
+      Row = DataType.Create("tuple", typeof(TupleValue), null,
         v => TupleValue.Create((DataRow)v), () => TupleValue.Default, TypeFlags.HasHeading);
-      Table = DataType.Create("relation", typeof(RelationValue),
+      Table = DataType.Create("relation", typeof(RelationValue), null,
         v => RelationValue.Create((DataTable)v), () => RelationValue.Default, TypeFlags.HasHeading);
-      User = DataType.Create("user", typeof(UserValue),
+      User = DataType.Create("user", typeof(UserValue), null,
         v => UserValue.Create((TypedValue)v), () => UserValue.Default, TypeFlags.HasHeading | TypeFlags.HasName);
       Default = Text;
     }
@@ -133,11 +134,21 @@ namespace Andl.Runtime {
   /// </summary>
   public class DataType : IDataType {
     public string Name { get; protected set; }
+    public TypeFlags Flags { get; protected set; }
+    // return heading if it has one
+    public virtual DataHeading Heading { get; protected set; }
+    // Return default value for the type. Overridden in generated types
+    public virtual TypedValue Default() {
+      return _defaulter();
+    }
+
+    // type object that can hold a value of this type directly, for serialisation
+    public Type NativeType { get; protected set; }
+
+    // private
     protected ConvertDelegate _converter;
     protected DefaultDelegate _defaulter;
     protected IsSubclassDelegate _issubclass;
-    public virtual DataHeading Heading { get; protected set; }
-    public TypeFlags Flags { get; protected set; }
 
     public bool IsOrdered { get { return Flags.HasFlag(TypeFlags.Ordered); } }
     public bool IsOrdinal { get { return Flags.HasFlag(TypeFlags.Ordinal); } }
@@ -159,26 +170,27 @@ namespace Andl.Runtime {
     }
 
     // Create minimal type and add to dictionary
-    public static DataType Create(string name, Type type) {
-      return Create(name, type, null, null);
+    public static DataType Create(string name, Type valuetype) {
+      return Create(name, valuetype, null, null, null);
     }
 
     // Create type and add to dictionary
-    public static DataType Create(string name, Type type, ConvertDelegate converter, DefaultDelegate defaulter, TypeFlags flags = TypeFlags.None) {
-      return Create(name, type, converter, defaulter, x => false, flags);
+    public static DataType Create(string name, Type valuetype, Type nativetype, ConvertDelegate converter, DefaultDelegate defaulter, TypeFlags flags = TypeFlags.None) {
+      return Create(name, valuetype, nativetype, converter, defaulter, x => false, flags);
     }
 
     // Create type and add to dictionary
-    public static DataType Create(string name, Type type, ConvertDelegate converter, DefaultDelegate defaulter, IsSubclassDelegate issubclass, TypeFlags flags = TypeFlags.None) {
+    public static DataType Create(string name, Type valuetype, Type nativetype, ConvertDelegate converter, DefaultDelegate defaulter, IsSubclassDelegate issubclass, TypeFlags flags = TypeFlags.None) {
       var dt = new DataType {
         Name = name,
         _converter = converter,
         _defaulter = defaulter,
         _issubclass = issubclass,
+        NativeType = nativetype,
         Flags = flags,
       };
       DataTypes.Dict[name] = dt;
-      if (type != null) DataTypes.TypeDict[type] = dt;
+      if (valuetype != null) DataTypes.TypeDict[valuetype] = dt;
       return dt;
     }
 
@@ -186,12 +198,12 @@ namespace Andl.Runtime {
       return _converter(value);
     }
 
-    // Return default value for the type. 
-    // Null is probably safer than dying here.
-    // BUG: only returns default value for base type
-    public TypedValue Default() {
-      return _defaulter == null ? null : _defaulter();
-    }
+    //// Return default value for the type. 
+    //// Null is probably safer than dying here.
+    //// BUG: only returns default value for base type
+    //public TypedValue Default() {
+    //  return _defaulter == null ? null : _defaulter();
+    //}
 
     // Override this and return true as needed
     public bool IsSubtype(IDataType other) {
@@ -200,6 +212,10 @@ namespace Andl.Runtime {
 
     // return base type
     public virtual DataType BaseType { get { return this; } }
+
+    // Base name plus Subtype name is guaranteed unique
+    public string BaseName { get { return BaseType.Name; } }
+    public virtual string SubtypeName { get { return null; } }
 
     // Is other a type match where this is what is needed?
     public bool IsTypeMatch(DataType other) {
@@ -226,6 +242,13 @@ namespace Andl.Runtime {
       return basetype;
     }
 
+    public static TypedValue[] MakeDefaultValues(DataHeading heading) {
+      var values = new TypedValue[heading.Degree];
+      for (var x = 0; x < values.Length; ++x)
+        values[x] = heading.Columns[x].DataType.Default();
+      return values;
+    }
+
   }
 
   //////////////////////////////////////////////////////////////////////
@@ -234,7 +257,10 @@ namespace Andl.Runtime {
   /// </summary>
   public class DataTypeTuple : DataType {
     public override DataHeading Heading { get; protected set; }
+    public int Ordinal { get; private set; }
+
     static Dictionary<DataHeading, DataTypeTuple> _headings = new Dictionary<DataHeading, DataTypeTuple>();
+    TupleValue _default;
 
     public override bool Equals(object obj) {
       return obj is DataTypeTuple && (obj as DataTypeTuple).Heading.Equals(Heading);
@@ -250,6 +276,18 @@ namespace Andl.Runtime {
 
     public override DataType BaseType { get { return DataTypes.Row; } }
 
+    public override string SubtypeName {
+      get {
+        return "{" + Ordinal.ToString() + "}";
+      }
+    }
+
+    public override TypedValue Default() {
+      if (_default == null)
+        _default = TupleValue.Create(DataRow.Create(Heading, MakeDefaultValues(Heading)));
+      return _default;
+    }
+
     // Create a new relation type for a particular heading
     // Called once for the generic, then once for each specific
     public static DataTypeTuple Create(string name, DataHeading heading, TypeFlags flags, ConvertDelegate converter = null, DefaultDelegate defaulter = null) {
@@ -257,7 +295,7 @@ namespace Andl.Runtime {
         Name = name,
         Heading = heading,
         _converter = converter ?? (v => TupleValue.Create((DataTable)v)),
-        _defaulter = defaulter ?? (() => TupleValue.Default),
+        //_defaulter = defaulter ?? (() => TupleValue.Default), //BUG:xxx
         Flags = flags,
       };
       return dt;
@@ -267,6 +305,8 @@ namespace Andl.Runtime {
     public static DataTypeTuple Get(DataHeading heading) {
       if (_headings.ContainsKey(heading)) return _headings[heading];
       var dt = DataTypeTuple.Create("tuple", heading, TypeFlags.Variable | TypeFlags.Generated);
+      dt.Ordinal = _headings.Count + 1;
+      dt.NativeType = TypeMaker.CreateType(dt);
       _headings[heading] = dt;
       return dt;
     }
@@ -279,7 +319,10 @@ namespace Andl.Runtime {
   /// </summary>
   public class DataTypeRelation : DataType {
     public static DataTypeRelation Empty { get { return Get(DataHeading.Empty);  } }
+    public int Ordinal { get; private set; }
     public override DataHeading Heading { get; protected set; }
+
+    RelationValue _default;
 
     static Dictionary<DataHeading, DataTypeRelation> _headings = new Dictionary<DataHeading, DataTypeRelation>();
 
@@ -297,6 +340,18 @@ namespace Andl.Runtime {
 
     public override DataType BaseType { get { return DataTypes.Table; } }
 
+    public override string SubtypeName {
+      get {
+        return "{{" + Ordinal.ToString() + "}}";
+      }
+    }
+
+    public override TypedValue Default() {
+      if (_default == null)
+        _default = RelationValue.Create(DataTable.Create(Heading));
+      return _default;
+    }
+
     // Create a new relation type for a particular heading
     // Called once for the generic, then once for each specific
     public static DataTypeRelation Create(string name, DataHeading heading, TypeFlags flags, ConvertDelegate converter = null, DefaultDelegate defaulter = null) {
@@ -304,7 +359,7 @@ namespace Andl.Runtime {
         Name = name,
         Heading = heading,
         _converter = converter ?? (v => RelationValue.Create((DataTable)v)),
-        _defaulter = defaulter ?? (() => RelationValue.Default),
+        //_defaulter = defaulter ?? (() => RelationValue.Default), //BUG:xxx
         Flags = flags,
       };
       return dt;
@@ -314,7 +369,10 @@ namespace Andl.Runtime {
     public static DataTypeRelation Get(DataHeading heading) {
       if (_headings.ContainsKey(heading)) return _headings[heading];
       var dt = DataTypeRelation.Create("relation", heading, TypeFlags.Variable | TypeFlags.Generated);
+      dt.Ordinal = _headings.Count + 1;
+      dt.NativeType = TypeMaker.CreateType(dt);
       _headings[heading] = dt;
+      var x = Activator.CreateInstance(dt.NativeType);
       return dt;
     }
 
@@ -328,7 +386,7 @@ namespace Andl.Runtime {
     static Dictionary<string, DataTypeUser> _usertypes = new Dictionary<string, DataTypeUser>();
     UserValue _default;
 
-    public static DataTypeUser Empty { get { return Get("", new DataColumn[0]); } }
+    public static DataTypeUser Empty { get { return Get(":empty", new DataColumn[0]); } }
     public override DataHeading Heading { get; protected set; }
 
 
@@ -346,6 +404,13 @@ namespace Andl.Runtime {
     }
 
     public override DataType BaseType { get { return DataTypes.User; } }
+    public override string SubtypeName { get { return Name; } }
+
+    public override TypedValue Default() {
+      if (_default == null)
+        _default = UserValue.Create(MakeDefaultValues(Heading), this);
+      return _default;
+    }
 
     // Create a new User type for a particular heading
     public static DataTypeUser Create(string name, DataHeading heading, TypeFlags flags, ConvertDelegate converter = null, DefaultDelegate defaulter = null) {
@@ -353,22 +418,23 @@ namespace Andl.Runtime {
         Name = name,
         Heading = heading,
         _converter = converter ?? (v => UserValue.Create((TypedValue[])v)),
-        _defaulter = defaulter ?? (() => UserValue.Default),
+        //_defaulter = defaulter,
         Flags = flags,
       };
+      dt.NativeType = TypeMaker.CreateType(dt);
       return dt;
     }
 
-    // Return default value for the type. 
-    public UserValue GetDefault() {
-      if (_default == null) {
-        var values = new TypedValue[Heading.Degree];
-        for (var x = 0; x < values.Length; ++x)
-          values[x] = Heading.Columns[x].DataType.Default();
-        _default = UserValue.Create(values, this);
-      }
-      return _default;
-    }
+    //// Return default value for the type. 
+    //public UserValue GetDefault() {
+    //  if (_default == null) {
+    //    var values = new TypedValue[Heading.Degree];
+    //    for (var x = 0; x < values.Length; ++x)
+    //      values[x] = Heading.Columns[x].DataType.Default();
+    //    _default = UserValue.Create(values, this);
+    //  }
+    //  return _default;
+    //}
 
     // Create and add, return new type (must not exist)
     public static DataTypeUser Get(string name, DataColumn[] columns) {

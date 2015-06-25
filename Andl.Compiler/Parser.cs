@@ -80,7 +80,8 @@ namespace Andl.Compiler {
       // only when everything is ready -- process initial directives to set flags
       TakeEol();
       Catalog.Start();
-      SymbolTable.Add(Catalog);
+      SymbolTable.Add(Catalog, ScopeLevels.Global);
+      SymbolTable.Add(Catalog, ScopeLevels.Persistent);
       
       // main parser
       if (!ParseMain() || ErrorCount > 0) return ErrorCount == 0;

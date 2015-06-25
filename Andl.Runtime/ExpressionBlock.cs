@@ -60,6 +60,7 @@ namespace Andl.Runtime {
     public string Name { get; private set; }
     public ExpressionKinds Kind { get; private set; }
     public DataType DataType { get; set; }
+    // substitution values: attributes or arg list
     public DataHeading Lookup { get; private set; }
     // previous name for when field is renamed (current is new name)
     public string OldName { get; private set; }
@@ -91,6 +92,8 @@ namespace Andl.Runtime {
     public bool IsValue { get { return Kind == ExpressionKinds.Value; } }
     public bool IsOrder { get { return Kind == ExpressionKinds.Order; } }
 
+    // Unique name for heading used as arguments
+    public string SubtypeName { get { return "(" + Serial + ")"; } }
 
     public static ExpressionBlock Empty {
       get { return Create(":empty", ExpressionKinds.Nul, new ByteCode(), DataTypes.Void); }

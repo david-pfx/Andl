@@ -64,6 +64,7 @@
     <Compile Include="SqlTarget.cs" />
     <Compile Include="Templater.cs" />
     <Compile Include="TypedValue.cs" />
+    <Compile Include="TypeMaker.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Andl.Sqlite\Andl.Sqlite.csproj">

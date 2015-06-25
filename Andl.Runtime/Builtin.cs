@@ -818,7 +818,7 @@ namespace Andl.Runtime {
       public static DataType StaticDatatype { get; private set; }
 
       static DateValue() {
-        StaticDatatype = DataType.Create("date", typeof(DateValue), null, () => TimeValue.Default, null, //x => IsSubtype(x),
+        StaticDatatype = DataType.Create("date", typeof(DateValue), typeof(DateTime), null, () => TimeValue.Default, null, //x => IsSubtype(x),
           TypeFlags.Ordered | TypeFlags.Ordinal | TypeFlags.Variable);
       }
       public override DataType DataType { get { return StaticDatatype; } }

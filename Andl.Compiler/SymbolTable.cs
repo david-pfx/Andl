@@ -304,13 +304,13 @@ namespace Andl.Compiler {
       foreach (var info in AddinInfo.GetAddinInfo())
         AddBuiltinFunction(info.Name, info.NumArgs, info.DataType, info.Method);
       _catalogscope = Scope.Push();
-      Add(_catalog);
+      //Add(_catalog);
     }
 
     // Process catalog to add all entries from persistent level
     // Called functions should discard duplicates, or flag errors???
-    public void Add(Catalog catalog) {
-      foreach (var entry in catalog.GetEntries(ScopeLevels.Persistent)) {
+    public void Add(Catalog catalog, ScopeLevels level) {
+      foreach (var entry in catalog.GetEntries(level)) {
         var value = entry.Value;
         var datatype = (value.DataType == DataTypes.Code) ? (value as CodeValue).Value.DataType : value.DataType;
         if (_catalogscope.Find(entry.Name) == null)

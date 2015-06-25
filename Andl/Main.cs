@@ -34,7 +34,7 @@ namespace Andl.Main {
     static string _defaultinput = @"test.andl";
     static string _databasepath = "andltest.store";
     static string _sqlpath = "andltest.sqlite";
-    static string _catalogname = "andl_catalog";
+    //static string _catalogname = "andl_catalog";
     //static string _sqlpath = "Chinook_Sqlite.sqlite";
     static Catalog _catalog;
     static Evaluator _evaluator;
@@ -125,8 +125,8 @@ namespace Andl.Main {
       _catalog.PersistPattern = _persistpattern;
       _catalog.DatabasePattern = _databasepattern;
       _catalog.DatabasePath = _paths[1];
-      _catalog.CatalogName = _catalogname;
-      _catalog.ProtectPattern = "^andl.*$";
+      //_catalog.CatalogName = _catalogname;
+      _catalog.SystemPattern = "^andl.*$";
       _catalog.SourcePath = ".";
 
       _evaluator = (!_xsw) ? Evaluator.Create(_catalog) : null;
