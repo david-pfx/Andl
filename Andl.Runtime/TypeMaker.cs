@@ -16,7 +16,7 @@ namespace Andl.Runtime {
     // Use this type maker to create a type, recursively
     public static Type CreateType(DataType datatype) {
       var typemaker = new TypeMaker {
-        _typebuilder = _modulebuilder.DefineType(datatype.SubtypeName, TypeAttributes.Public),
+        _typebuilder = _modulebuilder.DefineType(datatype.GenCleanName, TypeAttributes.Public),
       };
       typemaker.DefineMembers(datatype.Heading.Columns);
       var type = typemaker._typebuilder.CreateType();
@@ -69,7 +69,8 @@ namespace Andl.Runtime {
       var addmethod = datatype.NativeType.GetMethod("Add");
       var rowtype = addmethod.GetParameters()[0].ParameterType;
       foreach (var row in rows) {
-        var rowinstance = FillInstance(rowtype, datatype.Heading.Columns, row.Values);
+        // use heading from row to ensure correct field order
+        var rowinstance = FillInstance(rowtype, row.Heading.Columns, row.Values);
         addmethod.Invoke(instance, new object[] { rowinstance });
       }
       return instance;

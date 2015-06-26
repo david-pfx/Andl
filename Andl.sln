@@ -19,6 +19,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Andl.Sqlite", "Andl.Sqlite\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Andl.API", "Andl.API\Andl.API.csproj", "{1201FEFF-69FC-4720-8B03-059697B41ED3}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Andl.Server", "Andl.Server\Andl.Server.csproj", "{D32A8723-1043-40B4-9ABE-84D6AC33918D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -45,6 +47,10 @@ Global
 		{1201FEFF-69FC-4720-8B03-059697B41ED3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1201FEFF-69FC-4720-8B03-059697B41ED3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1201FEFF-69FC-4720-8B03-059697B41ED3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D32A8723-1043-40B4-9ABE-84D6AC33918D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D32A8723-1043-40B4-9ABE-84D6AC33918D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D32A8723-1043-40B4-9ABE-84D6AC33918D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D32A8723-1043-40B4-9ABE-84D6AC33918D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

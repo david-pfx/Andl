@@ -42,6 +42,16 @@
     <Compile Include="Gateway.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Andl.Runtime\Andl.Runtime.csproj">
+      <Project>{c7d6d0e8-dc93-4d12-b580-34d09e284873}</Project>
+      <Name>Andl.Runtime</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Andl\Andl.csproj">
+      <Project>{f39de339-e33e-46ab-b6ed-01afd3ecf821}</Project>
+      <Name>Andl</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

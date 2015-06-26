@@ -29,11 +29,11 @@ namespace Andl.Main {
     static bool _nsw = true;  // new catalog
     static bool _usw = false; // update catalog
     static bool _ssw = false; // sql
-    static string _persistpattern = @"^[@A-Za-z].*$";
-    static string _databasepattern = @"^[A-Za-z].*$";
+    //static string _persistpattern = @"^[@A-Za-z].*$";
+    //static string _databasepattern = @"^[A-Za-z].*$";
     static string _defaultinput = @"test.andl";
-    static string _databasepath = "andltest.store";
-    static string _sqlpath = "andltest.sqlite";
+    //static string _databasepath = "andltest.store";
+    //static string _sqlpath = "andltest.sqlite";
     //static string _catalogname = "andl_catalog";
     //static string _sqlpath = "Chinook_Sqlite.sqlite";
     static Catalog _catalog;
@@ -112,8 +112,6 @@ namespace Andl.Main {
         Logger.WriteLine("File not found: {0}", _paths[0]);
         return false;
       }
-      if (_paths.Count == 1)
-        _paths.Add(_ssw ? _sqlpath : _databasepath);
       // set up components
       if (_isw && Logger.Level == 0) Logger.Level = 1;
       _catalog = Catalog.Create();
@@ -122,17 +120,13 @@ namespace Andl.Main {
       _catalog.PersistFlag = _usw;
       _catalog.DatabaseSqlFlag = _ssw;
       _catalog.NewFlag = _nsw;
-      _catalog.PersistPattern = _persistpattern;
-      _catalog.DatabasePattern = _databasepattern;
-      _catalog.DatabasePath = _paths[1];
+      if (_paths.Count > 1)
+        _catalog.DatabasePath = _paths[1];
       //_catalog.CatalogName = _catalogname;
-      _catalog.SystemPattern = "^andl.*$";
       _catalog.SourcePath = ".";
 
       _evaluator = (!_xsw) ? Evaluator.Create(_catalog) : null;
 
-      // only when everything is ready
-      //_catalog.CreateTable(_catalogname);
       return true;
     }
 

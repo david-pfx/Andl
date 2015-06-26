@@ -26,6 +26,11 @@ namespace Andl.Runtime {
   /// Implement the catalog as a whole, including multiple scope levels
   /// </summary>
   public class Catalog {
+    static string _persistpattern = @"^[@A-Za-z].*$";
+    static string _databasepattern = @"^[A-Za-z].*$";
+    static string _systempattern = "^andl.*$";
+    static string _databasepath = "andltest.store";
+    static string _sqlpath = "andltest.sqlite";
     static readonly string CatalogName = "andl_catalog";
     static readonly string VariableName = "andl_variable";
     static readonly string OperatorName = "andl_operator";
@@ -50,7 +55,6 @@ namespace Andl.Runtime {
     public bool DatabaseSqlFlag { get; set; }   // use sql as the database
     public bool NewFlag { get; set; }           // create new catalog
 
-    //public string CatalogName { get; set; }     // name used to store catalog
     public string SystemPattern { get; set; }   // variables protected from update
     public string PersistPattern { get; set; }  // variables persisted in the catalog
     public string DatabasePattern { get; set; } // relvars kept in the database
@@ -87,6 +91,10 @@ namespace Andl.Runtime {
     public static Catalog Create() {
       var cat = new Catalog {
         _variables = new VariableScope(ScopeLevels.Global, new VariableScope(ScopeLevels.Persistent, null)),
+        SystemPattern = _systempattern,
+        PersistPattern = _persistpattern,
+        DatabasePattern = _databasepattern,
+        DatabasePath = _databasepath,
       };
       return cat;
     }
@@ -99,16 +107,24 @@ namespace Andl.Runtime {
         var database = Sqlite.SqliteDatabase.Create(DatabasePath, sqleval);
         SqlTarget.Configure(database);
       }
-      foreach (var name in _protectedheadings.Keys) {
-        SetValueInLevel(name, TypedValue.Create(DataTableLocal.Create(_protectedheadings[name])), EntryKinds.System);
-      }
-      //PersistTable = DataTableLocal.Create(CatalogHeading);
-      if (NewFlag) {
-        //SetValueInLevel(CatalogName, TypedValue.Create(PersistTable), EntryKinds.System);
-      } else {
-        LinkRelvar(CatalogName, "", CatalogHeading);
+      if (!NewFlag) {
+        if (!LinkRelvar(CatalogName, "", CatalogHeading))
+          RuntimeError.Fatal("Catalog", "cannot load catalog");
         LoadFromTable();
       }
+      foreach (var name in _protectedheadings.Keys) {
+        if (name != CatalogName || NewFlag)
+          SetValueInLevel(name, TypedValue.Create(DataTableLocal.Create(_protectedheadings[name])), EntryKinds.System);
+      }
+      //foreach (var name in _protectedheadings.Keys) {
+      //  SetValueInLevel(name, TypedValue.Create(DataTableLocal.Create(_protectedheadings[name])), EntryKinds.System);
+      //}
+      //if (NewFlag) {
+      //  //SetValueInLevel(CatalogName, TypedValue.Create(PersistTable), EntryKinds.System);
+      //} else {
+      //  LinkRelvar(CatalogName, "", CatalogHeading);
+      //  LoadFromTable();
+      //}
     }
 
     // All done, persist catalog if required
@@ -126,7 +142,7 @@ namespace Andl.Runtime {
     }
 
     // Return raw value from variable
-    public TypedValue Get(string name) {
+    public TypedValue GetRaw(string name) {
       if (IsSystem(name)) return GetProtectedValue(name);
       return _variables.Get(name);
     }
@@ -141,6 +157,13 @@ namespace Andl.Runtime {
     public DataType GetDataType(string name) {
       if (IsSystem(name)) return DataTypeRelation.Get(GetProtectedHeading(name));
       return _variables.GetDataType(name);
+    }
+
+    // -- internal
+
+    // Internal get
+    TypedValue Get(string name) {
+      return _variables.Get(name);
     }
 
     VariableScope FindLevel(ScopeLevels level) {
@@ -186,6 +209,7 @@ namespace Andl.Runtime {
     // Add a named entry
     // Equivalant to assignment: value replaces existing, type should be compatible
     public void SetValue(string name, TypedValue value) {
+      if (IsSystem(name)) RuntimeError.Fatal("Catalog Set", "protected name");
       var finalvalue = value;
       var kind = EntryKinds.Value;
       // first sort out relation storage: sql store, local store or in catalog
@@ -273,7 +297,6 @@ namespace Andl.Runtime {
     // Set value in current level or persist level
     // If persist and unknown, update persist table (dummy entry for now)
     void SetValueInLevel(string name, TypedValue value, EntryKinds kind) {
-      if (IsSystem(name) && kind != EntryKinds.System) RuntimeError.Fatal("Catalog Set", "protected name");
       if (IsGlobalLevel && IsPersist(name)) {
         var level = FindLevel(ScopeLevels.Persistent);
         //if (level.Get(name) == null) {
@@ -469,7 +492,7 @@ namespace Andl.Runtime {
       var addrow = DataRow.Create(Table.Heading, new TypedValue[] 
           { TextValue.Create(name), 
             TextValue.Create(datatype.BaseType.Name), 
-            TextValue.Create(datatype.SubtypeName ?? "") });
+            TextValue.Create(datatype.GenUniqueName ?? "") });
       Table.AddRow(addrow);
     }
 
@@ -485,15 +508,15 @@ namespace Andl.Runtime {
       var addrow = DataRow.Create(Table.Heading, new TypedValue[] 
           { TextValue.Create(name), 
             TextValue.Create(datatype.BaseType.Name), 
-            TextValue.Create(value.DataType.SubtypeName ?? ""),
+            TextValue.Create(value.DataType.GenUniqueName ?? ""),
             TextValue.Create(value.SubtypeName) });
       Table.AddRow(addrow);
     }
 
     // Create a table of variables
     public CatalogTableMaker AddMembers(IEnumerable<CatalogEntry> entries) {
-      foreach (var entry in entries.Where(e => e.DataType.SubtypeName != null)) {
-        AddMember(entry.DataType.SubtypeName, entry.DataType.Heading);
+      foreach (var entry in entries.Where(e => e.DataType.GenUniqueName != null)) {
+        AddMember(entry.DataType.GenUniqueName, entry.DataType.Heading);
         // TODO: recursive call
       }
       foreach (var entry in entries.Where(e => e.IsOperator)) {
@@ -510,11 +533,11 @@ namespace Andl.Runtime {
             NumberValue.Create(++index), 
             TextValue.Create(column.Name), 
             TextValue.Create(column.DataType.BaseType.Name),
-            TextValue.Create(column.DataType.SubtypeName ?? "") });
+            TextValue.Create(column.DataType.GenUniqueName ?? "") });
         Table.AddRow(addrow);
         // Recursive call. note: may be duplicate, but no matter.
-        if (column.DataType.SubtypeName != null)
-          AddMember(column.DataType.SubtypeName, column.DataType.Heading);
+        if (column.DataType.GenUniqueName != null)
+          AddMember(column.DataType.GenUniqueName, column.DataType.Heading);
       }
     }
 

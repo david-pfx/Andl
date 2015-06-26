@@ -182,7 +182,7 @@ namespace Andl.Runtime {
             _stack.Push(val);
           break;
         case Opcodes.LDCATR:
-          PushStack(_catalog.Get(reader.ReadString()));
+          PushStack(_catalog.GetRaw(reader.ReadString()));
           break;
         // Load value obtained using lookup by name
         case Opcodes.LDFIELD:
@@ -271,7 +271,7 @@ namespace Andl.Runtime {
           pc += 1;
           break;
         case Opcodes.LDCATR:
-          PushStack(_catalog.Get(scode[pc] as string));
+          PushStack(_catalog.GetRaw(scode[pc] as string));
           pc += 1;
           break;
         // Load value obtained using lookup by name

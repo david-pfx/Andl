@@ -210,12 +210,14 @@ namespace Andl.Runtime {
       return false; // FIX: _issubclass(other);
     }
 
-    // return base type
+    // Base type sets common behaviour for the type
     public virtual DataType BaseType { get { return this; } }
-
-    // Base name plus Subtype name is guaranteed unique
+    // Base name from base type
     public string BaseName { get { return BaseType.Name; } }
-    public virtual string SubtypeName { get { return null; } }
+    // Name guaranteed to be unique for generated types
+    public virtual string GenUniqueName { get { return null; } }
+    // Name for code generation, unique within base type
+    public virtual string GenCleanName { get { return null; } }
 
     // Is other a type match where this is what is needed?
     public bool IsTypeMatch(DataType other) {
@@ -276,11 +278,8 @@ namespace Andl.Runtime {
 
     public override DataType BaseType { get { return DataTypes.Row; } }
 
-    public override string SubtypeName {
-      get {
-        return "{" + Ordinal.ToString() + "}";
-      }
-    }
+    public override string GenUniqueName { get { return "{" + Ordinal.ToString() + "}"; } }
+    public override string GenCleanName { get { return "tup_" + Ordinal.ToString(); } }
 
     public override TypedValue Default() {
       if (_default == null)
@@ -340,11 +339,8 @@ namespace Andl.Runtime {
 
     public override DataType BaseType { get { return DataTypes.Table; } }
 
-    public override string SubtypeName {
-      get {
-        return "{{" + Ordinal.ToString() + "}}";
-      }
-    }
+    public override string GenUniqueName { get { return "{{" + Ordinal.ToString() + "}}"; } }
+    public override string GenCleanName { get { return "rel_" + Ordinal.ToString(); } }
 
     public override TypedValue Default() {
       if (_default == null)
@@ -404,7 +400,8 @@ namespace Andl.Runtime {
     }
 
     public override DataType BaseType { get { return DataTypes.User; } }
-    public override string SubtypeName { get { return Name; } }
+    public override string GenUniqueName { get { return Name; } }
+    public override string GenCleanName { get { return Name; } }
 
     public override TypedValue Default() {
       if (_default == null)

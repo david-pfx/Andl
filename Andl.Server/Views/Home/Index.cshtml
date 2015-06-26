@@ -1,0 +1,86 @@
+﻿@section scripts {
+    @Scripts.Render("~/bundles/app")
+}
+
+<div class="jumbotron">
+    <h1>Andl is a New Data Language</h1>
+    <p class="lead">
+        Andl does what SQL does, but it is not SQL.
+        Andl has been developed as a fully featured database programming language, providing everything an application needs except for a user interface.
+    </p>
+    <p><a href="http://andl.org" class="btn btn-primary btn-lg">Learn more &raquo;</a></p>
+</div>
+<div class="row">
+    <div class="col-md-4">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h2 class="panel-title">Suppliers</h2>
+                <p>Supplier data from the S table</p>
+            </div>
+            <table class="table">
+                <tr>
+                    <th>Id</th>
+                    <th>Name</th>
+                    <th>Status</th>
+                    <th>City</th>
+                </tr>
+                <tbody data-bind="foreach: suppliers">
+                    <tr>
+                        <td data-bind="text: Sid"></td>
+                        <td data-bind="text: SNAME"></td>
+                        <td class="pull-right" data-bind="text: STATUS"></td>
+                        <td data-bind="text: CITY"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h2 class="panel-title">Parts</h2>
+                <p>Parts data from the P table</p>
+            </div>
+            <table class="table">
+                <tr>
+                    <th>Id</th>
+                    <th>Name</th>
+                    <th>Colour</th>
+                    <th>Weight</th>
+                    <th>City</th>
+                </tr>
+                <tbody data-bind="foreach: parts">
+                    <tr>
+                        <td data-bind="text: Pid"></td>
+                        <td data-bind="text: PNAME"></td>
+                        <td data-bind="text: COLOR"></td>
+                        <td class="pull-right" data-bind="text: WEIGHT"></td>
+                        <td data-bind="text: CITY"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h2 class="panel-title">Supplies</h2>
+                <p>Supplies data from the SP table</p>
+            </div>
+            <table class="table">
+                <tr>
+                    <th>Supplier</th>
+                    <th>Part</th>
+                    <th>Quantity</th>
+                </tr>
+                <tbody data-bind="foreach: supplies">
+                    <tr>
+                        <td data-bind="text: Sid"></td>
+                        <td data-bind="text: Pid"></td>
+                        <td class="pull-right" data-bind="text: QTY"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
