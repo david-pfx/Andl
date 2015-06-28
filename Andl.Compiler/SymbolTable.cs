@@ -244,18 +244,17 @@ namespace Andl.Compiler {
 
     //--- publics
 
-    // Add a user-defined type
-    // Need a selector (getters are private)
-    public Symbol AddUserType(string name, DataTypeUser datatype) {
-      _catalog.AddUserType(name, datatype);
-      return Add(name, Create(name, datatype));
-    }
-
-    // define a variable at the current scope level (which must be undefined)
-    public void DefineVar(Symbol symbol) {
-      Logger.Assert(symbol.Atom == Atoms.IDENT && symbol.Kind == SymKinds.UNDEF);
-      symbol.Kind = SymKinds.CATVAR;
-      Scope.Current.Add(symbol);
+    // Add a symbol to the catalog.
+    // Do kind, flags and visibility all here
+    public void AddCatalog(Symbol symbol) {
+      var kind = symbol.IsUserType ? EntryKinds.Type
+        : symbol.IsDefFunc ? EntryKinds.Code
+        : EntryKinds.Value;
+      var flags = EntryFlags.Public;  // FIX: when visibility control implemented
+      if (_catalog.IsPersist(symbol.Name)) flags |= EntryFlags.Persistent;
+      if (kind == EntryKinds.Value && symbol.DataType is DataTypeRelation && _catalog.IsDatabase(symbol.Name)) 
+        flags |= EntryFlags.Database;
+      _catalog.Add(symbol.Name, symbol.DataType, kind, flags);
     }
 
     // Find existing symbol by name
@@ -296,6 +295,43 @@ namespace Andl.Compiler {
       return sym;
     }
 
+    // Make symbols that can be user-defined
+    public static Symbol MakeUserType(string name, DataTypeUser datatype) {
+      var callinfo = CallInfo.Create(name, datatype, datatype.Heading.Columns.ToArray());
+      return new Symbol {
+        Name = name,
+        Atom = Atoms.IDENT,
+        Kind = SymKinds.SELECTOR,
+        CallKind = CallKinds.SFUNC,
+        NumArgs = callinfo.NumArgs,
+        DataType = datatype,
+        CallInfo = callinfo,
+      };
+    }
+
+    public static Symbol MakeCatVar(string name, DataType datatype) {
+      Symbol sym = new Symbol {
+        Name = name,
+        Atom = Atoms.IDENT,
+        Kind = SymKinds.CATVAR,
+        DataType = datatype,
+      };
+      return sym;
+    }
+
+    public static Symbol MakeDeferred(string name, DataType datatype, DataColumn[] args) {
+      Symbol sym = new Symbol {
+        Name = name,
+        Atom = Atoms.IDENT,
+        Kind = SymKinds.CATVAR,
+        DataType = datatype,
+        CallKind = CallKinds.EFUNC,
+        CallInfo = CallInfo.Create(name, datatype, args),
+        NumArgs = args.Length,
+      };
+      return sym;
+    }
+
     //--- setup
 
     void Init() {
@@ -312,18 +348,16 @@ namespace Andl.Compiler {
     public void Add(Catalog catalog, ScopeLevels level) {
       foreach (var entry in catalog.GetEntries(level)) {
         var value = entry.Value;
-        var datatype = (value.DataType == DataTypes.Code) ? (value as CodeValue).Value.DataType : value.DataType;
+        //var datatype = (value.DataType == DataTypes.Code) ? (value as CodeValue).Value.DataType : value.DataType;
         if (_catalogscope.Find(entry.Name) == null)
-          Logger.WriteLine(3, "From catalog add {0}:{1}", entry.Name, datatype.BaseType.Name);
+          Logger.WriteLine(3, "From catalog add {0}:{1}", entry.Name, entry.DataType.BaseType.Name);
+
         if (entry.Kind == EntryKinds.Type)
-          _catalogscope.Add(Create(entry.Name, datatype as DataTypeUser));
-        else _catalogscope.Add(new Symbol {
-          Name = entry.Name,
-          Atom = Atoms.IDENT,
-          Kind = SymKinds.CATVAR,
-          Value = value,
-          DataType = datatype,
-        });
+          _catalogscope.Add(MakeUserType(entry.Name, entry.DataType as DataTypeUser));
+        else if (entry.Kind == EntryKinds.Value)
+          _catalogscope.Add(MakeCatVar(entry.Name, entry.DataType));
+        else if (entry.Kind == EntryKinds.Code)
+          _catalogscope.Add(MakeDeferred(entry.Name, entry.DataType, entry.CodeValue.Value.Lookup.Columns));
       }
     }
 
@@ -334,19 +368,6 @@ namespace Andl.Compiler {
 
     //------------------------------------------------------------------
     //-- ops
-
-    static Symbol Create(string name, DataTypeUser datatype) {
-      var callinfo = CallInfo.Create(name, datatype, datatype.Heading.Columns.ToArray());
-      return new Symbol {
-        Name = name,
-        Atom = Atoms.IDENT,
-        Kind = SymKinds.SELECTOR,
-        CallKind = CallKinds.SFUNC,
-        NumArgs = callinfo.NumArgs,
-        DataType = datatype,
-        CallInfo = callinfo,
-      };
-    }
 
     static Symbol MakeLiteral(TypedValue value) {
       Symbol sym = new Symbol {
@@ -597,6 +618,5 @@ namespace Andl.Compiler {
         Link = Find(other),
       });
     }
-
   }
 }

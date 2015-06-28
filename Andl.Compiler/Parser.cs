@@ -180,10 +180,9 @@ namespace Andl.Compiler {
       }  else if (!expr.Sym.IsDefinable) {
         return ErrSyntax("already defined: {0}", expr.Sym.Name);
       } else {
-        expr.Sym.DataType = expr.DataType;
-        SymbolTable.DefineVar(expr.Sym);
-        //if (expr.Sym.Kind != SymKinds.DEVICE)
-        //  SymbolTable.DefineVar(expr.Sym);
+        expr.Sym = SymbolTable.MakeCatVar(expr.Sym.Name, expr.DataType);
+        Scope.Current.Add(expr.Sym);
+        SymbolTable.AddCatalog(expr.Sym);
       }
       EmitAssignableValue(expr.Sym, expr);
       _emitter.OutCall(SymbolTable.Find(Symbol.Assign));
@@ -213,10 +212,9 @@ namespace Andl.Compiler {
       
       // Expression needs both function and args in scope
       // set up function because it might get called recursively
-      SymbolTable.DefineVar(idsym);
-      idsym.CallKind = CallKinds.EFUNC;
-      idsym.CallInfo = CallInfo.Create(idsym.Name, idsym.DataType, MakeColumns(args));
-      idsym.NumArgs = idsym.CallInfo.NumArgs;
+
+      idsym = SymbolTable.MakeDeferred(idsym.Name, idsym.DataType, MakeColumns(args));
+      Scope.Current.Add(idsym);
 
       Scope.Push();
       foreach (var sym in args)
@@ -249,6 +247,8 @@ namespace Andl.Compiler {
         idsym.DataType = expr.DataType;
       else if (!expr.DataType.IsTypeMatch(idsym.DataType)) return ErrExpect(idsym.DataType.ToString() + " expression");
 
+      // cannot add to catalog until type is known
+      SymbolTable.AddCatalog(expr.Sym);
       EmitAssignableValue(idsym, expr, true);
       _emitter.OutCall(SymbolTable.Find(Symbol.Assign));
       if (idsym.DataType == DataTypes.Unknown) return ErrSyntax("unknown type");
@@ -1153,8 +1153,9 @@ namespace Andl.Compiler {
       datatype = Catalog.GetRelvarType(idsym.Name, source.AsString());
       if (datatype == null) return ErrSyntax("not found: {0}", idsym.Name);
 
-      idsym.DataType = datatype;
-      SymbolTable.DefineVar(idsym);
+      idsym = SymbolTable.MakeCatVar(idsym.Name, datatype);
+      Scope.Current.Add(idsym);
+      SymbolTable.AddCatalog(idsym);
 
       _emitter.Out(Opcodes.LDVALUE, TextValue.Create(idsym.Name));
       _emitter.Out(Opcodes.LDVALUE, source);
@@ -1182,7 +1183,9 @@ namespace Andl.Compiler {
 
       var cols = MakeColumns(args);
       var udt = DataTypeUser.Get(idsym.Name, cols);
-      SymbolTable.AddUserType(idsym.Name, udt);
+      idsym = SymbolTable.MakeUserType(idsym.Name, udt);
+      Scope.Current.Add(idsym);
+      SymbolTable.AddCatalog(idsym);
       return true;
     }
 

@@ -210,7 +210,7 @@ namespace Andl.Runtime {
 
     // Connect to a known persisted relvar, and make entry in catalog
     public static VoidValue Connect(TextValue namearg, TextValue sourcearg, HeadingValue heading) {
-      if (!Catalog.LinkRelvar(namearg.Value, sourcearg.Value, heading.Value))
+      if (!Catalog.LinkRelvar(namearg.Value, sourcearg.Value))
         RuntimeError.Fatal("cannot connect: {0}", namearg.Value);
       return VoidValue.Default;
     }
