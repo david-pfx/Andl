@@ -16,7 +16,7 @@ namespace Andl.Run {
       string[] names = { "suppliers", "parts", "supplies", "sandsp" };
       foreach (var n in names) {
         var x = app.GetValue(n);
-        Console.WriteLine("{0}: {1} {2}", n, x.Ok, x.Value.ToString());
+        Console.WriteLine("{0}: {1} {2} {3}", n, x.Ok, x.Message, x.Ok ? x.Value.ToString() : "??");
       }
     }
   }

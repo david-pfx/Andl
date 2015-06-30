@@ -66,7 +66,7 @@ namespace Andl.Compiler {
             Decode((value as CodeValue).Value.Code);
           break;
         case Opcodes.LDSEG: //TODO: recurse
-          var code = preader.ReadCode();
+          var code = preader.ReadExpr();
           Logger.WriteLine(3, "{0}{1}", prefix, code);
           Decode(code.Code);
           break;

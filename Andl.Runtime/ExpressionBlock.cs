@@ -39,14 +39,6 @@ namespace Andl.Runtime {
     DataType DataType { get; }
     // Used by rename
     string OldName { get; }
-    // Evaluate expression to return value
-    TypedValue Evaluate();
-    // Evaluate expression with lookup to return value
-    TypedValue EvalOpen(ILookupValue lookup);
-    // Evaluate expression to accumulate values during map phase
-    TypedValue EvalIsFolded(ILookupValue lookup, TypedValue aggregate);
-    // Evaluate expression to finalise values during reduce phase
-    TypedValue EvalHasFold(ILookupValue lookup, AccumulatorBlock accblock, int accbase);
 
     bool IsRename { get; }
     bool IsFolded { get; }
@@ -57,33 +49,29 @@ namespace Andl.Runtime {
   /// Implementation of named expression based on Scode
   /// </summary>
   public class ExpressionBlock : IApiExpression {
-    public string Name { get; private set; }
-    public ExpressionKinds Kind { get; private set; }
+    public string Name { get; protected set; }
+    public ExpressionKinds Kind { get; protected set; }
     public DataType DataType { get; set; }
     // substitution values: attributes or arg list
-    public DataHeading Lookup { get; private set; }
+    public DataHeading Lookup { get; protected set; }
     // previous name for when field is renamed (current is new name)
-    public string OldName { get; private set; }
+    public string OldName { get; protected set; }
     // no of accumulators needed for this expression
-    public int AccumCount { get; private set; }
+    public int AccumCount { get; protected set; }
     // value used by kind=value
-    public TypedValue Value { get; private set; }
+    public TypedValue Value { get; protected set; }
     // the actual executable code
-    public ByteCode Code { get; private set; }
+    public ByteCode Code { get; protected set; }
     // unique number for use by runtime
-    public int Serial { get; private set; }
+    public int Serial { get; protected set; }
+
+    public bool IsLazy { get; set; }            // true to defer evaluation (set later) //OBS:
+    public bool IsGrouped { get; protected set; }    // true to sort descending
+    public bool IsDesc { get; protected set; }    // true to sort descending
 
     static int _serialcounter = 0;
 
-    // Evaluator to use
-    public Evaluator Evaluator { get { return Evaluator.Current; } }
-
     public int NumArgs { get { return Lookup == null ? 0 : Lookup.Degree; } }
-
-    public bool IsLazy { get; set; }            // true to defer evaluation (set later)
-    public bool IsGrouped { get; private set; }    // true to sort descending
-    public bool IsDesc { get; private set; }    // true to sort descending
-
     public bool IsRename { get { return Kind == ExpressionKinds.Rename; } }
     public bool IsProject { get { return Kind == ExpressionKinds.Project; } }
     public bool IsOpen { get { return Kind == ExpressionKinds.Open; } }
@@ -113,7 +101,7 @@ namespace Andl.Runtime {
         DataType, HasFold ? AccumCount : 0, Code.Length, NumArgs, Lookup.ToString());
     }
 
-    // Create an expression block. Evaluator will be filled in later.
+    // Create an expression block with code to evaluate.
     public static ExpressionBlock Create(string name, ExpressionKinds kind, ByteCode code, DataType type, 
                                          int accums = 0, DataHeading lookup = null, bool lazy = false, int serial = 0) {
       return new ExpressionBlock { 
@@ -163,6 +151,32 @@ namespace Andl.Runtime {
     public DataColumn MakeDataColumn() {
       return DataColumn.Create(Name, DataType);
     }
+  }
+
+  //////////////////////////////////////////////////////////////////////
+  /// <summary>
+  /// Implements an expression block bound to an evaluator
+  /// </summary>
+  public class ExpressionEval : ExpressionBlock {
+    // This is the evaluator
+    public Evaluator Evaluator { get; private set; }
+
+    public static ExpressionEval Create(Evaluator evaluator, ExpressionBlock expr) {
+      return new ExpressionEval {
+        Evaluator = evaluator,
+        Name = expr.Name,
+        Kind = expr.Kind,
+        DataType = expr.DataType,
+        OldName = expr.OldName,
+        Code = expr.Code,
+        AccumCount = expr.AccumCount,
+        Lookup = expr.Lookup,
+        IsLazy = expr.IsLazy,
+        IsGrouped  = expr.IsGrouped,
+        IsDesc = expr.IsDesc,
+        Serial = expr.Serial,
+      };
+    }
 
     // evaluate a closed expression returning a typed value
     // also used for rename
@@ -191,7 +205,7 @@ namespace Andl.Runtime {
     }
 
     // evaluate an open predicate expression returning true/false
-    public BoolValue Predicate(ILookupValue lookup) {
+    public BoolValue EvalPred(ILookupValue lookup) {
       Logger.Assert(DataType == DataTypes.Bool, Name);
       if (Code.Length == 0) return BoolValue.True;
       return EvalOpen(lookup) as BoolValue;

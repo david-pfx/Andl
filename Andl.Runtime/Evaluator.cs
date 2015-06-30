@@ -83,7 +83,9 @@ namespace Andl.Runtime {
   /// Implements the runtime for expression evaluation.
   /// Stack based scode.
   /// 
-  /// Dependencies: requires catalog for name lookup.
+  /// Dependencies: 
+  ///   catalog for name lookup
+  ///   builtin for method calls
   /// </summary>
   public class Evaluator {
     public static Evaluator Current { get; private set; }
@@ -91,6 +93,7 @@ namespace Andl.Runtime {
     public bool Valid { get { return ErrorCount == 0; } }
 
     Catalog _catalog;
+    Builtin _builtin;
 
     // runtime
     Stack<ILookupValue> _lookups = new Stack<ILookupValue>();
@@ -103,13 +106,13 @@ namespace Andl.Runtime {
       var ev = new Evaluator() {
         _catalog = catalog,
       };
+      ev._builtin = Builtin.Create(catalog, ev);
       return ev;
     }
 
     // Common entry point for executing code
     public TypedValue Exec(ByteCode code, ILookupValue lookup = null, TypedValue aggregate = null, AccumulatorBlock accblock = null) {
       Logger.WriteLine(5, "Exec {0} {1} {2} {3}", code.Length, lookup, aggregate, accblock);
-      Builtin.Catalog = _catalog;
       if (code.Length == 0) return VoidValue.Void;
       if (lookup != null) PushLookup(lookup);
       Current = this;
@@ -179,7 +182,9 @@ namespace Andl.Runtime {
           break;
         // Known catalog variable, look up value
         case Opcodes.LDCAT:
-          var val = EvaluatorSupport.GetValue(reader.ReadString());
+          var val = _catalog.GetRaw(reader.ReadString());
+          if (val.DataType == DataTypes.Code)
+            val = this.Exec((val as CodeValue).Value.Code);
           if (val.DataType != DataTypes.Void)
             _stack.Push(val);
           break;
@@ -204,10 +209,10 @@ namespace Andl.Runtime {
           var defval = reader.ReadValue();
           PushStack(accblock == null ? defval : accblock[accnum]);
           break;
-        // Load a segment of code for later call
+        // Load a segment of code for later call, with this evaluator packaged in
         case Opcodes.LDSEG:
-          var cvalue = CodeValue.Create(reader.ReadCode());
-          //cvalue.Value.Evaluator = this;
+          var expr = reader.ReadExpr();
+          var cvalue = CodeValue.Create(ExpressionEval.Create(this, expr));
           PushStack(cvalue);
           break;
         case Opcodes.LDLOOKUP:
@@ -246,7 +251,7 @@ namespace Andl.Runtime {
           }
           for (; argx >= 0; --argx)
             args[argx] = _stack.Pop();
-          var ret = meth.Invoke(null, args) as TypedValue;
+          var ret = meth.Invoke(_builtin, args) as TypedValue;
           if (ret.DataType != DataTypes.Void)
             _stack.Push(ret);
           break;
@@ -269,7 +274,10 @@ namespace Andl.Runtime {
           break;
         // Known catalog variable, look up value
         case Opcodes.LDCAT:
-          PushStack(EvaluatorSupport.GetValue(scode[pc] as string));
+          var val = _catalog.GetRaw(scode[pc] as string);
+          if (val.DataType == DataTypes.Code)
+            val = this.Exec((val as CodeValue).Value.Code);
+          PushStack(val);
           pc += 1;
           break;
         case Opcodes.LDCATR:
@@ -353,17 +361,4 @@ namespace Andl.Runtime {
       }
     }
   }
-
-  /// <summary>
-  /// Functions for internal use by evaluator only
-  /// </summary>
-  public class EvaluatorSupport {
-
-    // Get the value of a variable
-    public static TypedValue GetValue(string name) {
-      var ret = Builtin.Catalog.GetValue(name);
-      Logger.Assert(ret != null, name);
-      return ret;
     }
-  }
-}

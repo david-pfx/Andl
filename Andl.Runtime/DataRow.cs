@@ -132,7 +132,7 @@ namespace Andl.Runtime {
     }
 
     // Create row by evaluating an expression list
-    public static DataRow Create(DataHeading newheading, ExpressionBlock[] exprs) {
+    public static DataRow Create(DataHeading newheading, ExpressionEval[] exprs) {
       var newvalues = newheading.Columns
         .Select(c => exprs.First(e => e.Name == c.Name).Evaluate())
         .ToArray();
@@ -171,7 +171,7 @@ namespace Andl.Runtime {
 
     // new row, merge invidivual values from expressions
     // TODO: do not use
-    public DataRow Merge(ExpressionBlock[] exprs) {
+    public DataRow Merge(ExpressionEval[] exprs) {
       var values = _values.Clone() as TypedValue[]; //??
       foreach (var expr in exprs)
         values[Heading.FindIndex(expr.Name)] = expr.EvalOpen(this);
@@ -202,7 +202,7 @@ namespace Andl.Runtime {
 
     // Return value of attribute with tuple indexing
     // FIX: needs to get from this row to some other row via parent table to use as lookup
-    public TypedValue ValueOffset(ExpressionBlock expr, int index, OffsetModes mode) {
+    public TypedValue ValueOffset(ExpressionEval expr, int index, OffsetModes mode) {
       var parent = Parent as DataTableLocal;
       Logger.Assert(parent != null);
       var ord = OrderedIndex.Offset(this, index, mode);
@@ -225,7 +225,7 @@ namespace Andl.Runtime {
     /// 
 
     // Merge aggregated fields from old row lookup and accumulators into a new set of values
-    public TypedValue[] AccumulateValues(DataRow lookup, AccumulatorBlock accblk, ExpressionBlock[] exprs) {
+    public TypedValue[] AccumulateValues(DataRow lookup, AccumulatorBlock accblk, ExpressionEval[] exprs) {
       var values = _values.Clone() as TypedValue[];
       foreach (var x in Enumerable.Range(0, exprs.Length)) {
         if (exprs[x].HasFold)
@@ -236,13 +236,13 @@ namespace Andl.Runtime {
 
     // Merge aggregated fields from old row, lookup and accumulators
     // In situ, so must update values properly
-    public DataRow Merge(DataRow lookup, AccumulatorBlock accblk, ExpressionBlock[] exprs) {
+    public DataRow Merge(DataRow lookup, AccumulatorBlock accblk, ExpressionEval[] exprs) {
       return Update(AccumulateValues(lookup, accblk, exprs));
     }
 
     // Merge aggregated fields from old row lookup and accumulators
     // Create new row
-    public DataRow Create(DataRow lookup, AccumulatorBlock accblk, ExpressionBlock[] exprs) {
+    public DataRow Create(DataRow lookup, AccumulatorBlock accblk, ExpressionEval[] exprs) {
       return Create(AccumulateValues(lookup, accblk, exprs));
     }
 
@@ -264,7 +264,7 @@ namespace Andl.Runtime {
 
     // Create new row from this one by evaluating expressions (extend/project)
     // Evaluates everything, but folds will just get default value (no accumulation)
-    public DataRow Transform(DataHeading newheading, IEnumerable<ExpressionBlock> exprs) {
+    public DataRow Transform(DataHeading newheading, IEnumerable<ExpressionEval> exprs) {
       var newvalues = exprs
         .Select(e => e.EvalOpen(this))
         .ToArray();
@@ -273,7 +273,7 @@ namespace Andl.Runtime {
 
     // Create new row from this one by evaluating expressions (extend/project/transform ordered)
     // Accumulator block is updated by call to Fold()
-    public DataRow TransformAggregate(DataHeading newheading, AccumulatorBlock accblock, IEnumerable<ExpressionBlock> exprs) {
+    public DataRow TransformAggregate(DataHeading newheading, AccumulatorBlock accblock, IEnumerable<ExpressionEval> exprs) {
       var newvalues = exprs
         .Select(e => e.HasFold ? e.EvalHasFold(this, accblock) : e.EvalOpen(this))
         .ToArray();

@@ -492,6 +492,7 @@ namespace Andl.Runtime {
   /// </summary>
   public class CodeValue : TypedValue, IDataValue {
     public static CodeValue Default;
+    public ExpressionEval AsEval { get { return Value as ExpressionEval; } }
     public ExpressionBlock Value { get; set; }
 
     static CodeValue() {

@@ -26,7 +26,7 @@ namespace Andl.Runtime {
     // true if more data to read
     public bool HasData { get { return _statement.HasData; } }
     // dictionary of known expressions subject to callback
-    public static Dictionary<int, ExpressionBlock> ExprDict { get; set; }
+    public static Dictionary<int, ExpressionEval> ExprDict { get; set; }
 
     public static SqliteDatabase Database { get { return _database; } }
 
@@ -91,7 +91,7 @@ namespace Andl.Runtime {
     public static void Configure(SqliteDatabase database) {
       _sqlgen = new SqlGen();
       _database = database;
-      ExprDict = new Dictionary<int, ExpressionBlock>();
+      ExprDict = new Dictionary<int, ExpressionEval>();
     }
 
     // create a target instance
@@ -133,7 +133,7 @@ namespace Andl.Runtime {
 
     // Register a set of expressions
     // simplest is to allocate big enough accumulator block for all to use
-    public bool RegisterExpressions(params ExpressionBlock[] exprs) {
+    public bool RegisterExpressions(params ExpressionEval[] exprs) {
       var numacc = exprs.Where(e => e.HasFold).Sum(e => e.AccumCount);
       foreach (var expr in exprs)
         if (!RegisterExpression(expr, numacc))
@@ -141,7 +141,7 @@ namespace Andl.Runtime {
         return true;
     }
 
-    public bool RegisterExpression(ExpressionBlock expr, int naccum) {
+    public bool RegisterExpression(ExpressionEval expr, int naccum) {
       if (!ExprDict.ContainsKey(expr.Serial)) {
         ExprDict[expr.Serial] = expr;
         var name = SqlGen.FuncName(expr);
@@ -285,7 +285,7 @@ namespace Andl.Runtime {
     }
 
     // Callback function to evaluate an expression
-    public object EvaluateCommon(ExpressionBlock expr, FuncTypes functype, object[] values, IntPtr accptr, int naccum) {
+    public object EvaluateCommon(ExpressionEval expr, FuncTypes functype, object[] values, IntPtr accptr, int naccum) {
       var lookup = GetLookup(expr, values);
       TypedValue retval = null;
       switch (functype) {
@@ -293,7 +293,7 @@ namespace Andl.Runtime {
         retval = expr.EvalOpen(lookup);
         break;
       case FuncTypes.Predicate:
-        retval = expr.Predicate(lookup);
+        retval = expr.EvalPred(lookup);
         break;
       case FuncTypes.Aggregate:
       case FuncTypes.Ordered:
@@ -307,7 +307,7 @@ namespace Andl.Runtime {
     }
     
     // create a lookup for an expression a set of values
-    LookupHolder GetLookup(ExpressionBlock expr, object[] ovalues) {
+    LookupHolder GetLookup(ExpressionEval expr, object[] ovalues) {
       // build the lookup
       var lookup = new LookupHolder();
       for (int i = 0; i < expr.NumArgs; ++i) {

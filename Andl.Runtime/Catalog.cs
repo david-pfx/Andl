@@ -170,12 +170,6 @@ namespace Andl.Runtime {
       return _variables.Get(name);
     }
 
-    // Return value from variable with evaluation if needed
-    public TypedValue GetValue(string name) {
-      if (IsSystem(name)) return GetProtectedValue(name);
-      return _variables.GetValue(name);
-    }
-
     // Return type from variable as evaluated if needed
     public DataType GetDataType(string name) {
       if (IsSystem(name)) return DataTypeRelation.Get(GetProtectedHeading(name));
@@ -411,15 +405,6 @@ namespace Andl.Runtime {
       return _entries.ContainsKey(name) ? _entries[name].Value
         : Parent != null ? Parent.Get(name)
         : null;
-    }
-
-    // Return value from variable with evaluation if needed
-    internal TypedValue GetValue(string name) {
-      if (!Exists(name)) return null;
-      var entry = GetEntry(name);
-      if (entry.IsCode)
-        return entry.CodeValue.Value.Evaluate();
-      else return entry.Value;
     }
 
     // Return type from variable as evaluated if needed

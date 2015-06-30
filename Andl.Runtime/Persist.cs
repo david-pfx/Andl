@@ -332,7 +332,7 @@ namespace Andl.Runtime {
       { DataTypes.Binary, (pr, dt, dh) => { var length = pr._reader.ReadInt32(); 
                                         var bytes = pr._reader.ReadBytes(length);
                                         return BinaryValue.Create(bytes); } },
-      { DataTypes.Code,   (pr, dt, dh) => CodeValue.Create(pr.ReadCode()) },
+      { DataTypes.Code,   (pr, dt, dh) => CodeValue.Create(pr.ReadExpr()) },
       { DataTypes.Heading,(pr, dt, dh) => HeadingValue.Create(pr.ReadHeading()) },
       { DataTypes.Table,  (pr, dt, dh) => TypedValue.Create(pr.ReadTable(dh)) },
       { DataTypes.Row,    (pr, dt, dh) => TypedValue.Create(pr.ReadRow(dh)) },
@@ -414,7 +414,7 @@ namespace Andl.Runtime {
     }
 
     // read an expression block
-    public ExpressionBlock ReadCode() {
+    public ExpressionBlock ReadExpr() {
       ExpressionBlock eb;
       var name = ReadString();
       var kind = (ExpressionKinds)ReadByte();

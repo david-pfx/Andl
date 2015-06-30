@@ -35,18 +35,18 @@ namespace Andl.Runtime {
     public abstract bool Superset(DataTable other);
     public abstract bool Separate(DataTable other);
     public abstract TypedValue Lift();
-    public abstract DataTable Project(ExpressionBlock[] exprs);
-    public abstract DataTable Rename(ExpressionBlock[] exprs);
-    public abstract DataTable Restrict(ExpressionBlock expr);
-    public abstract DataTable Transform(DataHeading newheading, ExpressionBlock[] exprs);
-    public abstract DataTable TransformAggregate(DataHeading newheading, ExpressionBlock[] exprs);
-    public abstract DataTable TransformOrdered(DataHeading newheading, ExpressionBlock[] exprs, ExpressionBlock[] orderexps);
-    public abstract DataTable Recurse(int flags, ExpressionBlock expr);
+    public abstract DataTable Project(ExpressionEval[] exprs);
+    public abstract DataTable Rename(ExpressionEval[] exprs);
+    public abstract DataTable Restrict(ExpressionEval expr);
+    public abstract DataTable Transform(DataHeading newheading, ExpressionEval[] exprs);
+    public abstract DataTable TransformAggregate(DataHeading newheading, ExpressionEval[] exprs);
+    public abstract DataTable TransformOrdered(DataHeading newheading, ExpressionEval[] exprs, ExpressionEval[] orderexps);
+    public abstract DataTable Recurse(int flags, ExpressionEval expr);
     public abstract DataTable DyadicJoin(DataTable other, JoinOps joinops, DataHeading newheading);
     public abstract DataTable DyadicAntijoin(DataTable other, JoinOps joinops, DataHeading newheading);
     public abstract DataTable DyadicSet(DataTable other, JoinOps joinops, DataHeading newheading);
     public abstract DataTable UpJoin(DataTable other, JoinOps joinops);
-    public abstract DataTable UpdateTransform(ExpressionBlock pred, ExpressionBlock[] exprs);
+    public abstract DataTable UpdateTransform(ExpressionEval pred, ExpressionEval[] exprs);
     public abstract DataTable ConvertWrap(DataTable other);
 
     // default empty value
@@ -58,7 +58,7 @@ namespace Andl.Runtime {
       return DataTableLocal.Create(heading);
     }
 
-    public static DataTable Create(DataHeading heading, IEnumerable<ExpressionBlock> exprs) {
+    public static DataTable Create(DataHeading heading, IEnumerable<ExpressionEval> exprs) {
       return DataTableLocal.Create(heading, exprs);
     }
 

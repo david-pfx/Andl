@@ -223,7 +223,7 @@ namespace Andl.Runtime {
     //--- functions to manipulate queries
 
     // generate SQL code for restrict
-    DataTableSql AddWhere(ExpressionBlock expr) {
+    DataTableSql AddWhere(ExpressionEval expr) {
       var sql = _gen.Where(expr);
       var newtable = DataTableSql.CreateFromSql(this);
       // TODO: add WHERE to existing statement if there is none
@@ -233,7 +233,7 @@ namespace Andl.Runtime {
     }
 
     // generate SQL code for order by
-    DataTableSql AddOrderBy(ExpressionBlock[] expr) {
+    DataTableSql AddOrderBy(ExpressionEval[] expr) {
       var sql = _gen.OrderBy(expr);
       var newtable = (SqlOrderByText == null) ? this : DataTableSql.CreateFromSql(this);
       newtable.SqlOrderByText = sql;
@@ -325,7 +325,7 @@ namespace Andl.Runtime {
       return row != null ? row.Values[0] : Heading.Columns[0].DataType.Default();
     }
 
-    public override DataTable Project(ExpressionBlock[] exprs) {
+    public override DataTable Project(ExpressionEval[] exprs) {
       var heading = DataHeading.Create(exprs);
       var sql = _gen.SelectAs(GetFrom(), exprs);
       var newtable = DataTableSql.CreateFromSql(heading, sql);
@@ -333,7 +333,7 @@ namespace Andl.Runtime {
       return newtable;
     }
 
-    public override DataTable Rename(ExpressionBlock[] exprs) {
+    public override DataTable Rename(ExpressionEval[] exprs) {
       // note: heading order must match exprs (cf Local)
       var heading = DataHeading.Create(exprs);
       var sql = _gen.SelectAs(GetFrom(), exprs);
@@ -342,14 +342,14 @@ namespace Andl.Runtime {
       return newtable;
     }
 
-    public override DataTable Restrict(ExpressionBlock expr) {
+    public override DataTable Restrict(ExpressionEval expr) {
       _database.RegisterExpressions(expr);
       var newtable = AddWhere(expr);
       Logger.WriteLine(4, "[Res '{0}']", newtable);
       return newtable;
     }
 
-    public override DataTable Transform(DataHeading heading, ExpressionBlock[] exprs) {
+    public override DataTable Transform(DataHeading heading, ExpressionEval[] exprs) {
       _database.RegisterExpressions(exprs);
       var sql = _gen.SelectAs(GetFrom(), exprs);
       var newtable = DataTableSql.CreateFromSql(heading, sql);
@@ -357,7 +357,7 @@ namespace Andl.Runtime {
       return newtable;
     }
 
-    public override DataTable TransformAggregate(DataHeading heading, ExpressionBlock[] exprs) {
+    public override DataTable TransformAggregate(DataHeading heading, ExpressionEval[] exprs) {
       _database.RegisterExpressions(exprs);
       var sql = _gen.SelectAsGroup(GetFrom(), exprs);
       var newtable = DataTableSql.CreateFromSql(heading, sql);
@@ -365,7 +365,7 @@ namespace Andl.Runtime {
       return newtable;
     }
 
-    public override DataTable TransformOrdered(DataHeading heading, ExpressionBlock[] exprs, ExpressionBlock[] orderexps) {
+    public override DataTable TransformOrdered(DataHeading heading, ExpressionEval[] exprs, ExpressionEval[] orderexps) {
       _database.RegisterExpressions(exprs);
       var sql = _gen.SelectAsGroup(GetFrom(), exprs);
       var ord = _gen.OrderBy(orderexps);
@@ -426,7 +426,7 @@ namespace Andl.Runtime {
       return this;
     }
 
-    public override DataTable UpdateTransform(ExpressionBlock pred, ExpressionBlock[] exprs) {
+    public override DataTable UpdateTransform(ExpressionEval pred, ExpressionEval[] exprs) {
       _database.RegisterExpressions(pred);
       _database.RegisterExpressions(exprs);
       if (exprs.Length == 0) {
@@ -443,7 +443,7 @@ namespace Andl.Runtime {
       return this;
     }
 
-    public override DataTable Recurse(int flags, ExpressionBlock expr) {
+    public override DataTable Recurse(int flags, ExpressionEval expr) {
       throw new NotImplementedException();
     }
   }

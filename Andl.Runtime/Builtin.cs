@@ -36,7 +36,7 @@ namespace Andl.Runtime {
     public static BuiltinInfo[] GetBuiltinInfo() {
       Logger.Assert(Builtin.DateValue.StaticDatatype != null);
       var builtins = new List<BuiltinInfo>();
-      var methods = typeof(Builtin).GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.DeclaredOnly);
+      var methods = typeof(Builtin).GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly);
       foreach (var method in methods) {
         if (Char.IsUpper(method.Name[0])) { // avoid "get_xxx"
           var rtype = GetDataType(method.ReturnType);
@@ -125,8 +125,17 @@ namespace Andl.Runtime {
   /// 
   /// NOTE: do not introduce extraneous 'helper' functions here
   /// </summary>
-  public static class Builtin {
-    static public Catalog Catalog { get; set; }
+  //public static class Builtin {
+  public class Builtin {
+    Catalog _catalog;
+    Evaluator _evaluator;
+
+    public static Builtin Create(Catalog catalog, Evaluator evaluator) {
+      return new Builtin {
+        _catalog = catalog,
+        _evaluator = evaluator,
+      };
+    }
 
     ///=================================================================
     ///
@@ -136,46 +145,46 @@ namespace Andl.Runtime {
     // Assign a value to a variable 
     // The variable is identified by a named expression
     // Lazy means keeps the code; else evaluate and keep the result
-    public static VoidValue Assign(CodeValue exprarg) {
+    public VoidValue Assign(CodeValue exprarg) {
       Logger.WriteLine(3, "Assign {0}", exprarg);
       var name = exprarg.Value.Name;
       if (exprarg.Value.IsLazy) {
-        Catalog.SetValue(name, exprarg);
+        _catalog.SetValue(name, exprarg);
       } else {
-        var value = exprarg.Value.Evaluate();
-        Catalog.SetValue(name, value);
+        var value = _evaluator.Exec(exprarg.Value.Code);
+        _catalog.SetValue(name, value);
       }
       Logger.WriteLine(3, "[Ass]");
       return VoidValue.Default;
     }
 
     // Invoke a do block with its own scope level
-    public static TypedValue DoBlock(CodeValue expr) {
-      Logger.WriteLine(3, "DoBlock {0}", expr);
-      Catalog.PushScope();
-      var ret = expr.Value.Evaluate();
-      Catalog.PopScope();
+    public TypedValue DoBlock(CodeValue exprarg) {
+      Logger.WriteLine(3, "DoBlock {0}", exprarg);
+      _catalog.PushScope();
+      var ret = _evaluator.Exec(exprarg.Value.Code);
+      _catalog.PopScope();
       Logger.WriteLine(3, "[Do {0}]", ret);
       return ret;
     }
 
     // IF(expr,true,false)
-    public static TypedValue If(BoolValue arg1, CodeValue arg2, CodeValue arg3) {
+    public TypedValue If(BoolValue arg1, CodeValue arg2, CodeValue arg3) {
       Logger.WriteLine(3, "If {0},{1},{2}", arg1, arg2, arg3);
-      var ret = (arg1.Value) ? arg2.Value.Evaluate() : arg3.Value.Evaluate();
+      var ret = (arg1.Value) ? arg2.AsEval.Evaluate() : arg3.AsEval.Evaluate();
       Logger.WriteLine(3, "[If {0}]", ret);
       return ret;
     }
 
     // Invoke a defined function with required argument in scope
     // If folded, applies an offset to get the right accumulator
-    public static TypedValue Invoke(CodeValue funcarg, PointerValue accblkarg, NumberValue accbasarg, TypedValue[] valargs) {
+    public TypedValue Invoke(CodeValue funcarg, PointerValue accblkarg, NumberValue accbasarg, TypedValue[] valargs) {
       Logger.WriteLine(3, "Invoke {0} accbase={1} ({2})", funcarg, accbasarg, String.Join(",", valargs.Select(a => a.ToString()).ToArray()));
-      var args = DataRow.Create(funcarg.Value.Lookup, valargs);
+      var args = DataRow.Create(funcarg.AsEval.Lookup, valargs);
       var accbase = (int)accbasarg.Value;
-      var ret = (funcarg.Value.HasFold)
-        ? funcarg.Value.EvalHasFold(args, accblkarg.Value as AccumulatorBlock, accbase)
-        : funcarg.Value.EvalOpen(args);
+      var ret = (funcarg.AsEval.HasFold)
+        ? funcarg.AsEval.EvalHasFold(args, accblkarg.Value as AccumulatorBlock, accbase)
+        : funcarg.AsEval.EvalOpen(args);
       if (ret is RelationValue && !(ret.AsTable() is DataTableLocal))
         ret = RelationValue.Create(DataTableLocal.Convert(ret.AsTable(), args));
       Logger.WriteLine(3, "[Inv {0}]", ret);
@@ -184,9 +193,9 @@ namespace Andl.Runtime {
 
     // Create a row by evaluating named expressions against a heading
     // TODO:no heading
-    public static TupleValue Row(TypedValue hdgarg, params CodeValue[] exprargs) {
+    public TupleValue Row(TypedValue hdgarg, params CodeValue[] exprargs) {
       var heading = hdgarg.AsHeading();
-      var exprs = exprargs.Select(e => (e as CodeValue).Value).ToArray();
+      var exprs = exprargs.Select(e => (e as CodeValue).AsEval).ToArray();
       var newrow = DataRow.Create(heading, exprs);
       Logger.WriteLine(3, "[Row={0}]", newrow);
       return TupleValue.Create(newrow);
@@ -195,22 +204,22 @@ namespace Andl.Runtime {
     // Create a Table from a list of expressions that will yield rows
     // Each row has its own heading, which must match.
     // TODO:no heading
-    public static RelationValue Table(HeadingValue hdgarg, params CodeValue[] exprargs) {
-      var exprs = exprargs.Select(e => e.Value).ToArray();
+    public RelationValue Table(HeadingValue hdgarg, params CodeValue[] exprargs) {
+      var exprs = exprargs.Select(e => e.AsEval).ToArray();
 
       var newtable = DataTable.Create(hdgarg.Value, exprs);
       Logger.WriteLine(3, "[Table={0}]", newtable);
       return RelationValue.Create(newtable);
     }
 
-    public static UserValue UserSelector(TextValue typename, TypedValue[] valargs) {
+    public UserValue UserSelector(TextValue typename, TypedValue[] valargs) {
       var usertype = DataTypeUser.Find(typename.Value);
       return usertype.CreateValue(valargs);
     }
 
     // Connect to a persisted or imported relvar
-    public static VoidValue Connect(TextValue namearg, TextValue sourcearg, HeadingValue heading) {
-      if (!Catalog.ImportRelvar(namearg.Value, sourcearg.Value))
+    public VoidValue Connect(TextValue namearg, TextValue sourcearg, HeadingValue heading) {
+      if (!_catalog.ImportRelvar(namearg.Value, sourcearg.Value))
         RuntimeError.Fatal("cannot connect: {0}", namearg.Value);
       return VoidValue.Default;
     }
@@ -221,70 +230,70 @@ namespace Andl.Runtime {
     /// 
 
     // Return ordinal as scalar
-    public static NumberValue Ordinal(PointerValue lookup) {
+    public NumberValue Ordinal(PointerValue lookup) {
       var row = lookup.Value as DataRow;
       Logger.Assert(row != null, "lookup is not row");
       return row.Ordinal(false);
     }
 
     // Return ordinal as scalar
-    public static NumberValue OrdinalGroup(PointerValue lookup) {
+    public NumberValue OrdinalGroup(PointerValue lookup) {
       var row = lookup.Value as DataRow;
       Logger.Assert(row != null, "lookup is not row");
       return row.Ordinal(true);
     }
 
     // Return value of attribute with tuple indexing
-    public static TypedValue ValueLead(CodeValue attribute, NumberValue index, PointerValue lookup) {
+    public TypedValue ValueLead(CodeValue attribute, NumberValue index, PointerValue lookup) {
       var row = lookup.Value as DataRow;
       Logger.Assert(row != null, "lookup is not row");
-      return row.ValueOffset(attribute.Value, (int)index.Value, OffsetModes.Lead);
+      return row.ValueOffset(attribute.AsEval, (int)index.Value, OffsetModes.Lead);
     }
 
     // Return value of attribute with tuple indexing
-    public static TypedValue ValueLag(CodeValue attribute, NumberValue index, PointerValue lookup) {
+    public TypedValue ValueLag(CodeValue attribute, NumberValue index, PointerValue lookup) {
       var row = lookup.Value as DataRow;
       Logger.Assert(row != null, "lookup is not row");
-      return row.ValueOffset(attribute.Value, (int)index.Value, OffsetModes.Lag);
+      return row.ValueOffset(attribute.AsEval, (int)index.Value, OffsetModes.Lag);
     }
 
     // Return value of attribute with tuple indexing
-    public static TypedValue ValueNth(CodeValue attribute, NumberValue index, PointerValue lookup) {
+    public TypedValue ValueNth(CodeValue attribute, NumberValue index, PointerValue lookup) {
       var row = lookup.Value as DataRow;
       Logger.Assert(row != null, "lookup is not row");
-      return row.ValueOffset(attribute.Value, (int)index.Value, OffsetModes.Absolute);
+      return row.ValueOffset(attribute.AsEval, (int)index.Value, OffsetModes.Absolute);
     }
 
     // Return rank of attribute with tuple indexing
-    public static TypedValue Rank(CodeValue attribute, NumberValue index, PointerValue lookup) {
+    public TypedValue Rank(CodeValue attribute, NumberValue index, PointerValue lookup) {
       var row = lookup.Value as DataRow;
       Logger.Assert(row != null, "lookup is not row");
-      var value = attribute.Value.EvalOpen(row);
-      var offset = row.Heading.FindIndex(attribute.Value.Name);
+      var value = attribute.AsEval.EvalOpen(row);
+      var offset = row.Heading.FindIndex(attribute.AsEval.Name);
       return NumberValue.Create(index.Value + 1);
     }
 
     // Fold an operation and one argument over a set of tuples
-    public static TypedValue Fold(PointerValue accblkarg, NumberValue accidarg, TypedValue defarg, CodeValue expr) {
+    public TypedValue Fold(PointerValue accblkarg, NumberValue accidarg, TypedValue defarg, CodeValue expr) {
       Logger.WriteLine(3, "Fold n={0} def={1} expr={2}", accidarg, defarg, expr);
       var accblock = accblkarg.Value as AccumulatorBlock;
       var accid = (int)accidarg.Value;
       var accum = accblock[accid] ?? defarg;
-      accblock[accid] = expr.Value.EvalIsFolded(null, accblock[accid]);
+      accblock[accid] = expr.AsEval.EvalIsFolded(null, accblock[accid]);
       Logger.WriteLine(3, "[Fold {0}]", accblock[accid]);
       return accblock[accid];
     }
 
     // Fold an operation and one argument over a set of tuples
-    public static TypedValue CumFold(TypedValue accumulator, CodeValue expr) {
+    public TypedValue CumFold(TypedValue accumulator, CodeValue expr) {
       // if accum is Empty this is a request for a default value
       if (accumulator == TypedValue.Empty)
-        return expr.Value.DataType.Default();
-      return expr.Value.EvalIsFolded(null, accumulator);
+        return expr.AsEval.DataType.Default();
+      return expr.AsEval.EvalIsFolded(null, accumulator);
     }
 
     // Lift a value out of a relation
-    public static TypedValue Lift(RelationValue relarg) {
+    public TypedValue Lift(RelationValue relarg) {
       return relarg.Value.Lift();
     }
 
@@ -295,32 +304,32 @@ namespace Andl.Runtime {
 
     // Create new table with less columns and perhaps less rows; can also rename
     // TODO: optimise one pass
-    public static RelationValue Project(RelationValue relarg, params CodeValue[] exprargs) {
+    public RelationValue Project(RelationValue relarg, params CodeValue[] exprargs) {
       var rel = relarg.Value;
-      var exprs = exprargs.Select(e => (e as CodeValue).Value).ToArray();
+      var exprs = exprargs.Select(e => (e as CodeValue).AsEval).ToArray();
       var relnew = rel.Project(exprs);
       return RelationValue.Create(relnew);
     }
 
     // Rename by applying rename expressions
     // Just switch heading
-    public static RelationValue Rename(RelationValue relarg, params CodeValue[] renargs) {
-      var renames = renargs.Select(r => (r as CodeValue).Value).ToArray();
+    public RelationValue Rename(RelationValue relarg, params CodeValue[] renargs) {
+      var renames = renargs.Select(r => (r as CodeValue).AsEval).ToArray();
       var relnew = relarg.Value.Rename(renames);
       return RelationValue.Create(relnew);
     }
 
     // Create new table filtered by evaluating a predicate expressions
-    public static RelationValue Restrict(RelationValue relarg, params CodeValue[] expr) {
-      var relnew = relarg.Value.Restrict(expr[0].Value);
+    public RelationValue Restrict(RelationValue relarg, params CodeValue[] expr) {
+      var relnew = relarg.Value.Restrict(expr[0].AsEval);
       return RelationValue.Create(relnew);
     }
 
     // Transform does Rename and/or Project and/or Extend combo
-    public static RelationValue Transform(RelationValue relarg, params CodeValue[] exprargs) {
-      Logger.WriteLine(3, "Transform {0} {1}", relarg, exprargs.Select(e => e.Value.Kind.ToString()));
+    public RelationValue Transform(RelationValue relarg, params CodeValue[] exprargs) {
+      Logger.WriteLine(3, "Transform {0} {1}", relarg, exprargs.Select(e => e.AsEval.Kind.ToString()));
       var rel = relarg.Value;
-      var exprs = exprargs.Select(e => (e as CodeValue).Value).ToArray();
+      var exprs = exprargs.Select(e => (e as CodeValue).AsEval).ToArray();
       var heading = DataHeading.Create(exprs);
       var relnew = rel.Transform(heading, exprs);
       Logger.WriteLine(3, "[Tr {0}]", relnew);
@@ -328,10 +337,10 @@ namespace Andl.Runtime {
     }
 
     // Transform plus aggregation
-    public static RelationValue TransAgg(RelationValue relarg, params CodeValue[] exprargs) {
-      Logger.WriteLine(3, "TransAgg {0} {1}", relarg, exprargs.Select(e => e.Value.Kind.ToString()));
+    public RelationValue TransAgg(RelationValue relarg, params CodeValue[] exprargs) {
+      Logger.WriteLine(3, "TransAgg {0} {1}", relarg, exprargs.Select(e => e.AsEval.Kind.ToString()));
       var rel = relarg.Value;
-      var exprs = exprargs.Select(e => e.Value).ToArray();
+      var exprs = exprargs.Select(e => e.AsEval).ToArray();
       var heading = DataHeading.Create(exprs);
       var relnew = rel.TransformAggregate(heading, exprs);
       Logger.WriteLine(3, "[TrA {0}]", relnew);
@@ -339,10 +348,10 @@ namespace Andl.Runtime {
     }
 
     // Transform plus ordering
-    public static RelationValue TransOrd(RelationValue relarg, params CodeValue[] exprargs) {
-      Logger.WriteLine(3, "TransOrd {0} {1}", relarg, exprargs.Select(e => e.Value.Kind.ToString()));
+    public RelationValue TransOrd(RelationValue relarg, params CodeValue[] exprargs) {
+      Logger.WriteLine(3, "TransOrd {0} {1}", relarg, exprargs.Select(e => e.AsEval.Kind.ToString()));
       var rel = relarg.Value;
-      var exprs = exprargs.Select(e => (e as CodeValue).Value).ToArray();
+      var exprs = exprargs.Select(e => (e as CodeValue).AsEval).ToArray();
       var tranexprs = exprs.Where(e => !e.IsOrder).ToArray();
       var orderexps = exprs.Where(e => e.IsOrder).ToArray();
       var heading = DataHeading.Create(tranexprs);
@@ -352,10 +361,10 @@ namespace Andl.Runtime {
     }
 
     // Recursive expansion
-    public static RelationValue Recurse(RelationValue relarg, NumberValue flags, CodeValue exprarg) {
+    public RelationValue Recurse(RelationValue relarg, NumberValue flags, CodeValue exprarg) {
       Logger.WriteLine(3, "Recurse {0} {1} {2}", relarg, flags, exprarg);
 
-      var relnew = relarg.Value.Recurse((int)flags.Value, exprarg.Value);
+      var relnew = relarg.Value.Recurse((int)flags.Value, exprarg.AsEval);
       Logger.WriteLine(3, "[Rec {0}]", relnew);
       return RelationValue.Create(relnew);
     }
@@ -366,7 +375,7 @@ namespace Andl.Runtime {
     /// 
 
     // Dyadic: does Join, Antijoin or Set ops depending on joinop bit flags
-    public static RelationValue DyadicJoin(RelationValue rel1, RelationValue rel2, NumberValue joparg) {
+    public RelationValue DyadicJoin(RelationValue rel1, RelationValue rel2, NumberValue joparg) {
       var joinop = (JoinOps)joparg.Value;
       var mergeop = (MergeOps)(joinop & JoinOps.MERGEOPS);
       var newheading = DataHeading.Merge(mergeop, rel1.Value.Heading, rel2.Value.Heading);
@@ -379,7 +388,7 @@ namespace Andl.Runtime {
     }
 
     // Dyadic: does Join, Antijoin or Set ops depending on joinop bit flags
-    public static RelationValue DyadicAntijoin(RelationValue rel1, RelationValue rel2, NumberValue joparg) {
+    public RelationValue DyadicAntijoin(RelationValue rel1, RelationValue rel2, NumberValue joparg) {
       var joinop = (JoinOps)joparg.Value;
       var mergeop = (MergeOps)(joinop & JoinOps.MERGEOPS);
       var newheading = DataHeading.Merge(mergeop, rel1.Value.Heading, rel2.Value.Heading);
@@ -392,7 +401,7 @@ namespace Andl.Runtime {
     }
 
     // Dyadic: does Join, Antijoin or Set ops depending on joinop bit flags
-    public static RelationValue DyadicSet(RelationValue rel1, RelationValue rel2, NumberValue joparg) {
+    public RelationValue DyadicSet(RelationValue rel1, RelationValue rel2, NumberValue joparg) {
       var joinop = (JoinOps)joparg.Value;
       var mergeop = (MergeOps)(joinop & JoinOps.MERGEOPS);
       var newheading = DataHeading.Merge(mergeop, rel1.Value.Heading, rel2.Value.Heading);
@@ -407,21 +416,21 @@ namespace Andl.Runtime {
     // For mixed super and subset, ensure that left arg is local
     // Reverse operation if needed
 
-    public static BoolValue Subset(RelationValue relarg1, RelationValue relarg2) {
+    public BoolValue Subset(RelationValue relarg1, RelationValue relarg2) {
       var ret = (DataTable.CheckDyadic(relarg1.Value, relarg2.Value) == MixedDyadics.RightLocal)
         ? relarg2.Value.Superset(relarg1.Value)
         : relarg1.Value.Subset(relarg2.Value);
       return BoolValue.Create(ret);
     }
 
-    public static BoolValue Superset(RelationValue relarg1, RelationValue relarg2) {
+    public BoolValue Superset(RelationValue relarg1, RelationValue relarg2) {
       var ret = (DataTable.CheckDyadic(relarg1.Value, relarg2.Value) == MixedDyadics.RightLocal)
         ? relarg2.Value.Subset(relarg1.Value)
         : relarg1.Value.Superset(relarg2.Value);
       return BoolValue.Create(ret);
     }
 
-    public static BoolValue Separate(RelationValue relarg1, RelationValue relarg2) {
+    public BoolValue Separate(RelationValue relarg1, RelationValue relarg2) {
       var ret = (DataTable.CheckDyadic(relarg1.Value, relarg2.Value) == MixedDyadics.RightLocal)
         ? relarg2.Value.Separate(relarg1.Value)
         : relarg1.Value.Separate(relarg2.Value);
@@ -442,17 +451,17 @@ namespace Andl.Runtime {
     }
 
     // Update Select with predicate and attr exprs
-    public static VoidValue UpdateTrans(RelationValue rel1, CodeValue predarg, params CodeValue[] exprargs) {
-      var exprs = exprargs.Select(e => (e as CodeValue).Value).ToArray();
-      Logger.WriteLine(3, "UpdateTrans {0} pred={1} exprs=<{2}>", rel1, ExprShort(predarg.Value), ExprShorts(exprs));
+    public VoidValue UpdateTrans(RelationValue rel1, CodeValue predarg, params CodeValue[] exprargs) {
+      var exprs = exprargs.Select(e => (e as CodeValue).AsEval).ToArray();
+      Logger.WriteLine(3, "UpdateTrans {0} pred={1} exprs=<{2}>", rel1, ExprShort(predarg.AsEval), ExprShorts(exprs));
 
-      var relnew = rel1.Value.UpdateTransform(predarg.Value, exprs);
+      var relnew = rel1.Value.UpdateTransform(predarg.AsEval, exprs);
       Logger.WriteLine(3, "[UT]");
       return VoidValue.Default;
     }
 
     // Update Join with joinop bit flags
-    public static VoidValue UpdateJoin(RelationValue rel1, RelationValue rel2, NumberValue joparg) {
+    public VoidValue UpdateJoin(RelationValue rel1, RelationValue rel2, NumberValue joparg) {
       var joinop = (JoinOps)joparg.Value;
       Logger.WriteLine(3, "UpdateJoin {0} {1} {2}", rel1, rel2, joinop);
 
@@ -467,36 +476,36 @@ namespace Andl.Runtime {
     /// Logical operations
     /// 
 
-    public static BoolValue And(BoolValue arg1, BoolValue arg2) {
+    public BoolValue And(BoolValue arg1, BoolValue arg2) {
       return BoolValue.Create(arg1.Value && arg2.Value);
     }
 
-    public static BoolValue Or(BoolValue arg1, BoolValue arg2) {
+    public BoolValue Or(BoolValue arg1, BoolValue arg2) {
       return BoolValue.Create(arg1.Value || arg2.Value);
     }
 
-    public static BoolValue Xor(BoolValue arg1, BoolValue arg2) {
+    public BoolValue Xor(BoolValue arg1, BoolValue arg2) {
       return BoolValue.Create(arg1.Value ^ arg2.Value);
     }
 
-    public static BoolValue Not(BoolValue arg1) {
+    public BoolValue Not(BoolValue arg1) {
       return BoolValue.Create(!arg1.Value);
     }
 
     // Bitwise overloads
-    public static NumberValue BitAnd(NumberValue arg1, NumberValue arg2) {
+    public NumberValue BitAnd(NumberValue arg1, NumberValue arg2) {
       return NumberValue.Create((Int64)arg1.Value & (Int64)arg2.Value);
     }
 
-    public static NumberValue BitOr(NumberValue arg1, NumberValue arg2) {
+    public NumberValue BitOr(NumberValue arg1, NumberValue arg2) {
       return NumberValue.Create((Int64)arg1.Value | (Int64)arg2.Value);
     }
 
-    public static NumberValue BitXor(NumberValue arg1, NumberValue arg2) {
+    public NumberValue BitXor(NumberValue arg1, NumberValue arg2) {
       return NumberValue.Create((Int64)arg1.Value ^ (Int64)arg2.Value);
     }
 
-    public static NumberValue BitNot(NumberValue arg1) {
+    public NumberValue BitNot(NumberValue arg1) {
       return NumberValue.Create(~(Int64)arg1.Value);
     }
 
@@ -505,37 +514,37 @@ namespace Andl.Runtime {
     /// Arithmetic operations
     /// 
 
-    public static NumberValue Neg(NumberValue arg1) {
+    public NumberValue Neg(NumberValue arg1) {
       return NumberValue.Create(-arg1.Value);
     }
-    public static NumberValue Add(NumberValue arg1, NumberValue arg2) {
+    public NumberValue Add(NumberValue arg1, NumberValue arg2) {
       return NumberValue.Create(arg1.Value + arg2.Value);
     }
-    public static NumberValue Subtract(NumberValue arg1, NumberValue arg2) {
+    public NumberValue Subtract(NumberValue arg1, NumberValue arg2) {
       return NumberValue.Create(arg1.Value - arg2.Value);
     }
-    public static NumberValue Multiply(NumberValue arg1, NumberValue arg2) {
+    public NumberValue Multiply(NumberValue arg1, NumberValue arg2) {
       return NumberValue.Create(arg1.Value * arg2.Value);
     }
-    public static NumberValue Divide(NumberValue arg1, NumberValue arg2) {
+    public NumberValue Divide(NumberValue arg1, NumberValue arg2) {
       return NumberValue.Create(arg1.Value / arg2.Value);
     }
-    public static NumberValue Div(NumberValue arg1, NumberValue arg2) {
+    public NumberValue Div(NumberValue arg1, NumberValue arg2) {
       return NumberValue.Create(Decimal.Truncate(Decimal.Divide(Decimal.Truncate(arg1.Value), Decimal.Truncate(arg2.Value))));
     }
-    public static NumberValue Mod(NumberValue arg1, NumberValue arg2) {
+    public NumberValue Mod(NumberValue arg1, NumberValue arg2) {
       return NumberValue.Create(Decimal.Remainder(Decimal.Truncate(arg1.Value), Decimal.Truncate(arg2.Value)));
     }
-    public static NumberValue Pow(NumberValue arg1, NumberValue arg2) {
+    public NumberValue Pow(NumberValue arg1, NumberValue arg2) {
       var v = Math.Pow((double)arg1.Value, (double)arg2.Value);
       return NumberValue.Create((decimal)v);
     }
 
     // Min/max
-    public static IOrderedValue Max(IOrderedValue arg1, IOrderedValue arg2) {
+    public IOrderedValue Max(IOrderedValue arg1, IOrderedValue arg2) {
       return CheckedLess(arg1, arg2) ? arg2 : arg1;
     }
-    public static IOrderedValue Min(IOrderedValue arg1, IOrderedValue arg2) {
+    public IOrderedValue Min(IOrderedValue arg1, IOrderedValue arg2) {
       return CheckedLess(arg1, arg2) ? arg1 : arg2;
     }
 
@@ -543,27 +552,27 @@ namespace Andl.Runtime {
     ///
     /// Comparisons
     /// 
-    public static BoolValue Eq(TypedValue arg1, TypedValue arg2) {
+    public BoolValue Eq(TypedValue arg1, TypedValue arg2) {
       return BoolValue.Create(CheckedEqual(arg1, arg2));
     }
-    public static BoolValue Ne(TypedValue arg1, TypedValue arg2) {
+    public BoolValue Ne(TypedValue arg1, TypedValue arg2) {
       return BoolValue.Create(!CheckedEqual(arg1, arg2));
     }
-    public static BoolValue Ge(IOrderedValue arg1, IOrderedValue arg2) {
+    public BoolValue Ge(IOrderedValue arg1, IOrderedValue arg2) {
       return BoolValue.Create(!CheckedLess(arg1, arg2));
     }
-    public static BoolValue Gt(IOrderedValue arg1, IOrderedValue arg2) {
+    public BoolValue Gt(IOrderedValue arg1, IOrderedValue arg2) {
       return BoolValue.Create(!CheckedLess(arg1, arg2) && !arg1.Equals(arg2));
     }
-    public static BoolValue Le(IOrderedValue arg1, IOrderedValue arg2) {
+    public BoolValue Le(IOrderedValue arg1, IOrderedValue arg2) {
       return BoolValue.Create(CheckedLess(arg1, arg2) || arg1.Equals(arg2));
     }
-    public static BoolValue Lt(IOrderedValue arg1, IOrderedValue arg2) {
+    public BoolValue Lt(IOrderedValue arg1, IOrderedValue arg2) {
       return BoolValue.Create(CheckedLess(arg1, arg2));
     }
 
     // Match using regex
-    public static BoolValue Match(TextValue arg1, TextValue arg2) {
+    public BoolValue Match(TextValue arg1, TextValue arg2) {
       Regex re = new Regex(arg2.Value);
       return BoolValue.Create(re.IsMatch(arg1.Value));
     }
@@ -586,17 +595,17 @@ namespace Andl.Runtime {
     /// 
 
     // basic string
-    public static TextValue Text(TypedValue value) {
+    public TextValue Text(TypedValue value) {
       return TextValue.Create(value.ToString());
     }
 
     // fancier string
-    public static TextValue Format(TypedValue value) {
+    public TextValue Format(TypedValue value) {
       return TextValue.Create(value.Format());
     }
 
     // special for tables
-    public static TextValue PrettyPrint(TypedValue value) {
+    public TextValue PrettyPrint(TypedValue value) {
       Logger.WriteLine(3, "PrettyPrint {0}", value);
       var sb = new StringBuilder();
       if (value.DataType is DataTypeRelation) {
@@ -611,22 +620,22 @@ namespace Andl.Runtime {
     }
 
     // Return type name as text
-    public static TextValue Type(TypedValue arg) {
+    public TextValue Type(TypedValue arg) {
       return TextValue.Create(arg.DataType.Name);
     }
 
     // Return cardinality as scalar
-    public static NumberValue Count(RelationValue arg) {
+    public NumberValue Count(RelationValue arg) {
       return NumberValue.Create(arg.Value.GetCount());
     }
 
     // Return degree as scalar
-    public static NumberValue Degree(RelationValue arg) {
+    public NumberValue Degree(RelationValue arg) {
       return NumberValue.Create(arg.Value.Degree);
     }
 
     // relation representing heading
-    public static RelationValue Schema(RelationValue relarg) {
+    public RelationValue Schema(RelationValue relarg) {
       var heading = DataHeading.Create("Name", "Type");
       var table = DataTableLocal.Create(heading);
       foreach (var col in relarg.Value.Heading.Columns) {
@@ -636,7 +645,7 @@ namespace Andl.Runtime {
     }
 
     // sequence of integers
-    public static RelationValue Sequence(NumberValue countarg) {
+    public RelationValue Sequence(NumberValue countarg) {
       var heading = DataHeading.Create("N:number");
       var table = DataTableLocal.Create(heading);
       var n = Decimal.Zero;
@@ -652,21 +661,21 @@ namespace Andl.Runtime {
     ///
     /// 
 
-    public static BoolValue Bool(TextValue value) {
+    public BoolValue Bool(TextValue value) {
       if (String.Equals(value.Value, "true", StringComparison.InvariantCultureIgnoreCase)) return BoolValue.True;
       if (String.Equals(value.Value, "false", StringComparison.InvariantCultureIgnoreCase)) return BoolValue.False;
       RuntimeError.Fatal("Bool", "bad string format");
       return BoolValue.Default;
     }
 
-    public static NumberValue Number(TextValue value) {
+    public NumberValue Number(TextValue value) {
       decimal d;
       if (Decimal.TryParse(value.Value, out d)) return NumberValue.Create(d);
       RuntimeError.Fatal("Number", "bad string format");
       return NumberValue.Default;
     }
 
-    public static TimeValue Time(TextValue value) {
+    public TimeValue Time(TextValue value) {
       DateTime t;
       if (DateTime.TryParse(value.Value, out t)) return TimeValue.Create(t);
       RuntimeError.Fatal("Time", "bad string format");
@@ -678,7 +687,7 @@ namespace Andl.Runtime {
     /// bianry operations
     /// 
 
-    public static BinaryValue Binary(TypedValue value) {
+    public BinaryValue Binary(TypedValue value) {
       if (value.DataType == DataTypes.Text)
         return BinaryValue.Default;
       if (value.DataType == DataTypes.Number) {
@@ -689,17 +698,17 @@ namespace Andl.Runtime {
       return BinaryValue.Default;
     }
 
-    public static NumberValue BinaryLength(BinaryValue arg1) {
+    public NumberValue BinaryLength(BinaryValue arg1) {
       return NumberValue.Create(arg1.Value.Length);
     }
     
-    public static NumberValue BinaryGet(BinaryValue value, NumberValue index) {
+    public NumberValue BinaryGet(BinaryValue value, NumberValue index) {
       if (index.Value < 0 || index.Value > value.Value.Length)
         RuntimeError.Fatal("Binary get", "index out of range");
       return NumberValue.Create(value.Value[(int)index.Value]);
     }
 
-    public static BinaryValue BinarySet(BinaryValue value, NumberValue index, NumberValue newvalue) {
+    public BinaryValue BinarySet(BinaryValue value, NumberValue index, NumberValue newvalue) {
       if (index.Value < 0 || index.Value > value.Value.Length)
         RuntimeError.Fatal("Binary set", "index out of range");
       var b = value.Value.Clone() as byte[];
@@ -713,17 +722,17 @@ namespace Andl.Runtime {
     /// 
 
     // Concatenate. Converts arguments to string.
-    public static TextValue Concat(TypedValue arg1, TypedValue arg2) {
+    public TextValue Concat(TypedValue arg1, TypedValue arg2) {
       return TextValue.Create(arg1.ToString() + arg2.ToString());
     }
 
     // remove leading and trailing white space
-    public static TextValue Trim(TextValue arg1) {
+    public TextValue Trim(TextValue arg1) {
       return TextValue.Create(arg1.Value.Trim());
     }
 
     // Pad to length with spaces, or truncate to length
-    public static TextValue Left(TextValue arg1, NumberValue arg2) {
+    public TextValue Left(TextValue arg1, NumberValue arg2) {
       if (arg2.Value < 0) return TextValue.Default;
       var str = arg1.Value;
       var len = (int)arg2.Value;
@@ -732,7 +741,7 @@ namespace Andl.Runtime {
     }
 
     // Pad on left with spaces or truncate to right to length
-    public static TextValue Right(TextValue arg1, NumberValue arg2) {
+    public TextValue Right(TextValue arg1, NumberValue arg2) {
       if (arg2.Value < 0) return TextValue.Default;
       var str = arg1.Value;
       var len = (int)arg2.Value;
@@ -741,7 +750,7 @@ namespace Andl.Runtime {
     }
 
     // Multiple copies of a string to fill a length
-    public static TextValue Fill(TextValue arg1, NumberValue arg2) {
+    public TextValue Fill(TextValue arg1, NumberValue arg2) {
       if (arg2.Value < 0) return TextValue.Default;
       StringBuilder sb = new StringBuilder();
       var times = ((int)arg2.Value + arg1.Value.Length - 1) / arg1.Value.Length;
@@ -751,30 +760,30 @@ namespace Andl.Runtime {
     }
 
     // The part of arg1 before arg2, or arg1 if not found
-    public static TextValue Before(TextValue arg1, TextValue arg2) {
+    public TextValue Before(TextValue arg1, TextValue arg2) {
       int pos = arg1.Value.IndexOf(arg2.Value);
       return pos == -1 ? arg1 : TextValue.Create(arg1.Value.Substring(0, pos));
     }
 
     // The part of arg1 after arg2, or nothing if not found
-    public static TextValue After(TextValue arg1, TextValue arg2) {
+    public TextValue After(TextValue arg1, TextValue arg2) {
       int pos = arg1.Value.IndexOf(arg2.Value);
       return pos == -1 ? TextValue.Default : TextValue.Create(arg1.Value.Substring(pos + arg2.Value.Length));
     }
 
-    public static TextValue ToUpper(TextValue arg1) {
+    public TextValue ToUpper(TextValue arg1) {
       return TextValue.Create(arg1.Value.ToUpper());
     }
 
-    public static TextValue ToLower(TextValue arg1) {
+    public TextValue ToLower(TextValue arg1) {
       return TextValue.Create(arg1.Value.ToLower());
     }
 
-    public static NumberValue Length(TextValue arg1) {
+    public NumberValue Length(TextValue arg1) {
       return NumberValue.Create(arg1.Value.Length);
     }
 
-    public static TimeValue Now() {
+    public TimeValue Now() {
       var now = DateTime.Now;
       return TimeValue.Create(now);
     }
@@ -784,20 +793,20 @@ namespace Andl.Runtime {
     /// 
 
     // Write a text value to the console
-    public static VoidValue Write(TextValue line) {
+    public VoidValue Write(TextValue line) {
       Console.WriteLine(line.Value);
       return VoidValue.Default;
     }
 
     // Obtain a text value by reading from the console
-    public static TextValue Read() {
+    public TextValue Read() {
       var input = Console.ReadLine();
       return TextValue.Create(input);
     }
 
     // optional pause (only when interactive)
-    public static VoidValue Pause(TextValue value) {
-      if (Catalog.InteractiveFlag) {
+    public VoidValue Pause(TextValue value) {
+      if (_catalog.InteractiveFlag) {
         if (value.Value.Length > 0)
           Console.WriteLine(value.Value);
         Console.ReadLine();
@@ -828,23 +837,23 @@ namespace Andl.Runtime {
       }
     }
 
-    public static DateValue Create(TimeValue time) {
+    public DateValue Create(TimeValue time) {
       return new DateValue { Value = time.Value };
     }
-    public static DateValue CreateYmd(NumberValue year, NumberValue month, NumberValue day) {
+    public DateValue CreateYmd(NumberValue year, NumberValue month, NumberValue day) {
       return new DateValue { Value = new DateTime((int)year.Value, (int)month.Value, (int)day.Value) };
     }
 
-    public static TimeValue TimeD(DateValue arg1) { return TimeValue.Create(arg1.Value); }
-    public static NumberValue Year(DateValue arg1) { return NumberValue.Create(arg1.Value.Year); }
-    public static NumberValue Month(DateValue arg1) { return NumberValue.Create(arg1.Value.Month); }
-    public static NumberValue Day(DateValue arg1) { return NumberValue.Create(arg1.Value.Day); }
+    public TimeValue TimeD(DateValue arg1) { return TimeValue.Create(arg1.Value); }
+    public NumberValue Year(DateValue arg1) { return NumberValue.Create(arg1.Value.Year); }
+    public NumberValue Month(DateValue arg1) { return NumberValue.Create(arg1.Value.Month); }
+    public NumberValue Day(DateValue arg1) { return NumberValue.Create(arg1.Value.Day); }
 
-    public static NumberValue DayOfWeek(DateValue arg1) {
+    public NumberValue DayOfWeek(DateValue arg1) {
       return NumberValue.Create((int)arg1.Value.DayOfWeek);
     }
 
-    public static NumberValue DaysDifference(DateValue arg1, DateValue arg2) {
+    public NumberValue DaysDifference(DateValue arg1, DateValue arg2) {
       return NumberValue.Create((int)arg1.Value.Subtract(arg2.Value).TotalDays);
     }
   }
