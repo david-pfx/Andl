@@ -80,14 +80,16 @@ namespace Andl.Runtime {
   }
   
   /// <summary>
-  /// Implements a compiler and runtime for expression evaluation
-  /// Can only be created by a compilation, which may set Error.
+  /// Implements the runtime for expression evaluation.
+  /// Stack based scode.
+  /// 
+  /// Dependencies: requires catalog for name lookup.
   /// </summary>
   public class Evaluator {
     public static Evaluator Current { get; private set; }
     public int ErrorCount { get; private set; }
     public bool Valid { get { return ErrorCount == 0; } }
-    //public SymbolTable SymbolTable { get; private set; }
+
     Catalog _catalog;
 
     // runtime

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Linq;
 using System.Web;
 using System.Web.Http;
@@ -16,7 +17,21 @@ namespace Andl.Server {
       RouteConfig.RegisterRoutes(RouteTable.Routes);
       BundleConfig.RegisterBundles(BundleTable.Bundles);
 
-      Andl.API.Runtime.StartUp();
+      //Andl.API.Runtime.StartUp();
+      AppStartup();
+    }
+
+    Dictionary<string, string> _settingsdict = new Dictionary<string, string> {
+      { "DatabasePath", "DatabasePath" },
+      { "DatabasePathSqlFlag", "DatabaseSqlFlag" },
+    };
+
+    void AppStartup() {
+      var appsettings = ConfigurationManager.AppSettings;
+      var settings = appsettings.AllKeys
+        .Where(k => _settingsdict.ContainsKey(k))
+        .ToDictionary(k => _settingsdict[k], k => appsettings[k]);
+      var app = Andl.API.Runtime.StartUp(settings);
     }
   }
 }

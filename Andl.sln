@@ -21,6 +21,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Andl.API", "Andl.API\Andl.A
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Andl.Server", "Andl.Server\Andl.Server.csproj", "{D32A8723-1043-40B4-9ABE-84D6AC33918D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Andl.Run", "Andl.Run\Andl.Run.csproj", "{EB42863F-8448-46BE-8FE1-4E39FD68F794}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -51,6 +53,10 @@ Global
 		{D32A8723-1043-40B4-9ABE-84D6AC33918D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D32A8723-1043-40B4-9ABE-84D6AC33918D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D32A8723-1043-40B4-9ABE-84D6AC33918D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EB42863F-8448-46BE-8FE1-4E39FD68F794}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EB42863F-8448-46BE-8FE1-4E39FD68F794}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EB42863F-8448-46BE-8FE1-4E39FD68F794}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EB42863F-8448-46BE-8FE1-4E39FD68F794}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

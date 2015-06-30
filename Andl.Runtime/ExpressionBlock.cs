@@ -183,6 +183,7 @@ namespace Andl.Runtime {
         ret = Evaluator.Lookup(OldName, lookup);
       else {
         Logger.Assert(IsOpen || lookup == null, Name);
+        Logger.Assert(Evaluator != null, "evaluator null");
         ret = Evaluator.Exec(Code, lookup);
       }
       CheckReturnType(ret);

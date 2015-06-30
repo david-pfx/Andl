@@ -29,13 +29,8 @@ namespace Andl.Main {
     static bool _nsw = true;  // new catalog
     static bool _usw = false; // update catalog
     static bool _ssw = false; // sql
-    //static string _persistpattern = @"^[@A-Za-z].*$";
-    //static string _databasepattern = @"^[A-Za-z].*$";
     static string _defaultinput = @"test.andl";
-    //static string _databasepath = "andltest.store";
-    //static string _sqlpath = "andltest.sqlite";
-    //static string _catalogname = "andl_catalog";
-    //static string _sqlpath = "Chinook_Sqlite.sqlite";
+
     static Catalog _catalog;
     static Evaluator _evaluator;
 

@@ -33,10 +33,11 @@ namespace Andl.API {
     public static Runtime Gateway;
 
     // Start the engine and let it configure itself
-    public static Runtime StartUp() {
-      Gateway = RuntimeImpl.Startup();
+    public static Runtime StartUp(Dictionary<string, string> settings) {
+      Gateway = RuntimeImpl.Startup(settings);
       return Gateway;
     }
+
     // Get the value of a variable, or evaluate a function of no arguments.
     public abstract Result GetValue(string name);
     // Set the result of a variable, or call a command with one argument.
@@ -49,22 +50,27 @@ namespace Andl.API {
 
   public class RuntimeImpl : Runtime {
     Catalog _catalog;
+    Evaluator _evaluator;
 
-    public static RuntimeImpl Startup() {
-      var ret = new RuntimeImpl {
-        _catalog = Catalog.Create(),
-      };
-      ret._catalog.DatabasePath = @"D:\MyDocs\Dev\vs13\Andl\Work\andltest.store";
-      ret.Start();
+    public static RuntimeImpl Startup(Dictionary<string, string> settings) {
+      var ret = new RuntimeImpl();
+      ret.Start(settings);
       return ret;
     }
 
-    void Start() {
+    void Start(Dictionary<string, string> settings) {
+      _catalog = Catalog.Create();
+      _evaluator = Evaluator.Create(_catalog);
+      foreach (var key in settings.Keys)
+        _catalog.SetConfig(key, settings[key]);
       _catalog.Start();
     }
 
     public override Result GetValue(string name) {
-      var value = _catalog.GetValue(name);
+      var value = _catalog.GetRaw(name);
+      if (value == null) return Result.Failure("unknown name");
+      if (value.DataType == DataTypes.Code)
+        value = _evaluator.Exec((value as CodeValue).Value.Code);
       var nvalue = TypeMaker.GetNativeValue(value);
       return Result.Success(nvalue);
     }

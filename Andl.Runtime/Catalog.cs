@@ -18,14 +18,14 @@ using System.Threading.Tasks;
 namespace Andl.Runtime {
   // scope levels, can be compared in this order
   public enum ScopeLevels { Persistent = 0, Global = 1, Local = 2 };
-  
+
   // entry kinds -- persistence is sorted in this order, to ensure it restores correctly
   public enum EntryKinds { Type = 0, Value = 1, Code = 2 };
-//  public enum EntryKinds { System = 0, Type = 1, Link = 2, Value = 3 };
+  //  public enum EntryKinds { System = 0, Type = 1, Link = 2, Value = 3 };
 
   // entry flags -- including visibility
   [Flags]
-  public enum EntryFlags { 
+  public enum EntryFlags {
     None = 0,
     System = 1,     // system special, protected
     Public = 2,     // externally visible through gateway
@@ -35,13 +35,17 @@ namespace Andl.Runtime {
 
   /// <summary>
   /// Implement the catalog as a whole, including multiple scope levels
+  /// 
+  /// Dependencies:
+  ///   Evaluator, to retrieve the value of a code variable.
+  ///   Configure flags, paths etc before startup.
   /// </summary>
   public class Catalog {
     static string _systempattern = "^andl.*$";
     static string _persistpattern = @"^[@A-Za-z].*$";
     static string _databasepattern = @"^[A-Za-z].*$";
 
-    static string _localdatabasepath = "andltest.store";
+    static string _localdatabasepath = "andltest.sandl";
     static string _sqldatabasepath = "andltest.sqlite";
 
     static readonly string CatalogName = "andl_catalog";
@@ -62,6 +66,11 @@ namespace Andl.Runtime {
       { MemberName, MemberHeading },
     };
 
+    static Dictionary<string, Action<Catalog, string>> _settings = new Dictionary<string, Action<Catalog, string>> {
+      { "DatabasePath", (c,s) => c.DatabasePath = s },
+      { "DatabaseSqlFlag", (c,s) => c.DatabaseSqlFlag = (s.ToLower() == "true") },
+    };
+
     // configuration settings
     public bool IsCompiling { get; set; }       // invoke builtin functions in preview/compile mode
     public bool InteractiveFlag { get; set; }   // execute during compilation
@@ -80,7 +89,7 @@ namespace Andl.Runtime {
 
     VariableScope _variables { get; set; }
 
-    public bool IsGlobalLevel { get { return _variables.Level <= ScopeLevels.Global;  } }
+    public bool IsGlobalLevel { get { return _variables.Level <= ScopeLevels.Global; } }
 
     public bool IsSystem(string name) {
       return Regex.IsMatch(name, SystemPattern);
@@ -94,12 +103,8 @@ namespace Andl.Runtime {
       return IsPersist(name) && Regex.IsMatch(name, DatabasePattern);
     }
 
-    //public bool IsDatabaseLocal(string name) {
-    //  return !DatabaseSqlFlag && Regex.IsMatch(name, DatabasePattern);
-    //}
-
     public IEnumerable<CatalogEntry> GetEntries(ScopeLevels level) {
-      return FindLevel(level)._entries.Values; 
+      return FindLevel(level)._entries.Values;
     }
 
     //--- create
@@ -113,6 +118,13 @@ namespace Andl.Runtime {
         DatabasePattern = _databasepattern,
       };
       return cat;
+    }
+
+    // Configure settings. Most need to be done before Start
+    public bool SetConfig(string key, string value) {
+      if (!_settings.ContainsKey(key)) return false;
+      _settings[key](this, value);
+      return true;
     }
 
     // open the catalog for use, after all flags set up (including from lexer)
@@ -132,15 +144,10 @@ namespace Andl.Runtime {
       }
       GetEntry(CatalogName).Flags |= EntryFlags.Database;
       if (!NewFlag) {
-        if (!LinkRelvar(CatalogName, ""))
+        if (!LinkRelvar(CatalogName))
           RuntimeError.Fatal("Catalog", "cannot load catalog");
         LoadFromTable();
       }
-      //foreach (var name in _protectedheadings.Keys) {
-      //  if (name != CatalogName || NewFlag)
-      //    _variables.Add(name, TypedValue.Create(DataTableLocal.Create(_protectedheadings[name])), EntryKinds.System, EntryFlags.Public);
-      //    //SetValueInLevel(name, TypedValue.Create(DataTableLocal.Create(_protectedheadings[name])), EntryKinds.System);
-      //}
     }
 
     // All done, persist catalog if required
@@ -201,7 +208,7 @@ namespace Andl.Runtime {
     private TypedValue GetProtectedValue(string name) {
       var tablemaker = CatalogTableMaker.Create(GetProtectedHeading(name));
       switch (name) {
-      case "andl_catalog": 
+      case "andl_catalog":
         tablemaker.AddEntries(GetEntries(ScopeLevels.Persistent));
         break;
       case "andl_variable":
@@ -219,7 +226,6 @@ namespace Andl.Runtime {
       }
       return RelationValue.Create(tablemaker.Table);
     }
-
 
     ///-----------------------------------------------------------------
     ///
@@ -251,50 +257,15 @@ namespace Andl.Runtime {
       if (entry.IsDatabase) {
         var table = finalvalue.AsTable();
         if (DatabaseSqlFlag)
-          finalvalue = RelationValue.Create(DataTableSql.Convert(table));
+          finalvalue = RelationValue.Create(DataTableSql.Create(name, table));
         else {
           finalvalue = RelationValue.Create(DataTableLocal.Convert(table));
           // note: could defer persistence until shutdown
           Persist.Create(DatabasePath).Store(name, finalvalue);
         }
       }
-      //if (finalvalue is RelationValue) {
-      //  var table = finalvalue.AsTable();
-      //  if (DatabaseSqlFlag)
-      //    finalvalue = RelationValue.Create(DataTableSql.Convert(table));
-      //  else finalvalue = RelationValue.Create(DataTableLocal.Convert(table));
-      //  // note: could defer persistence until shutdown
-      //  if (entry.IsDatabase && !DatabaseSqlFlag)
-      //    Persist.Create(DatabasePath).Store(name, finalvalue);
-      //}
       entry.Value = value;
     }
-
-    //// Equivalant to assignment: value replaces existing, type should be compatible
-    //public void SetValue(string name, TypedValue value) {
-    //  if (IsSystem(name)) RuntimeError.Fatal("Catalog Set", "protected name");
-    //  var finalvalue = value;
-    //  var kind = EntryKinds.Value;
-    //  // first sort out relation storage: sql store, local store or in catalog
-    //  if (value is RelationValue) {
-    //    var table = (value as RelationValue).AsTable();
-    //    if (IsDatabaseSql(name)) {
-    //      if (table.IsLocal)
-    //        finalvalue = RelationValue.Create(DataTableSql.Create(name, table));
-    //      kind = EntryKinds.Link;
-    //    } else if (IsDatabaseLocal(name)) {
-    //      if (!table.IsLocal)
-    //        finalvalue = RelationValue.Create(DataTableLocal.Create(table));
-    //      // note: could defer persistence until shutdown
-    //      Persist.Create(DatabasePath).Store(name, finalvalue);
-    //      kind = EntryKinds.Link;
-    //    } else {
-    //      if (!table.IsLocal)
-    //        finalvalue = RelationValue.Create(DataTableLocal.Create(table));
-    //    }
-    //  }
-    //  SetValueInLevel(name, finalvalue, kind);
-    //}
 
     // get the type of a relation from some persistence store
     // Used during compilation or startup -- if successful, variable will be created with flags
@@ -317,107 +288,45 @@ namespace Andl.Runtime {
       return null;
     }
 
-    //public DataType GetRelvarType(string name, string source) {
-    //  var v = Get(name);
-    //  if (v != null && v.DataType is DataTypeRelation)
-    //    return v.DataType;
-    //  if (IsDatabaseSql(name) && source == "") {
-    //    var heading = SqlTarget.Create().GetTableHeading(name);
-    //    return (heading == null) ? null : DataTypeRelation.Get(heading);
-    //  }
-    //  if (IsDatabaseLocal(name) && source == "") {
-    //    var type = Persist.Create(DatabasePath).Peek(name);
-    //    return type;
-    //  }
-    //  if (source != "") {
-    //    var table = DataSourceStream.Create(source, SourcePath).Input(name, true);
-    //    if (table != null) return table.DataType;
-    //  }
-    //  return null;
-    //}
-
-    // get the value of a relation from some persistence store
-    // note: entry previously created with all necessary flags
-    public bool LinkRelvar(string name, string source) {
+    // Get the value of a relation from a database
+    // Entry previously created by peeking
+    public bool LinkRelvar(string name) {
       var entry = GetEntry(name);
-      Logger.Assert(entry != null);
+      Logger.Assert(entry != null && entry.IsDatabase);
 
       var heading = entry.DataType.Heading;
-      if (entry.IsDatabase) {
-        if (DatabaseSqlFlag) {
-          var sqlheading = SqlTarget.Create().GetTableHeading(name);
-          if (sqlheading == null || !heading.Equals(sqlheading))
-            RuntimeError.Fatal("Catalog link relvar", "sql table not found: {0}", name);
-          var table = DataTableSql.Create(name, heading);
-          entry.Value = RelationValue.Create(table);
-        } else {
-          var tablev = Persist.Create(DatabasePath).Load(name);
-          if (tablev == null || !heading.Equals(tablev.Heading))
-            RuntimeError.Fatal("Catalog link relvar", "local store table not found: {0}", name);
-          entry.Value = RelationValue.Create(tablev.AsTable());
-        }
-      } else { 
-        var table = DataSourceStream.Create(source, SourcePath).Input(name, false);
-        if (table == null || !heading.Equals(table.Heading))
-          RuntimeError.Fatal("Catalog link relvar", "csv table not found: {0}", name);
+      if (DatabaseSqlFlag) {
+        var sqlheading = SqlTarget.Create().GetTableHeading(name);
+        if (sqlheading == null || !heading.Equals(sqlheading))
+          RuntimeError.Fatal("Catalog link relvar", "sql table not found: {0}", name);
+        var table = DataTableSql.Create(name, heading);
         entry.Value = RelationValue.Create(table);
+      } else {
+        var tablev = Persist.Create(DatabasePath).Load(name);
+        if (tablev == null || !heading.Equals(tablev.Heading))
+          RuntimeError.Fatal("Catalog link relvar", "local table not found: {0}", name);
+        entry.Value = RelationValue.Create(tablev.AsTable());
       }
       return true;
     }
 
-    //public bool LinkRelvar(string name, string source, DataHeading heading) {
-    //  var v = Get(name);
-    //  if (v != null)
-    //    return v.DataType is DataTypeRelation && v.DataType.Heading.Equals(heading);
-    //  var level = (IsGlobalLevel && IsPersist(name))
-    //    ? FindLevel(ScopeLevels.Persistent) : _variables;
-    //  if (IsDatabaseSql(name) && source == "") {
-    //    var sqlheading = SqlTarget.Create().GetTableHeading(name);
-    //    if (sqlheading == null || !heading.Equals(sqlheading))
-    //      RuntimeError.Fatal("Catalog link relvar", "sql table not found: {0}", name);
-    //    var table = DataTableSql.Create(name, heading);
-    //    SetValueInLevel(name, RelationValue.Create(table), EntryKinds.Link);
-    //    return true;
-    //  }
-    //  if (IsDatabaseLocal(name) && source == "") {
-    //    var table = Persist.Create(DatabasePath).Load(name);
-    //    if (table == null || !heading.Equals(table.Heading))
-    //      RuntimeError.Fatal("Catalog link relvar", "local store table not found: {0}", name);
-    //    SetValueInLevel(name, RelationValue.Create(table.AsTable()), EntryKinds.Link);
-    //    return true;
-    //  }
-    //  if (source != "") {
-    //    var table = DataSourceStream.Create(source, SourcePath).Input(name, false);
-    //    if (table == null || !heading.Equals(table.Heading))
-    //      RuntimeError.Fatal("Catalog link relvar", "csv table not found: {0}", name);
-    //    SetValueInLevel(name, RelationValue.Create(table), EntryKinds.Link);
-    //    return true;
-    //  }
-    //  return false;
-    //}
+    // Get the value of a relation by importing some other format
+    // Entry previously created by peeking
+    public bool ImportRelvar(string name, string source) {
+      var entry = GetEntry(name);
+      Logger.Assert(entry != null);
+      var heading = entry.DataType.Heading;
+      var table = DataSourceStream.Create(source, SourcePath).Input(name, false);
+      if (table == null || !heading.Equals(table.Heading))
+        RuntimeError.Fatal("Catalog link relvar", "{0} table not found: {1}", source, name);
+      SetValue(name, RelationValue.Create(table));
+      return true;
+    }
 
     // Add a user type, just so it will get persisted
     public void AddUserType(string name, DataTypeUser datatype, EntryFlags flags) {
-      Add(name, datatype, EntryKinds.Type, flags | EntryFlags.Persistent);
-      //Add(name, datatype.Default(), EntryKinds.Type, flags | EntryFlags.Persistent);
-      //var level = (IsGlobalLevel && IsPersist(name))
-      //  ? FindLevel(ScopeLevels.Persistent) : _variables;
-      //level.SetValue(name, datatype.GetDefault(), EntryKinds.User);
-      //SetValueInLevel(name, datatype.Default(), EntryKinds.Type);
+      Add(name, datatype, EntryKinds.Type, flags);
     }
-
-    // Set value in current level or persist level
-    // If persist and unknown, update persist table (dummy entry for now)
-    //void SetValueInLevel(string name, TypedValue value, EntryKinds kind) {
-    //  if (IsGlobalLevel && IsPersist(name)) {
-    //    var level = FindLevel(ScopeLevels.Persistent);
-    //    //if (level.Get(name) == null) {
-    //    //  PersistTable.AddRow(TextValue.Create(name), TextValue.Create(kind.ToString()),
-    //    //      TextValue.Create(value.DataType.BaseType.Name), BinaryValue.Empty);
-    //    //}
-    //    level.SetValue(name, value, kind);
-    //  } else _variables.SetValue(name, value, kind);
-    //}
 
     //--- persistence Mk II
 
@@ -445,22 +354,12 @@ namespace Andl.Runtime {
         var entry = CatalogEntry.FromBinary(blob);
         level.Add(entry);
         if (entry.IsDatabase) {
-          if (!LinkRelvar(entry.Name, null))
+          if (!LinkRelvar(entry.Name))
             RuntimeError.Fatal("Load catalog", "adding relvar {0}", entry.Name);
-        //} else if (!entry.IsSystem) {
-        //  level.Add(entry.Name, entry.Value, entry.Kind, EntryFlags.None);
         }
-        //if (entry.Kind == EntryKinds.Link) {
-        //  if (!LinkRelvar(entry.Name, "", entry.DataType.Heading))
-        //    RuntimeError.Fatal("Load catalog", "adding relvar {0}", entry.Name);
-        //} else if (entry.Kind != EntryKinds.System) {
-        //  level.SetValue(entry.Name, entry.Value, entry.Kind);
-        //}
       }
     }
-
   }
-
   //////////////////////////////////////////////////////////////////////
   /// <summary>
   /// Implement a single catalog scope level containing variables
@@ -495,9 +394,9 @@ namespace Andl.Runtime {
       _entries[name].NativeValue = TypeMaker.GetNativeValue(value);
     }
 
-    bool Exists(string key) { 
+    bool Exists(string key) {
       return _entries.ContainsKey(key)
-        || Parent != null && Parent.Exists(key); 
+        || Parent != null && Parent.Exists(key);
     }
 
     // Return raw value from variable
@@ -520,7 +419,6 @@ namespace Andl.Runtime {
       var entry = GetEntry(name);
       if (entry.IsCode)
         return entry.CodeValue.Value.Evaluate();
-        //return (entry.Value as CodeValue).Value.Evaluate();
       else return entry.Value;
     }
 
@@ -528,15 +426,8 @@ namespace Andl.Runtime {
     public DataType GetDataType(string name) {
       if (!Exists(name)) return null;
       return GetEntry(name).DataType;
-      //if (entry.IsOperator)
-      //  return entry.CodeValue.Value.DataType;
-      //  //return (entry.Value as CodeValue).Value.DataType;
-      //return entry.DataType;
-      //var value = Get(name);
-      //var type = (IsOperator) ? (value as CodeValue).Value.DataType : value.DataType;
-      //return type;
     }
-    
+
   }
 
   /// <summary>
@@ -556,7 +447,7 @@ namespace Andl.Runtime {
     public bool IsDatabase { get { return Flags.HasFlag(EntryFlags.Database); } }
     public bool IsPublic { get { return Flags.HasFlag(EntryFlags.Public); } }
     public bool IsPersistent { get { return Flags.HasFlag(EntryFlags.Persistent); } }
-//    public bool IsSql { get { return Flags.HasFlag(EntryFlags.Sql); } }
+    //    public bool IsSql { get { return Flags.HasFlag(EntryFlags.Sql); } }
     public bool IsSystem { get { return Flags.HasFlag(EntryFlags.System); } }
     public CodeValue CodeValue { get { return Value as CodeValue; } }
 
@@ -681,6 +572,5 @@ namespace Andl.Runtime {
           AddMember(column.DataType.GenUniqueName, column.DataType.Heading);
       }
     }
-
   }
 }

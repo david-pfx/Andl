@@ -133,29 +133,19 @@ namespace Andl.Runtime {
       return newtable;
     }
 
-    // Create new base table
-    static DataTableSql CreateTable(string name, DataHeading heading) {
-      var newtable = new DataTableSql {
-        Heading = heading,
-        TableName = name,
-      };
-      newtable._database.OpenStatement();
-      var sql = newtable._gen.CreateTable(name, newtable);
-      newtable._database.ExecuteCommand(sql);
-      newtable._database.CloseStatement();
-      return newtable;
-    }
-
     // Create new base table from relation value and populate it
     public static DataTableSql Create(string name, DataTable other) {
       var oldtable = other as DataTableSql;
       // cannot copy base table to itself
       if (oldtable != null && name == oldtable.TableName) return oldtable;
-      var newtable = CreateTable(name, other.Heading);
+      var newtable = Create(name, other.Heading);
+      newtable._database.Begin();
+      newtable.CreateTable();
       if (oldtable != null)
         newtable.InsertValuesQuery(oldtable);
       else
         newtable.InsertValuesSingly(other);
+      newtable._database.Commit();
       return newtable;
     }
 
@@ -164,8 +154,11 @@ namespace Andl.Runtime {
     public static DataTableSql Convert(DataTable other) {
       if (other is DataTableSql) return other as DataTableSql;
       var name = SqlTarget.SqlGen.TempName();
-      var newtable = CreateTable(name, other.Heading); //FIX: put temp in memory db
+      var newtable = Create(name, other.Heading);
+      newtable._database.Begin();
+      newtable.CreateTable();                   //FIX: put temp in memory db
       newtable.InsertValuesSingly(other);
+      newtable._database.Commit();
       return newtable;
     }
 
@@ -198,6 +191,14 @@ namespace Andl.Runtime {
       _database.GetData(out value);
       _database.CloseStatement();
       return value;
+    }
+
+    // Create new base table
+    void CreateTable() {
+      _database.OpenStatement();
+      var sql = _gen.CreateTable(TableName, this);
+      _database.ExecuteCommand(sql);
+      _database.CloseStatement();
     }
 
     // Sql to insert multiple rows of data into named table

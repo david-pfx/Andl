@@ -208,9 +208,9 @@ namespace Andl.Runtime {
       return usertype.CreateValue(valargs);
     }
 
-    // Connect to a known persisted relvar, and make entry in catalog
+    // Connect to a persisted or imported relvar
     public static VoidValue Connect(TextValue namearg, TextValue sourcearg, HeadingValue heading) {
-      if (!Catalog.LinkRelvar(namearg.Value, sourcearg.Value))
+      if (!Catalog.ImportRelvar(namearg.Value, sourcearg.Value))
         RuntimeError.Fatal("cannot connect: {0}", namearg.Value);
       return VoidValue.Default;
     }

@@ -99,14 +99,28 @@ namespace Andl.Runtime {
       return new SqlTarget();
     }
 
+    public void Begin() {
+      if (_database.Nesting == 0)
+        Logger.WriteLine(2, ">>>{0}", "BEGIN;");
+      _database.Begin();
+    }
+
+    public void Commit() {
+      _database.Commit();
+      if (_database.Nesting == 0)
+        Logger.WriteLine(2, ">>>{0}", "COMMIT;");
+    }
+
+    public void Abort() {
+      _database.Abort();
+      Logger.WriteLine(2, ">>>{0}", "ABORT;");
+    }
+
     public void OpenStatement() {
       if (_statement == null)
         _statement = _database.CreateStatement();
       if (!_statement.IsPrepared) {
         Logger.WriteLine(3, "Open Statement {0}", _database.Nesting);
-        if (_database.Nesting == 0)
-          Logger.WriteLine(2, ">>>{0}", "BEGIN TRANSACTION;");
-        _database.Begin();
       }
     }
 
@@ -114,9 +128,6 @@ namespace Andl.Runtime {
       if (_statement.IsPrepared) {
         _statement.Close();
         Logger.WriteLine(3, "Close Statement {0}", _database.Nesting);
-        _database.Commit();
-        if (_database.Nesting == 0)
-          Logger.WriteLine(2, ">>>{0}", "COMMIT;");
       }
     }
 
