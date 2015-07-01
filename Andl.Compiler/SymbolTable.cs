@@ -255,7 +255,7 @@ namespace Andl.Compiler {
       if (_catalog.IsPersist(symbol.Name)) flags |= EntryFlags.Persistent;
       if (kind == EntryKinds.Value && symbol.DataType is DataTypeRelation && _catalog.IsDatabase(symbol.Name)) 
         flags |= EntryFlags.Database;
-      _catalog.Add(symbol.Name, symbol.DataType, kind, flags);
+      _catalog.GlobalVars.Add(symbol.Name, symbol.DataType, kind, flags);
     }
 
     // Find existing symbol by name
@@ -346,8 +346,10 @@ namespace Andl.Compiler {
 
     // Process catalog to add all entries from persistent level
     // Called functions should discard duplicates, or flag errors???
-    public void Add(Catalog catalog, ScopeLevels level) {
-      foreach (var entry in catalog.GetEntries(level)) {
+    //public void Add(Catalog catalog, ScopeLevels level) {
+    public void Add(CatalogScope catalogscope) {
+      foreach (var entry in catalogscope.GetEntries()) {
+      //foreach (var entry in catalog.GetEntries(level)) {
         var value = entry.Value;
         //var datatype = (value.DataType == DataTypes.Code) ? (value as CodeValue).Value.DataType : value.DataType;
         if (_catalogscope.Find(entry.Name) == null)

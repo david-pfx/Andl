@@ -120,7 +120,8 @@ namespace Andl.Main {
       //_catalog.CatalogName = _catalogname;
       _catalog.SourcePath = ".";
 
-      _evaluator = (!_xsw) ? Evaluator.Create(_catalog) : null;
+      var catalogp = CatalogPrivate.Create(_catalog);
+      _evaluator = (!_xsw) ? Evaluator.Create(catalogp) : null;
 
       return true;
     }

@@ -92,7 +92,7 @@ namespace Andl.Runtime {
     public int ErrorCount { get; private set; }
     public bool Valid { get { return ErrorCount == 0; } }
 
-    Catalog _catalog;
+    CatalogPrivate _catalog;
     Builtin _builtin;
 
     // runtime
@@ -101,7 +101,7 @@ namespace Andl.Runtime {
     Stack<TypedValue> _stack = new Stack<TypedValue>();
 
     // Create with catalog 
-    public static Evaluator Create(Catalog catalog) {
+    public static Evaluator Create(CatalogPrivate catalog) {
       DataTypes.Init();
       var ev = new Evaluator() {
         _catalog = catalog,
@@ -182,14 +182,14 @@ namespace Andl.Runtime {
           break;
         // Known catalog variable, look up value
         case Opcodes.LDCAT:
-          var val = _catalog.GetRaw(reader.ReadString());
+          var val = _catalog.GetValue(reader.ReadString());
           if (val.DataType == DataTypes.Code)
             val = this.Exec((val as CodeValue).Value.Code);
           if (val.DataType != DataTypes.Void)
             _stack.Push(val);
           break;
         case Opcodes.LDCATR:
-          PushStack(_catalog.GetRaw(reader.ReadString()));
+          PushStack(_catalog.GetValue(reader.ReadString()));
           break;
         // Load value obtained using lookup by name
         case Opcodes.LDFIELD:
@@ -274,14 +274,14 @@ namespace Andl.Runtime {
           break;
         // Known catalog variable, look up value
         case Opcodes.LDCAT:
-          var val = _catalog.GetRaw(scode[pc] as string);
+          var val = _catalog.GetValue(scode[pc] as string);
           if (val.DataType == DataTypes.Code)
             val = this.Exec((val as CodeValue).Value.Code);
           PushStack(val);
           pc += 1;
           break;
         case Opcodes.LDCATR:
-          PushStack(_catalog.GetRaw(scode[pc] as string));
+          PushStack(_catalog.GetValue(scode[pc] as string));
           pc += 1;
           break;
         // Load value obtained using lookup by name

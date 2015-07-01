@@ -127,10 +127,10 @@ namespace Andl.Runtime {
   /// </summary>
   //public static class Builtin {
   public class Builtin {
-    Catalog _catalog;
+    CatalogPrivate _catalog;
     Evaluator _evaluator;
 
-    public static Builtin Create(Catalog catalog, Evaluator evaluator) {
+    public static Builtin Create(CatalogPrivate catalog, Evaluator evaluator) {
       return new Builtin {
         _catalog = catalog,
         _evaluator = evaluator,
@@ -230,7 +230,7 @@ namespace Andl.Runtime {
 
     // Connect to a persisted or imported relvar
     public VoidValue Connect(TextValue namearg, TextValue sourcearg, HeadingValue heading) {
-      if (!_catalog.ImportRelvar(namearg.Value, sourcearg.Value))
+      if (!_catalog.Catalog.ImportRelvar(namearg.Value, sourcearg.Value))
         RuntimeError.Fatal("cannot connect: {0}", namearg.Value);
       return VoidValue.Default;
     }
@@ -817,7 +817,7 @@ namespace Andl.Runtime {
 
     // optional pause (only when interactive)
     public VoidValue Pause(TextValue value) {
-      if (_catalog.InteractiveFlag) {
+      if (_catalog.Catalog.InteractiveFlag) {
         if (value.Value.Length > 0)
           Console.WriteLine(value.Value);
         Console.ReadLine();

@@ -50,7 +50,7 @@ namespace Andl.API {
 
   public class RuntimeImpl : Runtime {
     Catalog _catalog;
-    Evaluator _evaluator;
+    //Evaluator _evaluator;
 
     public static RuntimeImpl Startup(Dictionary<string, string> settings) {
       var ret = new RuntimeImpl();
@@ -60,17 +60,19 @@ namespace Andl.API {
 
     void Start(Dictionary<string, string> settings) {
       _catalog = Catalog.Create();
-      _evaluator = Evaluator.Create(_catalog);
       foreach (var key in settings.Keys)
         _catalog.SetConfig(key, settings[key]);
       _catalog.Start();
     }
 
     public override Result GetValue(string name) {
-      var value = _catalog.GetRaw(name);
+      var catalogpriv = CatalogPrivate.Create(_catalog);
+      var evaluator = Evaluator.Create(catalogpriv);
+
+      var value = catalogpriv.GetValue(name);
       if (value == null) return Result.Failure("unknown name");
       if (value.DataType == DataTypes.Code)
-        value = _evaluator.Exec((value as CodeValue).Value.Code);
+        value = evaluator.Exec((value as CodeValue).Value.Code);
       var nvalue = TypeMaker.GetNativeValue(value);
       return Result.Success(nvalue);
     }

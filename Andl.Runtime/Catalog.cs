@@ -21,7 +21,6 @@ namespace Andl.Runtime {
 
   // entry kinds -- persistence is sorted in this order, to ensure it restores correctly
   public enum EntryKinds { Type = 0, Value = 1, Code = 2 };
-  //  public enum EntryKinds { System = 0, Type = 1, Link = 2, Value = 3 };
 
   // entry flags -- including visibility
   [Flags]
@@ -86,11 +85,10 @@ namespace Andl.Runtime {
 
     public string DatabasePath { get; set; }    // path to the database (either kind)
     public string SourcePath { get; set; }      // base path for reading a source
-    //DataTableLocal PersistTable { get; set; }   // table of persistent items
 
-    VariableScope _variables { get; set; }
-
-    public bool IsGlobalLevel { get { return _variables.Level <= ScopeLevels.Global; } }
+    // predefined scopes, accessed globally
+    public CatalogScope PersistentVars { get; private set; }
+    public CatalogScope GlobalVars { get; private set; } 
 
     public bool IsSystem(string name) {
       return Regex.IsMatch(name, SystemPattern);
@@ -104,20 +102,17 @@ namespace Andl.Runtime {
       return IsPersist(name) && Regex.IsMatch(name, DatabasePattern);
     }
 
-    public IEnumerable<CatalogEntry> GetEntries(ScopeLevels level) {
-      return FindLevel(level)._entries.Values;
-    }
-
     //--- create
 
     Catalog() { }
     public static Catalog Create() {
       var cat = new Catalog {
-        _variables = new VariableScope(ScopeLevels.Global, new VariableScope(ScopeLevels.Persistent, null)),
         SystemPattern = _systempattern,
         PersistPattern = _persistpattern,
         DatabasePattern = _databasepattern,
       };
+      cat.PersistentVars = CatalogScope.Create(cat, null);
+      cat.GlobalVars = CatalogScope.Create(cat, cat.PersistentVars);
       return cat;
     }
 
@@ -140,10 +135,10 @@ namespace Andl.Runtime {
       }
       foreach (var name in _protectedheadings.Keys) {
         var table = DataTableLocal.Create(_protectedheadings[name]);
-        _variables.Add(name, table.DataType, EntryKinds.Value, EntryFlags.Public | EntryFlags.System);
-        _variables.SetValue(name, TypedValue.Create(table));
+        GlobalVars.Add(name, table.DataType, EntryKinds.Value, EntryFlags.Public | EntryFlags.System);
+        GlobalVars.Set(name, TypedValue.Create(table));
       }
-      GetEntry(CatalogName).Flags |= EntryFlags.Database;
+      GlobalVars.GetEntry(CatalogName).Flags |= EntryFlags.Database;
       if (!NewFlag) {
         if (!LinkRelvar(CatalogName))
           RuntimeError.Fatal("Catalog", "cannot load catalog");
@@ -157,109 +152,32 @@ namespace Andl.Runtime {
         StoreToTable();
     }
 
-    public void PushScope() {
-      _variables = new VariableScope(ScopeLevels.Local, _variables);
-    }
-
-    public void PopScope() {
-      _variables = _variables.Parent;
-    }
-
-    // Return raw value from variable
-    public TypedValue GetRaw(string name) {
-      if (IsSystem(name)) return GetProtectedValue(name);
-      return _variables.Get(name);
-    }
-
-    // Return type from variable as evaluated if needed
-    public DataType GetDataType(string name) {
-      if (IsSystem(name)) return DataTypeRelation.Get(GetProtectedHeading(name));
-      return _variables.GetDataType(name);
-    }
-
-    // -- internal
-
-    // Internal get
-    TypedValue Get(string name) {
-      return _variables.Get(name);
-    }
-
-    CatalogEntry GetEntry(string name) {
-      return _variables.GetEntry(name);
-    }
-
-    VariableScope FindLevel(ScopeLevels level) {
-      for (var v = _variables; v != null; v = v.Parent)
-        if (v.Level == level)
-          return v;
-      return null;
-    }
-
-    private DataHeading GetProtectedHeading(string name) {
+    // handle special protected pseudo-tables
+    internal DataHeading GetProtectedHeading(string name) {
       if (!_protectedheadings.ContainsKey(name)) RuntimeError.Fatal("Catalog table", "invalid table name: " + name);
       return _protectedheadings[name];
     }
 
-    private TypedValue GetProtectedValue(string name) {
+    internal TypedValue GetProtectedValue(string name) {
       var tablemaker = CatalogTableMaker.Create(GetProtectedHeading(name));
       switch (name) {
       case "andl_catalog":
-        tablemaker.AddEntries(GetEntries(ScopeLevels.Persistent));
+        tablemaker.AddEntries(PersistentVars.GetEntries());
         break;
       case "andl_variable":
-        tablemaker.AddVariables(GetEntries(ScopeLevels.Persistent));
+        tablemaker.AddVariables(PersistentVars.GetEntries());
         break;
       case "andl_operator":
-        tablemaker.AddOperators(GetEntries(ScopeLevels.Persistent));
+        tablemaker.AddOperators(PersistentVars.GetEntries());
         break;
       case "andl_member":
-        tablemaker.AddMembers(GetEntries(ScopeLevels.Persistent));
+        tablemaker.AddMembers(PersistentVars.GetEntries());
         break;
       default:
         RuntimeError.Fatal("Catalog table", "invalid table name: " + name);
         break;
       }
       return RelationValue.Create(tablemaker.Table);
-    }
-
-    ///-----------------------------------------------------------------
-    ///
-    /// Operations on values
-    /// 
-
-    // Add a named entry
-    // all flags now set by caller
-    public void Add(string name, DataType datatype, EntryKinds kind, EntryFlags flags) {
-      //if (IsPersist(name)) flags |= EntryFlags.Persistent;
-      //if (datatype is DataTypeRelation && IsDatabase(name)) flags |= EntryFlags.Database;
-      var level = (flags.HasFlag(EntryFlags.Persistent)) ? FindLevel(ScopeLevels.Persistent) : _variables;
-      level.Add(name, datatype, kind, flags);
-    }
-
-    public void Update(string name, DataType datatype) {
-      var entry = GetEntry(name);
-      entry.DataType = datatype;
-    }
-
-    // Value replaces existing, type should be compatible
-    public void SetValue(string name, TypedValue value) {
-      var entry = GetEntry(name);
-      if (entry.Flags.HasFlag(EntryFlags.System)) RuntimeError.Fatal("Catalog Set", "protected name");
-
-      // if relation value, convert to/from Sql
-      var finalvalue = value;
-      // database flag means linked entry, value in database
-      if (entry.IsDatabase) {
-        var table = finalvalue.AsTable();
-        if (DatabaseSqlFlag)
-          finalvalue = RelationValue.Create(DataTableSql.Create(name, table));
-        else {
-          finalvalue = RelationValue.Create(DataTableLocal.Convert(table));
-          // note: could defer persistence until shutdown
-          Persist.Create(DatabasePath).Store(name, finalvalue);
-        }
-      }
-      entry.Value = value;
     }
 
     // get the type of a relation from some persistence store
@@ -286,7 +204,7 @@ namespace Andl.Runtime {
     // Get the value of a relation from a database
     // Entry previously created by peeking
     public bool LinkRelvar(string name) {
-      var entry = GetEntry(name);
+      var entry = GlobalVars.GetEntry(name);
       Logger.Assert(entry != null && entry.IsDatabase);
 
       var heading = entry.DataType.Heading;
@@ -308,19 +226,19 @@ namespace Andl.Runtime {
     // Get the value of a relation by importing some other format
     // Entry previously created by peeking
     public bool ImportRelvar(string name, string source) {
-      var entry = GetEntry(name);
+      var entry = GlobalVars.GetEntry(name);
       Logger.Assert(entry != null);
       var heading = entry.DataType.Heading;
       var table = DataSourceStream.Create(source, SourcePath).Input(name, false);
       if (table == null || !heading.Equals(table.Heading))
         RuntimeError.Fatal("Catalog link relvar", "{0} table not found: {1}", source, name);
-      SetValue(name, RelationValue.Create(table));
+      GlobalVars.SetValue(name, RelationValue.Create(table));
       return true;
     }
 
     // Add a user type, just so it will get persisted
     public void AddUserType(string name, DataTypeUser datatype, EntryFlags flags) {
-      Add(name, datatype, EntryKinds.Type, flags);
+      GlobalVars.Add(name, datatype, EntryKinds.Type, flags);
     }
 
     //--- persistence Mk II
@@ -328,7 +246,7 @@ namespace Andl.Runtime {
     // Store the persistent catalog with current values
     public void StoreToTable() {
       var table = DataTableLocal.Create(CatalogHeading);
-      foreach (var entry in GetEntries(ScopeLevels.Persistent)) {
+      foreach (var entry in PersistentVars.GetEntries()) {
         var addrow = DataRow.Create(CatalogHeading, new TypedValue[] 
           { TextValue.Create(entry.Name), 
             TextValue.Create(entry.Kind.ToString()), 
@@ -342,12 +260,12 @@ namespace Andl.Runtime {
     }
 
     public void LoadFromTable() {
-      var table = Get(CatalogName).AsTable();
-      var level = FindLevel(ScopeLevels.Persistent);
+      var table = GlobalVars.GetValue(CatalogName).AsTable();
+      //var level = FindLevel(ScopeLevels.Persistent);
       foreach (var row in table.GetRows()) {
         var blob = (row.Values[3] as BinaryValue).Value;
         var entry = CatalogEntry.FromBinary(blob);
-        level.Add(entry);
+        PersistentVars.Add(entry);
         if (entry.IsDatabase) {
           if (!LinkRelvar(entry.Name))
             RuntimeError.Fatal("Load catalog", "adding relvar {0}", entry.Name);
@@ -360,14 +278,21 @@ namespace Andl.Runtime {
   /// <summary>
   /// Implement a single catalog scope level containing variables
   /// </summary>
-  public class VariableScope {
-    internal Dictionary<string, CatalogEntry> _entries = new Dictionary<string, CatalogEntry>();
-    internal VariableScope Parent { get; private set; }
-    internal ScopeLevels Level { get; private set; }
+  public class CatalogScope {
+    internal Catalog Catalog { get; private set; }
+    internal CatalogScope Parent { get; private set; }
 
-    internal VariableScope(ScopeLevels level, VariableScope parent = null) {
-      Level = level;
-      Parent = parent;
+    internal Dictionary<string, CatalogEntry> _entries = new Dictionary<string, CatalogEntry>();
+
+    public static CatalogScope Create(Catalog catalog, CatalogScope parent = null) {
+      return new CatalogScope {
+        Catalog = catalog,
+        Parent = parent,
+      };
+    }
+
+    public IEnumerable<CatalogEntry> GetEntries() {
+      return _entries.Values;
     }
 
     // Add a named entry
@@ -375,8 +300,9 @@ namespace Andl.Runtime {
       _entries[entry.Name] = entry;
     }
 
-    internal void Add(string name, DataType datatype, EntryKinds kind, EntryFlags flags) {
-      Add(new CatalogEntry {
+    public void Add(string name, DataType datatype, EntryKinds kind, EntryFlags flags) {
+      var level = (flags.HasFlag(EntryFlags.Persistent)) ? Catalog.PersistentVars : this;
+      level.Add(new CatalogEntry {
         Name = name,
         DataType = datatype,
         Kind = kind,
@@ -384,7 +310,9 @@ namespace Andl.Runtime {
       });
     }
 
-    internal void SetValue(string name, TypedValue value) {
+    // set a variable to a new value of the same type
+    // NOTE: if level is global, needs concurrency control
+    internal void Set(string name, TypedValue value) {
       Logger.Assert(value.DataType == _entries[name].DataType);
       _entries[name].Value = value;
       _entries[name].NativeValue = TypeMaker.GetNativeValue(value);
@@ -403,9 +331,9 @@ namespace Andl.Runtime {
     }
 
     // Return raw value from variable
-    internal TypedValue Get(string name) {
+    internal TypedValue GetValue(string name) {
       return _entries.ContainsKey(name) ? _entries[name].Value
-        : Parent != null ? Parent.Get(name)
+        : Parent != null ? Parent.GetValue(name)
         : null;
     }
 
@@ -413,6 +341,62 @@ namespace Andl.Runtime {
     public DataType GetDataType(string name) {
       if (!Exists(name)) return null;
       return GetEntry(name).DataType;
+    }
+
+    // Value replaces existing, type should be compatible
+    // Supports assignment. Handles linked tables.
+    public void SetValue(string name, TypedValue value) {
+      var entry = GetEntry(name);
+      if (entry.Flags.HasFlag(EntryFlags.System)) RuntimeError.Fatal("Catalog Set", "protected name");
+
+      // if relation value, convert to/from Sql
+      var finalvalue = value;
+      // database flag means linked entry, value in database
+      if (entry.IsDatabase) {
+        var table = finalvalue.AsTable();
+        if (Catalog.DatabaseSqlFlag)
+          finalvalue = RelationValue.Create(DataTableSql.Create(name, table));
+        else {
+          finalvalue = RelationValue.Create(DataTableLocal.Convert(table));
+          // note: could defer persistence until shutdown
+          Persist.Create(Catalog.DatabasePath).Store(name, finalvalue);
+        }
+      }
+      entry.Value = value;
+      entry.NativeValue = TypeMaker.GetNativeValue(value);  // TEMP: just so it gets exercised
+    }
+  }
+
+  ///===========================================================================
+  /// <summary>
+  /// Implement a private catalog for local variables
+  /// </summary>
+  public class CatalogPrivate {
+    internal Catalog Catalog { get; private set; }
+    internal CatalogScope Current { get; private set; }
+
+    public static CatalogPrivate Create(Catalog catalog) {
+      return new CatalogPrivate {
+        Catalog = catalog,
+        Current = CatalogScope.Create(catalog, catalog.GlobalVars),
+      };
+    }
+
+    public void PopScope() {
+      Current = Current.Parent;
+    }
+
+    public void PushScope() {
+      Current = CatalogScope.Create(Catalog, Current);
+    }
+
+    public void SetValue(string name, TypedValue value) {
+      Current.SetValue(name, value);
+    }
+
+    public TypedValue GetValue(string name) {
+      if (Catalog.IsSystem(name)) return Catalog.GetProtectedValue(name);
+      return Current.GetValue(name);
     }
 
   }
@@ -429,7 +413,6 @@ namespace Andl.Runtime {
     public TypedValue Value { get; set; }
     public object NativeValue { get; set; }
 
-    //public DataType DataType { get { return Value.DataType; } }
     public bool IsCode { get { return Kind == EntryKinds.Code; } }
     public bool IsDatabase { get { return Flags.HasFlag(EntryFlags.Database); } }
     public bool IsPublic { get { return Flags.HasFlag(EntryFlags.Public); } }
