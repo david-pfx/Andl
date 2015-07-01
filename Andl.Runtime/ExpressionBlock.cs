@@ -87,7 +87,8 @@ namespace Andl.Runtime {
       get { return Create(":empty", ExpressionKinds.Nul, new ByteCode(), DataTypes.Void); }
     }
     public static ExpressionBlock True {
-      get { return Create(":true", ExpressionKinds.Nul, new ByteCode(), DataTypes.Bool); }
+      get { return Create(":true", BoolValue.True); }
+      //get { return Create(":true", ExpressionKinds.Nul, new ByteCode(), DataTypes.Bool); }
     }
 
     public override string ToString() {

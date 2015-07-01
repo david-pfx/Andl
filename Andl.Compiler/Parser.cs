@@ -90,9 +90,10 @@ namespace Andl.Compiler {
       // decode/execute once at end?
       if (Logger.Level >= 3 && !Catalog.InteractiveFlag)
           Decoder.Create(code).Decode();
+      // OBS: write code to persistent form
       if (writer != null) {
         var eb = ExpressionBlock.Create("main", ExpressionKinds.Closed, code, DataTypes.Void);
-        writer.Store(CodeValue.Create(eb));
+        writer.Store(CodeValue.Create(eb)); //FIX: CodeValue may not work
       }
       // batch execution
       if (!Catalog.InteractiveFlag && _evaluator != null) {
@@ -184,7 +185,7 @@ namespace Andl.Compiler {
         Scope.Current.Add(expr.Sym);
         SymbolTable.AddCatalog(expr.Sym);
       }
-      EmitAssignableValue(expr.Sym, expr);
+      _emitter.OutSeg(expr.Expression());
       _emitter.OutCall(SymbolTable.Find(Symbol.Assign));
       return true;
     }
@@ -247,11 +248,14 @@ namespace Andl.Compiler {
         idsym.DataType = expr.DataType;
       else if (!expr.DataType.IsTypeMatch(idsym.DataType)) return ErrExpect(idsym.DataType.ToString() + " expression");
 
-      // cannot add to catalog until type is known
-      SymbolTable.AddCatalog(expr.Sym);
-      EmitAssignableValue(idsym, expr, true);
-      _emitter.OutCall(SymbolTable.Find(Symbol.Assign));
-      if (idsym.DataType == DataTypes.Unknown) return ErrSyntax("unknown type");
+      // add to catalog now type is known
+      SymbolTable.AddCatalog(idsym);
+
+      var argtype = DataHeading.Create(idsym.CallInfo.Arguments);
+      var eblock = expr.Expression(argtype, true);
+      // output wrapped as code value to suppress execution
+      _emitter.OutLoad(CodeValue.Create(eblock));
+      _emitter.OutCall(SymbolTable.Find(Symbol.Defer));
       return true;
     }
 
@@ -297,7 +301,7 @@ namespace Andl.Compiler {
 
       _emitter.OutName(Opcodes.LDCAT, varsym);
       if (trinfo.Restrict == null)
-        _emitter.OutLoad(CodeValue.Empty);
+        _emitter.OutSeg(ExpressionBlock.True);
       else _emitter.OutSegs(trinfo.Restrict);
       _emitter.OutSegs(trinfo.AttributeExprs);
       _emitter.OutCall(SymbolTable.Find(Symbol.UpdateTransform), trinfo.AttributeExprs.Length);
@@ -1242,28 +1246,6 @@ namespace Andl.Compiler {
     ///=================================================================
     /// Helpers
     /// 
-
-    // Emit a code value that will return a final value when required.
-    // Symbol must be an undefined ident; exprinfo may be lazy, args are optional
-    // For immediates evaluate now and output constant code value.
-    // [updating catalog only happens at runtime]
-    void EmitAssignableValue(Symbol varsym, ExprInfo expr, bool lazy = false) {
-      Logger.WriteLine(4, "EmitAssignable {0} {1} {2}", varsym, expr, lazy);
-
-      var argtype = (varsym.CallInfo == null) ? null : DataHeading.Create(varsym.CallInfo.Arguments);
-      //var argtype = (varsym.CallInfo == null) ? null : DataTypeTuple.Get(DataHeading.Create(varsym.CallInfo.Arguments));
-      var eblock = expr.Expression(argtype, lazy);
-
-      //TODO: preview
-//- If unknown type and no args and global var, pre-execute to find the type 
-//-      if (eblock.DataType == DataTypes.Unknown) {
-//-        var val = eblock.Evaluate();
-//-        eblock.DataType = val.DataType;
-//-        varsym.DataType = val.DataType;
-//-      }
-//-      if (eblock.DataType == DataTypes.Unknown) ErrSyntax("unknown type for assignment");
-      _emitter.OutLoad(CodeValue.Create(eblock));
-    }
 
     // Wrap an expression in an aggregation -- only used by Fold
     void WrapAgg(ref ExprInfo expr, Symbol opsym) {

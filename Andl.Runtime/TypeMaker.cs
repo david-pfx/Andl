@@ -29,7 +29,8 @@ namespace Andl.Runtime {
 
     public void DefineMembers(DataColumn[] columns) {
       foreach (var col in columns)
-        DefineField(col.Name, col.DataType);
+        if (col.Name != "")   // special for anonymous in Lift
+          DefineField(col.Name, col.DataType);
     }
 
     public void DefineField(string name, DataType datatype) {

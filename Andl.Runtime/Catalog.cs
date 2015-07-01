@@ -33,6 +33,7 @@ namespace Andl.Runtime {
     Database = 8,   // link to relvar data stored in external database (local or SQL)
   };
 
+  ///===========================================================================
   /// <summary>
   /// Implement the catalog as a whole, including multiple scope levels
   /// 
@@ -354,7 +355,8 @@ namespace Andl.Runtime {
       }
     }
   }
-  //////////////////////////////////////////////////////////////////////
+
+  ///===========================================================================
   /// <summary>
   /// Implement a single catalog scope level containing variables
   /// </summary>
@@ -415,6 +417,7 @@ namespace Andl.Runtime {
 
   }
 
+  ///===========================================================================
   /// <summary>
   /// Implement a single entry in a catalog
   /// </summary>
@@ -428,11 +431,9 @@ namespace Andl.Runtime {
 
     //public DataType DataType { get { return Value.DataType; } }
     public bool IsCode { get { return Kind == EntryKinds.Code; } }
-    //public bool IsOperator { get { return DataType == DataTypes.Code; } }
     public bool IsDatabase { get { return Flags.HasFlag(EntryFlags.Database); } }
     public bool IsPublic { get { return Flags.HasFlag(EntryFlags.Public); } }
     public bool IsPersistent { get { return Flags.HasFlag(EntryFlags.Persistent); } }
-    //    public bool IsSql { get { return Flags.HasFlag(EntryFlags.Sql); } }
     public bool IsSystem { get { return Flags.HasFlag(EntryFlags.System); } }
     public CodeValue CodeValue { get { return Value as CodeValue; } }
 
@@ -469,6 +470,7 @@ namespace Andl.Runtime {
     }
   }
 
+  ///===========================================================================
   /// <summary>
   /// Implement the construction of the various catalog tables
   /// </summary>

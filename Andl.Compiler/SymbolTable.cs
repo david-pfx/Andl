@@ -155,6 +155,7 @@ namespace Andl.Compiler {
     public static Symbol Mark = new Symbol() { Atom = Atoms.MARK };
 
     public const string Assign = ":assign";
+    public const string Defer = ":defer";
     public const string DoBlock = ":doblock";
     public const string Invoke = ":invoke";
     public const string Lift = ":lift";
@@ -449,6 +450,7 @@ namespace Andl.Compiler {
       AddOperator("sep", Atoms.IDENT, 2, 4, DataTypes.Bool, "Separate");
 
       AddFunction(Symbol.Assign, Atoms.NUL, 1, DataTypes.Void, CallKinds.FUNC, "Assign");
+      AddFunction(Symbol.Defer, Atoms.NUL, 1, DataTypes.Void, CallKinds.FUNC, "Defer");
       AddFunction(Symbol.DoBlock, Atoms.NUL, 1, DataTypes.Any, CallKinds.FUNC, "DoBlock");
       AddFunction(Symbol.Invoke, Atoms.NUL, 1, DataTypes.Any, CallKinds.VFUNCT, "Invoke");
       AddFunction(Symbol.Lift, Atoms.NUL, 1, DataTypes.Void, CallKinds.FUNC, "Lift");

@@ -102,8 +102,8 @@ namespace Andl.Runtime {
 
       addins.Add(AddinInfo.Create("now", 0, DataTypes.Time, "Now"));
 
-      addins.Add(AddinInfo.Create("date", 1, Builtin.DateValue.StaticDatatype, "Create"));
-      addins.Add(AddinInfo.Create("dateymd", 3, Builtin.DateValue.StaticDatatype, "CreateYmd"));
+      addins.Add(AddinInfo.Create("date", 1, Builtin.DateValue.StaticDatatype, "FromTime"));
+      addins.Add(AddinInfo.Create("dateymd", 3, Builtin.DateValue.StaticDatatype, "FromYmd"));
       addins.Add(AddinInfo.Create("year", 1, DataTypes.Number, "Year"));
       addins.Add(AddinInfo.Create("month", 1, DataTypes.Number, "Month"));
       addins.Add(AddinInfo.Create("day", 1, DataTypes.Number, "Day"));
@@ -143,18 +143,24 @@ namespace Andl.Runtime {
     /// 
 
     // Assign a value to a variable 
-    // The variable is identified by a named expression
-    // Lazy means keeps the code; else evaluate and keep the result
+    // The variable is identified by a named expression. which must be evaluated
     public VoidValue Assign(CodeValue exprarg) {
       Logger.WriteLine(3, "Assign {0}", exprarg);
       var name = exprarg.Value.Name;
-      if (exprarg.Value.IsLazy) {
-        _catalog.SetValue(name, exprarg);
-      } else {
-        var value = _evaluator.Exec(exprarg.Value.Code);
-        _catalog.SetValue(name, value);
-      }
+      var value = exprarg.AsEval.Evaluate();
+      _catalog.SetValue(name, value);
       Logger.WriteLine(3, "[Ass]");
+      return VoidValue.Default;
+    }
+
+    // Assign a code block to a variable 
+    // The variable is identified by a named expression, which must be saved
+    public VoidValue Defer(CodeValue exprarg) {
+      Logger.WriteLine(3, "Defer {0}", exprarg);
+      Logger.Assert(exprarg.AsEval == null);
+      var name = exprarg.Value.Name;
+      _catalog.SetValue(name, exprarg);
+      Logger.WriteLine(3, "[Def]");
       return VoidValue.Default;
     }
 
@@ -180,11 +186,16 @@ namespace Andl.Runtime {
     // If folded, applies an offset to get the right accumulator
     public TypedValue Invoke(CodeValue funcarg, PointerValue accblkarg, NumberValue accbasarg, TypedValue[] valargs) {
       Logger.WriteLine(3, "Invoke {0} accbase={1} ({2})", funcarg, accbasarg, String.Join(",", valargs.Select(a => a.ToString()).ToArray()));
-      var args = DataRow.Create(funcarg.AsEval.Lookup, valargs);
-      var accbase = (int)accbasarg.Value;
-      var ret = (funcarg.AsEval.HasFold)
-        ? funcarg.AsEval.EvalHasFold(args, accblkarg.Value as AccumulatorBlock, accbase)
-        : funcarg.AsEval.EvalOpen(args);
+
+      // wrap raw value with evaluator
+      var func = ExpressionEval.Create(_evaluator, funcarg.Value);
+      var args = DataRow.Create(func.Lookup, valargs);
+      TypedValue ret;
+      if (func.HasFold) {
+        var accblk = accblkarg.Value as AccumulatorBlock;
+        var accbase = (int)accbasarg.Value;
+        ret = func.EvalHasFold(args, accblk, accbase);
+      } else ret = func.EvalOpen(args);
       if (ret is RelationValue && !(ret.AsTable() is DataTableLocal))
         ret = RelationValue.Create(DataTableLocal.Convert(ret.AsTable(), args));
       Logger.WriteLine(3, "[Inv {0}]", ret);
@@ -837,10 +848,10 @@ namespace Andl.Runtime {
       }
     }
 
-    public DateValue Create(TimeValue time) {
+    public DateValue FromTime(TimeValue time) {
       return new DateValue { Value = time.Value };
     }
-    public DateValue CreateYmd(NumberValue year, NumberValue month, NumberValue day) {
+    public DateValue FromYmd(NumberValue year, NumberValue month, NumberValue day) {
       return new DateValue { Value = new DateTime((int)year.Value, (int)month.Value, (int)day.Value) };
     }
 
