@@ -198,13 +198,6 @@ namespace Andl.Runtime {
       return _converter(value);
     }
 
-    //// Return default value for the type. 
-    //// Null is probably safer than dying here.
-    //// BUG: only returns default value for base type
-    //public TypedValue Default() {
-    //  return _defaulter == null ? null : _defaulter();
-    //}
-
     // Override this and return true as needed
     public bool IsSubtype(IDataType other) {
       return false; // FIX: _issubclass(other);

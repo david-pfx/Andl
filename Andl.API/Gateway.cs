@@ -46,11 +46,19 @@ namespace Andl.API {
     public abstract Result Evaluate(string name, params object[] arguments);
     // Evaluate a function that changes state. May fail if not permitted.
     public abstract Result Command(string name, params object[] arguments);
+
+    // Evaluate a function that changes state. May fail if not permitted.
+    public abstract Type GetSetterType(string name);
+    // Evaluate a function that changes state. May fail if not permitted.
+    public abstract Type[] GetArgumentTypes(string name);
   }
 
+  ///===========================================================================
+  /// <summary>
+  /// The implementation of the gateway API
+  /// </summary>
   public class RuntimeImpl : Runtime {
     Catalog _catalog;
-    //Evaluator _evaluator;
 
     public static RuntimeImpl Startup(Dictionary<string, string> settings) {
       var ret = new RuntimeImpl();
@@ -65,26 +73,81 @@ namespace Andl.API {
       _catalog.Start();
     }
 
+    // Main implementation functions
     public override Result GetValue(string name) {
-      var catalogpriv = CatalogPrivate.Create(_catalog);
-      var evaluator = Evaluator.Create(catalogpriv);
-
-      var value = catalogpriv.GetValue(name);
-      if (value == null) return Result.Failure("unknown name");
-      if (value.DataType == DataTypes.Code)
-        value = evaluator.Exec((value as CodeValue).Value.Code);
-      var nvalue = TypeMaker.GetNativeValue(value);
-      return Result.Success(nvalue);
+      return GatewaySession.Create(_catalog).GetValue(name);
     }
     public override Result SetValue(string name, object value) {
-      //_catalog.SetValue(value??)
-      return Result.Failure("not implemented");
+      return GatewaySession.Create(_catalog).SetValue(name, value);
     }
+
     public override Result Evaluate(string name, params object[] arguments) {
-      return Result.Failure("not implemented");
+      return GatewaySession.Create(_catalog).Evaluate(name, arguments);
     }
+
     public override Result Command(string name, params object[] arguments) {
-      return Result.Failure("not implemented");
+      return GatewaySession.Create(_catalog).Evaluate(name, arguments);
+    }
+
+    // Support implementation functions
+    public override Type[] GetArgumentTypes(string name) {
+      return _catalog.GlobalVars.GetArgumentTypes(name);
+    }
+
+    public override Type GetSetterType(string name) {
+      return _catalog.GlobalVars.GetSetterType(name);
     }
   }
+
+  ///===========================================================================
+  ///
+
+  internal class GatewaySession {
+    CatalogPrivate _catalogpriv;
+    Evaluator _evaluator;
+
+    internal static GatewaySession Create(Catalog catalog) {
+      var ret = new GatewaySession();
+      ret._catalogpriv = CatalogPrivate.Create(catalog);
+      ret._evaluator = Evaluator.Create(ret._catalogpriv);
+      return ret;
+    }
+
+    public Result GetValue(string name) {
+      var kind = _catalogpriv.GetKind(name);
+      if (kind == EntryKinds.Code)
+        return Evaluate(name);
+      if (kind != EntryKinds.Value) return Result.Failure("unknown or invalid name");
+      
+      var nvalue = TypeMaker.ToNativeValue(_catalogpriv.GetValue(name));
+      return Result.Success(nvalue);
+    }
+
+    public Result SetValue(string name, object nvalue) {
+      var kind = _catalogpriv.GetKind(name);
+      if (kind == EntryKinds.Code)
+        return Evaluate(name, nvalue);
+      if (kind != EntryKinds.Value) return Result.Failure("unknown or invalid name");
+
+      var datatype = _catalogpriv.GetDataType(name);
+      var value = TypeMaker.FromNativeValue(nvalue, datatype);
+      return Result.Success(null);
+    }
+
+    public Result Evaluate(string name, params object[] arguments) {
+      var kind = _catalogpriv.GetKind(name);
+      if (kind != EntryKinds.Code) return Result.Failure("unknown or invalid name");
+
+      var expr = (_catalogpriv.GetValue(name) as CodeValue).Value;
+      if (arguments.Length != expr.Lookup.Degree) return Result.Failure("wrong no of args");
+
+      var argvalues = arguments.Select((a, x) => TypeMaker.FromNativeValue(a, expr.Lookup.Columns[x].DataType)).ToArray();
+      var args = DataRow.Create(expr.Lookup, argvalues);
+      var value = _evaluator.Exec(expr.Code, args);
+      var nvalue = (value == VoidValue.Void) ? null : TypeMaker.ToNativeValue(value);
+      return Result.Success(nvalue);
+    }
+
+  }
+
 }

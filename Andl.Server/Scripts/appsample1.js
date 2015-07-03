@@ -6,6 +6,9 @@ var ViewModel = function () {
     self.parts = ko.observableArray();
     self.supplies = ko.observableArray();
     self.products = ko.observableArray();
+    self.sandsp = ko.observableArray();
+    self.sbyname = ko.observableArray();
+
     self.error = ko.observable();
     self.rawjson = "??";
     
@@ -13,6 +16,8 @@ var ViewModel = function () {
     var partUri = '/api/main/parts';
     var suppliesUri = '/api/main/supplies';
     var productsUri = '/api/main/products';
+    var sandspUri = '/api/main/sandsp';
+    var sbynameUri = '/api/main/sbyname';
 
     function ajaxHelper(uri, method, data) {
         self.error(''); // Clear error message
@@ -29,7 +34,6 @@ var ViewModel = function () {
 
     function getSuppliers() {
         ajaxHelper(supplierUri, 'GET').done(function (data) {
-            self.rawjson = data;
             self.suppliers(data);
         });
     }
@@ -52,10 +56,28 @@ var ViewModel = function () {
         });
     }
 
+    function getSandSp() {
+        ajaxHelper(sandspUri, 'GET').done(function (data) {
+            self.sandsp(data);
+        });
+    }
+
+    function getSbyname(arg) {
+        ajaxHelper(sbynameUri, 'POST', arg).done(function (data) {
+            self.sbyname(data);
+        });
+    }
+
     getSuppliers();
     getSupplies();
     getParts();
     getProducts();
+    getSandSp();
+    getSbyname( 'a' );
 };
 
 ko.applyBindings(new ViewModel());
+
+$(document).ready(
+    $('#sbnbuttonid').click(function() { ko.viewModel.getSbyname($('#sbntextid')); })
+ );

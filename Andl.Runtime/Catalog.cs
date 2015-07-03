@@ -20,7 +20,7 @@ namespace Andl.Runtime {
   public enum ScopeLevels { Persistent = 0, Global = 1, Local = 2 };
 
   // entry kinds -- persistence is sorted in this order, to ensure it restores correctly
-  public enum EntryKinds { Type = 0, Value = 1, Code = 2 };
+  public enum EntryKinds { None = 0, Type = 1, Value = 2, Code = 3 };
 
   // entry flags -- including visibility
   [Flags]
@@ -315,7 +315,7 @@ namespace Andl.Runtime {
     internal void Set(string name, TypedValue value) {
       Logger.Assert(value.DataType == _entries[name].DataType);
       _entries[name].Value = value;
-      _entries[name].NativeValue = TypeMaker.GetNativeValue(value);
+      _entries[name].NativeValue = TypeMaker.ToNativeValue(value);
     }
 
     bool Exists(string key) {
@@ -363,9 +363,27 @@ namespace Andl.Runtime {
         }
       }
       entry.Value = value;
-      entry.NativeValue = TypeMaker.GetNativeValue(value);  // TEMP: just so it gets exercised
+      entry.NativeValue = TypeMaker.ToNativeValue(value);  // TEMP: just so it gets exercised
+      if (entry.NativeValue != null)  // TODO: CodeValue
+        entry.Value = TypeMaker.FromNativeValue(entry.NativeValue, entry.DataType);  // TEMP: just so it gets exercised
     }
+
+    // Return native for an entry that is settable
+    public Type GetSetterType(string name) {
+      if (!Exists(name)) return null;
+      return GetEntry(name).DataType.NativeType;
+    }
+
+    // Return native types for arguments
+    public Type[] GetArgumentTypes(string name) {
+      if (!Exists(name)) return null;
+      var expr = GetEntry(name).Value as CodeValue;
+      if (expr == null) return null;
+      return expr.Value.Lookup.Columns.Select(c => c.DataType.NativeType).ToArray();
+    }
+
   }
+
 
   ///===========================================================================
   /// <summary>
@@ -394,9 +412,23 @@ namespace Andl.Runtime {
       Current.SetValue(name, value);
     }
 
+    // Return type of entry
+    public EntryKinds GetKind(string name) {
+      if (Catalog.IsSystem(name)) return EntryKinds.Value;
+      var entry = Current.GetEntry(name);
+      return (entry == null) ? EntryKinds.None : entry.Kind;
+    }
+
+    // Return raw type of variable 
     public TypedValue GetValue(string name) {
       if (Catalog.IsSystem(name)) return Catalog.GetProtectedValue(name);
       return Current.GetValue(name);
+    }
+
+    // Return raw type of variable 
+    public DataType GetDataType(string name) {
+      if (Catalog.IsSystem(name)) DataTypeRelation.Get(Catalog.GetProtectedHeading(name));
+      return Current.GetDataType(name);
     }
 
   }

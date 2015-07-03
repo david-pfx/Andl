@@ -842,6 +842,9 @@ namespace Andl.Runtime {
           TypeFlags.Ordered | TypeFlags.Ordinal | TypeFlags.Variable);
       }
       public override DataType DataType { get { return StaticDatatype; } }
+      // TODO: when we get a class
+      //public override DataType BaseType { get { return DataTypes.Time; } }
+
       // Override this and return true as needed
       public bool IsSubtype(IDataType other) {
         return false;

@@ -85,9 +85,9 @@ namespace Andl.Runtime {
     }
 
     // Create new table as a copy (the other might be a different kind)
-    public static DataTableLocal Create(DataTable other) {
-      DataTableLocal newtable = DataTableLocal.Create(other.Heading);
-      foreach (var row in other.GetRows())
+    public static DataTableLocal Create(DataHeading heading, IEnumerable<DataRow> rows) {
+      DataTableLocal newtable = DataTableLocal.Create(heading);
+      foreach (var row in rows)
         newtable.AddRow(row);
       return newtable;
     }
@@ -103,7 +103,7 @@ namespace Andl.Runtime {
     // Create new table by converting another
     public static DataTableLocal Convert(DataTable other) {
       if (other is DataTableLocal) return other as DataTableLocal;
-      else return Create(other);
+      else return Create(other.Heading, other.GetRows());
     }
 
     // Create new table by converting another
@@ -118,7 +118,7 @@ namespace Andl.Runtime {
         return other as DataTableLocal;
       else {
         Evaluator.Current.PushLookup(lookup);
-        var ret = Create(other);
+        var ret = Create(other.Heading, other.GetRows());
         Evaluator.Current.PopLookup();
         return ret;
       }

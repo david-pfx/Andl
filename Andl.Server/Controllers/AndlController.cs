@@ -1,49 +1,71 @@
 ﻿using System.Collections.Generic;
 using System.Web.Http;
 using System.Web.Http.Description;
+using System.Linq;
 using Andl.API;
+using System.Threading.Tasks;
+using System;
+using System.Runtime.Serialization.Json;
+using Newtonsoft.Json;
 
 namespace Andl.Server.Controllers {
   public class AndlController : ApiController {
     // GET api/<catalog>/<name>
-    public IHttpActionResult GetValueOrFunction(string catalog, string name, [FromBody]string value) {
-      //return "Value for: [" + catalog + "]/[" + name + "]";
-      if (name == "products") return Ok(Product.Data2);
+
+    public async Task<IHttpActionResult> GetValue(string catalog, string name) {
+      string body = await Request.Content.ReadAsStringAsync();
       var ret = Runtime.Gateway.GetValue(name);
       if (ret.Ok) return Ok(ret.Value);
       return BadRequest(ret.Message);
     }
-    
-    // PUT api/<catalog>/<name>
-    [ResponseType(typeof(OperationResult))]
-    public IHttpActionResult PutValueOrCommand(string catalog, string name, [FromBody]string value) {
-      if (string.IsNullOrEmpty(value))
-        return BadRequest("value not set");
 
-      if (name == "test_fail")
-        return Ok(new OperationResult { Success = false, Message = "Operation failed" });
-      return Ok(new OperationResult { Success = true });
+    public async Task<IHttpActionResult> PostEvaluate(string catalog, string name) {
+      string body = await Request.Content.ReadAsStringAsync();
+      Type[] types = Runtime.Gateway.GetArgumentTypes(name);
+      if (types == null) return BadRequest("unknown name");
+      var values = types.Select(t => JsonConvert.DeserializeObject(body, t)).ToArray();
+      var ret = Runtime.Gateway.Evaluate(name, values);
+      if (ret.Ok) return Ok(ret.Value);
+      return BadRequest(ret.Message);
     }
 
+    public async Task<IHttpActionResult> PutValue(string catalog, string name) {
+      string body = await Request.Content.ReadAsStringAsync();
+      Type type = Runtime.Gateway.GetSetterType(name);
+      if (type == null) return BadRequest("unknown name");
+      var value = JsonConvert.DeserializeObject(body, type);
+      var ret = Runtime.Gateway.Evaluate(name, value);
+      if (ret.Ok) return Ok(ret.Value);
+      return BadRequest(ret.Message);
+    }
+
+    //public IHttpActionResult GetValueOrFunction(string catalog, string name, [FromBody]string value) {
+    //  if (name == "products") return Ok(Product.Data2);
+    //  string body = Request.Content.ReadAsStringAsync();
+    //  var ret = Runtime.Gateway.GetValue(name);
+    //  if (ret.Ok) return Ok(ret.Value);
+    //  return BadRequest(ret.Message);
+    //}
+    
   }
 
   public class Supplier {
     public string Sid { get; set; }
-    public string Sname { get; set; }
-    public decimal Status { get; set; }
-    public string City { get; set; }
+    public string SNAME { get; set; }
+    public decimal STATUS { get; set; }
+    public string CITY { get; set; }
 
     public static Supplier[] Data = new Supplier[] {
-      new Supplier { Sid = "S1", Sname = "Smith", Status = 20, City = "London"},
-      new Supplier { Sid = "S2", Sname = "Smith", Status = 20, City = "London"},
-      new Supplier { Sid = "S3", Sname = "Smith", Status = 20, City = "London"},
-      new Supplier { Sid = "S4", Sname = "Smith", Status = 20, City = "London"},
+      new Supplier { Sid = "S1", SNAME = "Smith", STATUS = 20, CITY = "London"},
+      new Supplier { Sid = "S2", SNAME = "Smith", STATUS = 20, CITY = "London"},
+      new Supplier { Sid = "S3", SNAME = "Smith", STATUS = 20, CITY = "London"},
+      new Supplier { Sid = "S4", SNAME = "Smith", STATUS = 20, CITY = "London"},
     };
     public static List<Supplier> Data2 = new List<Supplier> {
-      new Supplier { Sid = "S1", Sname = "Smith", Status = 20, City = "London"},
-      new Supplier { Sid = "S2", Sname = "Smith", Status = 20, City = "London"},
-      new Supplier { Sid = "S3", Sname = "Smith", Status = 20, City = "London"},
-      new Supplier { Sid = "S4", Sname = "Smith", Status = 20, City = "London"},
+      new Supplier { Sid = "S1", SNAME = "Smith", STATUS = 20, CITY = "London"},
+      new Supplier { Sid = "S2", SNAME = "Smith", STATUS = 20, CITY = "London"},
+      new Supplier { Sid = "S3", SNAME = "Smith", STATUS = 20, CITY = "London"},
+      new Supplier { Sid = "S4", SNAME = "Smith", STATUS = 20, CITY = "London"},
     };
   }
 
