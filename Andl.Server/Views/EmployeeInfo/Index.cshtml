@@ -1,0 +1,250 @@
+﻿@{
+    ViewBag.Title = "Index";
+}
+
+<h2>CRUD Operationson HTML Table  using HTML Templates</h2>
+
+<style type="text/css">
+    table {
+        width: 700px;
+        border: double;
+    }
+
+    th {
+        width: 100px;
+    }
+
+    td {
+        border: double;
+        width: 100px;
+    }
+
+    input {
+        width: 100px;
+    }
+</style>
+<script src="~/Scripts/jquery-2.1.0.min.js"></script>
+<script src="~/Scripts/knockout-3.1.0.js"></script>
+ 
+
+<input type="button" value="Add New Record" data-bind="click: function () { EmpViewModel.addnewRecord(); }" />
+<table>
+    <thead>
+        <tr>
+            <th>
+                EmpNo
+            </th>
+            <th>
+                EmpName
+            </th>
+            <th>
+                DeptName
+            </th>
+            <th>
+                Desigation
+            </th>
+            <th>
+                Salary
+            </th>
+            <th>
+            </th>
+            <th>
+            </th>
+        </tr>
+    </thead>
+    <tbody data-bind="template: { name: currentTemplate, foreach: Employees }"></tbody>
+</table>
+
+
+<script type="text/html" id="readonlyTemplate">
+    @*  <table>*@
+    <tr>
+        <td>
+            <span data-bind="text: EmpNo"></span>
+        </td>
+        <td>
+            <span data-bind="text: EmpName"></span>
+        </td>
+        <td>
+            <span data-bind="text: DeptName"></span>
+        </td>
+        <td>
+            <span data-bind="text: Designation"></span>
+        </td>
+        <td>
+            <span data-bind="text: Salary"></span>
+        </td>
+        <td>
+            <input type="button" value="Edit" data-bind="click: function () { EmpViewModel.editTemplate($data);}" />
+        </td>
+        <td>
+            <input type="button" value="delete" data-bind="click: function () { EmpViewModel.deleteEmployee($data); }" />
+        </td>
+    </tr>
+    @* </table>*@
+</script>
+
+<script type="text/html" id="editTemplate">
+    @* <table>*@
+    <tr>
+        <td>
+            <input type="text" data-bind="value: $data.EmpNo" id="txteno" disabled="disabled" />
+        </td>
+        <td>
+            <input type="text" data-bind="value: $data.EmpName" id="txtename" />
+        </td>
+        <td>
+            <input type="text" data-bind="value: $data.DeptName" id="txtdname" />
+        </td>
+        <td>
+            <input type="text" data-bind="value: $data.Designation" id="txtdesig" />
+        </td>
+        <td>
+            <input type="text" data-bind="value: $data.Salary" id="txtsal" />
+        </td>
+        <td>
+            <input type="button" value="Save" data-bind="click: EmpViewModel.saveEmployee" />
+        </td>
+        <td>
+            <input type="button" value="Cancel" data-bind="click: function () { EmpViewModel.reset(); }" />
+        </td>
+    </tr>
+    @*       </table>*@
+</script>
+
+
+<script type="text/javascript">
+
+
+    var self = this;
+    //S1:Boolean to check wheather the operation is for Edit and New Record
+    var IsNewRecord = false;
+
+    self.Employees = ko.observableArray([]);
+
+    loadEmployees();
+
+    //S2:Method to Load all Employees by making call to WEB API GET method
+    function loadEmployees() {
+        $.ajax({
+            type: "GET",
+            url: "api/EmployeeInfoAPI",
+            success: function (data) {
+                alert("Success");
+                self.Employees(data);
+            },
+            error: function (err) {
+                alert(err.status + " <--------------->");
+            }
+        });
+
+    };
+    alert("Loading Data");
+
+    //S3:The Employee Object
+    function Employee(eno, ename, dname, desig, sal) {
+        return {
+            EmpNo: ko.observable(eno),
+            EmpName: ko.observable(ename),
+            DeptName: ko.observable(dname),
+            Designation: ko.observable(desig),
+            Salary: ko.observable(sal)
+        }
+    };
+
+    //S4:The ViewModel where the Templates are initialized
+    var EmpViewModel = {
+        readonlyTemplate: ko.observable("readonlyTemplate"),
+        editTemplate: ko.observable()
+    };
+
+    //S5:Method ti decide the Current Template (readonlyTemplate or editTemplate)
+    EmpViewModel.currentTemplate = function (tmpl) {
+        return tmpl === this.editTemplate() ? 'editTemplate' : this.readonlyTemplate();
+    }.bind(EmpViewModel);
+
+    //S6:Method to create a new Blabk entry When the Add New Record button is clicked
+    EmpViewModel.addnewRecord = function () {
+        alert("Add Called");
+        self.Employees.push(new Employee(0, "", "", "", 0.0));
+        IsNewRecord = true; //Set the Check for the New Record
+    };
+
+
+    //S7:Method to Save the Record (This is used for Edit and Add New Record)
+    EmpViewModel.saveEmployee = function (d) {
+
+        var Emp = {};
+        Emp.EmpNo = d.EmpNo;
+        Emp.EmpName = d.EmpName;
+        Emp.DeptName = d.DeptName;
+        Emp.Designation = d.Designation;
+        Emp.Salary = d.Salary;
+        //Edit teh Record
+        if (IsNewRecord === false) {
+            $.ajax({
+                type: "PUT",
+                url: "api/EmployeeInfoAPI/" + Emp.EmpNo,
+                data: Emp,
+                success: function (data) {
+                    alert("Record Updated Successfully " + data.status);
+                    EmpViewModel.reset();
+                },
+                error: function (err) {
+                    alert("Error Occures, Please Reload the Page and Try Again " + err.status);
+                    EmpViewModel.reset();
+                }
+            });
+        }
+        //The New Record
+        if (IsNewRecord === true) {
+            IsNewRecord = false;
+            $.ajax({
+                type: "POST",
+                url: "api/EmployeeInfoAPI",
+                data: Emp,
+                success: function (data) {
+                    alert("Record Added Successfully " + data.status);
+                    EmpViewModel.reset();
+                    loadEmployees();
+                },
+                error: function (err) {
+                    alert("Error Occures, Please Reload the Page and Try Again " + err.status);
+                    EmpViewModel.reset();
+                }
+            });
+        }
+    };
+
+    //S8:Method to Delete the Record
+    EmpViewModel.deleteEmployee = function (d) {
+
+        $.ajax({
+            type: "DELETE",
+            url: "api/EmployeeInfoAPI/" + d.EmpNo,
+            success: function (data) {
+                alert("Record Deleted Successfully " + data.status);
+                EmpViewModel.reset();
+                loadEmployees();
+            },
+            error: function (err) {
+                alert("Error Occures, Please Reload the Page and Try Again " + err.status);
+                EmpViewModel.reset();
+            }
+        });
+    };
+
+
+
+    //S9:Method to Reset the template
+    EmpViewModel.reset = function (t) {
+        this.editTemplate("readonlyTemplate");
+    };
+
+
+    ko.applyBindings(EmpViewModel);
+</script>
+
+
+
+
