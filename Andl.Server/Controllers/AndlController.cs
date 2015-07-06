@@ -12,6 +12,7 @@ namespace Andl.Server.Controllers {
   public class AndlController : ApiController {
     // GET api/<catalog>/<name>
 
+    // get value of variable/function, no arguments
     public async Task<IHttpActionResult> GetValue(string catalog, string name) {
       string body = await Request.Content.ReadAsStringAsync();
       var ret = Runtime.Gateway.GetValue(name);
@@ -19,16 +20,7 @@ namespace Andl.Server.Controllers {
       return BadRequest(ret.Message);
     }
 
-    public async Task<IHttpActionResult> PostEvaluate(string catalog, string name) {
-      string body = await Request.Content.ReadAsStringAsync();
-      Type[] types = Runtime.Gateway.GetArgumentTypes(name);
-      if (types == null) return BadRequest("unknown name");
-      var values = types.Select(t => JsonConvert.DeserializeObject(body, t)).ToArray();
-      var ret = Runtime.Gateway.Evaluate(name, values);
-      if (ret.Ok) return Ok(ret.Value);
-      return BadRequest(ret.Message);
-    }
-
+    // set value of variable or call function with one argument
     public async Task<IHttpActionResult> PutValue(string catalog, string name) {
       string body = await Request.Content.ReadAsStringAsync();
       Type type = Runtime.Gateway.GetSetterType(name);
@@ -39,14 +31,24 @@ namespace Andl.Server.Controllers {
       return BadRequest(ret.Message);
     }
 
-    //public IHttpActionResult GetValueOrFunction(string catalog, string name, [FromBody]string value) {
-    //  if (name == "products") return Ok(Product.Data2);
-    //  string body = Request.Content.ReadAsStringAsync();
-    //  var ret = Runtime.Gateway.GetValue(name);
-    //  if (ret.Ok) return Ok(ret.Value);
-    //  return BadRequest(ret.Message);
-    //}
-    
+    // call function or command with arguments, optional return value
+    public async Task<IHttpActionResult> PostEvaluate(string catalog, string name) {
+      string body = await Request.Content.ReadAsStringAsync();
+      Type[] types = Runtime.Gateway.GetArgumentTypes(name);
+      if (types == null) return BadRequest("unknown name");
+      string[] bodies;
+      if (types.Length == 0) bodies = new string[0];
+      else if (types.Length == 1) bodies = new string[] { body };
+      else {
+        bodies = body.Split(new string[] { "\n" }, StringSplitOptions.RemoveEmptyEntries);
+        if (types.Length != bodies.Length) return BadRequest("wrong no of args");
+      }
+      var values = types.Select((t, x) => JsonConvert.DeserializeObject(bodies[x], t)).ToArray();
+      var ret = Runtime.Gateway.Evaluate(name, values);
+      if (ret.Ok) return Ok(ret.Value);
+      return BadRequest(ret.Message);
+    }
+
   }
 
   public class Supplier {

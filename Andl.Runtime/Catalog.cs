@@ -154,12 +154,14 @@ namespace Andl.Runtime {
 
     // handle special protected pseudo-tables
     internal DataHeading GetProtectedHeading(string name) {
-      if (!_protectedheadings.ContainsKey(name)) RuntimeError.Fatal("Catalog table", "invalid table name: " + name);
+      if (!_protectedheadings.ContainsKey(name)) return null;
       return _protectedheadings[name];
     }
 
     internal TypedValue GetProtectedValue(string name) {
-      var tablemaker = CatalogTableMaker.Create(GetProtectedHeading(name));
+      var heading = GetProtectedHeading(name);
+      if (heading == null) return null;
+      var tablemaker = CatalogTableMaker.Create(heading);
       switch (name) {
       case "andl_catalog":
         tablemaker.AddEntries(PersistentVars.GetEntries());
@@ -414,7 +416,8 @@ namespace Andl.Runtime {
 
     // Return type of entry
     public EntryKinds GetKind(string name) {
-      if (Catalog.IsSystem(name)) return EntryKinds.Value;
+      if (Catalog.IsSystem(name))
+        return (Catalog.GetProtectedHeading(name) == null) ? EntryKinds.None : EntryKinds.Value;
       var entry = Current.GetEntry(name);
       return (entry == null) ? EntryKinds.None : entry.Kind;
     }
