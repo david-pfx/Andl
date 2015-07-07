@@ -26,6 +26,7 @@ namespace Andl.Server.Controllers {
       Type type = Runtime.Gateway.GetSetterType(name);
       if (type == null) return BadRequest("unknown name");
       var value = JsonConvert.DeserializeObject(body, type);
+      if (value == null) return BadRequest("bad argument");
       var ret = Runtime.Gateway.Evaluate(name, value);
       if (ret.Ok) return Ok(ret.Value);
       return BadRequest(ret.Message);
@@ -44,6 +45,7 @@ namespace Andl.Server.Controllers {
         if (types.Length != bodies.Length) return BadRequest("wrong no of args");
       }
       var values = types.Select((t, x) => JsonConvert.DeserializeObject(bodies[x], t)).ToArray();
+      if (values.Any(v => v == null)) return BadRequest("bad arguments");
       var ret = Runtime.Gateway.Evaluate(name, values);
       if (ret.Ok) return Ok(ret.Value);
       return BadRequest(ret.Message);

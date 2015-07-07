@@ -372,8 +372,14 @@ namespace Andl.Runtime {
 
     // Return native for an entry that is settable
     public Type GetSetterType(string name) {
-      if (!Exists(name)) return null;
-      return GetEntry(name).DataType.NativeType;
+      var entry = GetEntry(name);
+      if (entry == null) return null;
+      if (entry.Kind == EntryKinds.Value) return entry.DataType.NativeType;
+      if (entry.Kind == EntryKinds.Code) {
+        var expr = entry.Value as CodeValue;
+        if (expr.Value.NumArgs == 1) return expr.Value.Lookup.Columns[0].DataType.NativeType;
+      }
+      return null;
     }
 
     // Return native types for arguments

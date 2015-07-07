@@ -11,5 +11,11 @@ namespace Andl.Server.Controllers {
 
       return View();
     }
+
+    public ActionResult EmployeeInfo() {
+      ViewBag.Title = "Employee Info";
+
+      return View("employeeinfo");
+    }
   }
 }

@@ -11,11 +11,16 @@ namespace Andl.Server {
       // Web API routes
       config.MapHttpAttributeRoutes();
 
-            config.Routes.MapHttpRoute(
-                name: "DefaultApi",
-                routeTemplate: "api/{catalog}/{name}",
-                defaults: new { controller = "andl" }
-            );
-        }
+      config.Routes.MapHttpRoute(
+          name: "RestApi",
+          routeTemplate: "rest/{name}/{id}",
+          defaults: new { controller = "rest", id = RouteParameter.Optional }
+      );
+      config.Routes.MapHttpRoute(
+          name: "DefaultApi",
+          routeTemplate: "api/{catalog}/{name}",
+          defaults: new { controller = "andl" }
+      );
     }
+  }
 }

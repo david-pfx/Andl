@@ -23,8 +23,8 @@
         width: 100px;
     }
 </style>
-<script src="~/Scripts/jquery-2.1.0.min.js"></script>
-<script src="~/Scripts/knockout-3.1.0.js"></script>
+<script src="~/Scripts/jquery-1.10.2.js"></script>
+<script src="~/Scripts/knockout-3.3.0.js"></script>
  
 
 <input type="button" value="Add New Record" data-bind="click: function () { EmpViewModel.addnewRecord(); }" />
@@ -128,18 +128,19 @@
     function loadEmployees() {
         $.ajax({
             type: "GET",
-            url: "api/EmployeeInfoAPI",
+            url: "/rest/employee",
             success: function (data) {
-                alert("Success");
+                //alert("Success");
                 self.Employees(data);
             },
             error: function (err) {
-                alert(err.status + " <--------------->");
+                alert(err.status + ":" + err.statusText + ":" + err.responseText);
+                //alert(err.status + " <--------------->");
             }
         });
 
     };
-    alert("Loading Data");
+    //alert("Loading Data");
 
     //S3:The Employee Object
     function Employee(eno, ename, dname, desig, sal) {
@@ -165,7 +166,7 @@
 
     //S6:Method to create a new Blabk entry When the Add New Record button is clicked
     EmpViewModel.addnewRecord = function () {
-        alert("Add Called");
+        //alert("Add Called");
         self.Employees.push(new Employee(0, "", "", "", 0.0));
         IsNewRecord = true; //Set the Check for the New Record
     };
@@ -184,14 +185,18 @@
         if (IsNewRecord === false) {
             $.ajax({
                 type: "PUT",
-                url: "api/EmployeeInfoAPI/" + Emp.EmpNo,
-                data: Emp,
+                url: "/rest/employee/" + Emp.EmpNo,
+                dataType: 'json',
+                contentType: 'application/json',
+                data: Emp ? JSON.stringify([Emp]) : null,
+                //data: Emp,
                 success: function (data) {
-                    alert("Record Updated Successfully " + data.status);
+                    alert("Record Updated Successfully");
+                    //alert("Record Updated Successfully " + data.status);
                     EmpViewModel.reset();
                 },
                 error: function (err) {
-                    alert("Error Occures, Please Reload the Page and Try Again " + err.status);
+                    alert("Error Occures, Please Reload the Page and Try Again " + err.status + ":" + err.responseText);
                     EmpViewModel.reset();
                 }
             });
@@ -201,8 +206,11 @@
             IsNewRecord = false;
             $.ajax({
                 type: "POST",
-                url: "api/EmployeeInfoAPI",
-                data: Emp,
+                url: "/rest/employee",
+                dataType: 'json',
+                contentType: 'application/json',
+                data: Emp ? JSON.stringify([Emp]) : null,
+                //data: Emp,
                 success: function (data) {
                     alert("Record Added Successfully " + data.status);
                     EmpViewModel.reset();
@@ -221,7 +229,7 @@
 
         $.ajax({
             type: "DELETE",
-            url: "api/EmployeeInfoAPI/" + d.EmpNo,
+            url: "/rest/Employee/" + d.EmpNo,
             success: function (data) {
                 alert("Record Deleted Successfully " + data.status);
                 EmpViewModel.reset();

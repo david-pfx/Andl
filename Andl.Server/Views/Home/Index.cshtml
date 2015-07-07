@@ -10,30 +10,50 @@
         Just add a user interface.
     </p>
     <p><a href="http://andl.org" class="btn btn-primary btn-lg">Learn more &raquo;</a></p>
+    <p><a href="employeeinfo" >Employee info</a></p>
+</div>
+<div class="row">
+    <p data-bind="text: error" />
 </div>
 <div class="row">
     <div class="col-md-4">
         <div class="panel panel-default">
-            <div class="panel-heading">
-                <h2 class="panel-title">Suppliers</h2>
-                <p>Supplier data from the S table</p>
-            </div>
-            <table class="table">
-                <tr>
-                    <th>Id</th>
-                    <th>Name</th>
-                    <th>Status</th>
-                    <th>City</th>
-                </tr>
-                <tbody data-bind="foreach: suppliers">
-                    <tr>
-                        <td data-bind="text: Sid"></td>
-                        <td data-bind="text: SNAME"></td>
-                        <td class="pull-right" data-bind="text: STATUS"></td>
-                        <td data-bind="text: CITY"></td>
-                    </tr>
-                </tbody>
-            </table>
+            <form role="form" class="form-inline" id="nsuppid">
+                <div class="panel-heading">
+                    <h2 class="panel-title">Suppliers</h2>
+                    <p>Supplier data from the S table</p>
+                </div>
+                <table class="table-condensed">
+                    <thead>
+                        <tr>
+                            <th>Id</th>
+                            <th>Name</th>
+                            <th>Status</th>
+                            <th>City</th>
+                        </tr>
+                    </thead>
+                    <tbody data-bind="foreach: suppliers">
+                        <tr>
+                            <td data-bind="text: Sid" />
+                            <td data-bind="text: SNAME" />
+                            <td class="pull-right" data-bind="text: STATUS" />
+                            <td data-bind="text: CITY" />
+                            <td><a href="#" data-bind="click: $root.delSupplier">delete</a></td>
+                        </tr>
+                    </tbody>
+                    <tbody data-bind="foreach: newsuppliers">
+                        <tr>
+                            <td><input type="text" class="form-control" data-bind="value: Sid, uniqueName: true" /></td>
+                            <td><input type="text" class="form-control" data-bind="value: SNAME" /></td>
+                            <td><input type="number" class="form-control" data-bind="value: STATUS" /></td>
+                            <td><input type="text" class="form-control" data-bind="value: CITY" /></td>
+                            <td><a href="#" data-bind="click: $root.delSupplier">delete</a></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <button data-bind="click: newSupplier">Add supplier</button>
+                <button data-bind="enable: newsuppliers().length > 0, click: addSuppliers" type="submit">Submit</button>
+            </form>
         </div>
         <div class="panel panel-default">
             <div class="panel-heading">
@@ -45,7 +65,7 @@
                     <p id="product" />
                 </div>
             </div>
-            <table class="table">
+            <table class="table-condensed">
                 <tr>
                     <th>Id</th>
                     <th>Name</th>
@@ -69,7 +89,7 @@
                 <h2 class="panel-title">Parts</h2>
                 <p>Parts data from the P table</p>
             </div>
-            <table class="table">
+            <table class="table-condensed">
                 <tr>
                     <th>Id</th>
                     <th>Name</th>
@@ -95,7 +115,7 @@
                 <h2 class="panel-title">Supplies</h2>
                 <p>Supplies data from the SP table</p>
             </div>
-            <table class="table">
+            <table class="table-condensed">
                 <tr>
                     <th>Supplier</th>
                     <th>Part</th>
