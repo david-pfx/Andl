@@ -24,6 +24,9 @@ namespace Andl.Server {
       bundles.Add(new ScriptBundle("~/bundles/app").Include(
                 "~/Scripts/knockout-{version}.js",
                 "~/Scripts/appsample1.js"));
+      bundles.Add(new ScriptBundle("~/bundles/employee").Include(
+                "~/Scripts/knockout-{version}.js",
+                "~/Scripts/employeeinfo.js"));
     }
   }
 }

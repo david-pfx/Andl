@@ -781,13 +781,12 @@ namespace Andl.Runtime {
 
     // Update Transform, handles Delete and Update
     public override DataTable UpdateTransform(ExpressionEval pred, ExpressionEval[] exprs) {
-      Logger.WriteLine(4, "UpSelect {0}", Heading);
+      Logger.WriteLine(4, "UpdateTransform {0}", Heading);
 
       // pass 1 - new rows
       var relins = DataTableLocal.Create(Heading);
       for (var ord = 0; ord < _rows.Count; ) { //TODO:Enumerable
         if (pred.EvalPred(_rows[ord]).Value) {
-          //if (pred.Predicate(_rows[ord]).IsTrue()) {
           if (exprs.Length > 0)
             relins.AddRow(_rows[ord].Transform(Heading, exprs));
           // deleting a row will replace row at ord with a different one, not yet tested

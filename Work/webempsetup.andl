@@ -1,0 +1,41 @@
+﻿// webempsetup.andl -- set up for access by employeeinfo sample app
+// 
+#catalog new update
+
+'webempsetup.andl -- set up for access by employeeinfo sample app'
+
+// load initial data
+def WebEmp:db(csv)
+WebEmp
+
+newempno := WebEmp [{ fold(max,EmpNo)}]
+newempno
+
+// this is the CRUD interface
+find_employee(empno:text) => do {
+    WebEmp [?(EmpNo.text = empno)]
+}
+
+findall_employee() => do {
+    WebEmp [$(EmpNo)]
+}
+
+create_employee(emp:WebEmp) => do {
+    WebEmp := union emp [{ * EmpNo := newempno}]
+    newempno := newempno+1
+}
+
+delete_employee(empno:text) => do {
+    WebEmp := [?(EmpNo.text = empno)]
+}
+
+update_employee(empno:text, emp:WebEmp) => do {
+    WebEmp := [?(EmpNo.text = empno)]
+    WebEmp := union emp
+}
+
+andl_catalog
+andl_variable
+andl_operator
+andl_member
+#stop
