@@ -111,8 +111,8 @@ namespace Andl.Runtime {
         PersistPattern = _persistpattern,
         DatabasePattern = _databasepattern,
       };
-      cat.PersistentVars = CatalogScope.Create(cat, null);
-      cat.GlobalVars = CatalogScope.Create(cat, cat.PersistentVars);
+      cat.PersistentVars = CatalogScope.Create(cat, ScopeLevels.Persistent, null);
+      cat.GlobalVars = CatalogScope.Create(cat, ScopeLevels.Global, cat.PersistentVars);
       return cat;
     }
 
@@ -138,7 +138,7 @@ namespace Andl.Runtime {
         GlobalVars.Add(name, table.DataType, EntryKinds.Value, EntryFlags.Public | EntryFlags.System);
         GlobalVars.Set(name, TypedValue.Create(table));
       }
-      GlobalVars.GetEntry(CatalogName).Flags |= EntryFlags.Database;
+      GlobalVars.FindEntry(CatalogName).Flags |= EntryFlags.Database;
       if (!NewFlag) {
         if (!LinkRelvar(CatalogName))
           RuntimeError.Fatal("Catalog", "cannot load catalog");
@@ -206,7 +206,7 @@ namespace Andl.Runtime {
     // Get the value of a relation from a database
     // Entry previously created by peeking
     public bool LinkRelvar(string name) {
-      var entry = GlobalVars.GetEntry(name);
+      var entry = GlobalVars.FindEntry(name);
       Logger.Assert(entry != null && entry.IsDatabase);
 
       var heading = entry.DataType.Heading;
@@ -228,7 +228,7 @@ namespace Andl.Runtime {
     // Get the value of a relation by importing some other format
     // Entry previously created by peeking
     public bool ImportRelvar(string name, string source) {
-      var entry = GlobalVars.GetEntry(name);
+      var entry = GlobalVars.FindEntry(name);
       Logger.Assert(entry != null);
       var heading = entry.DataType.Heading;
       var table = DataSourceStream.Create(source, SourcePath).Input(name, false);
@@ -283,12 +283,14 @@ namespace Andl.Runtime {
   public class CatalogScope {
     internal Catalog Catalog { get; private set; }
     internal CatalogScope Parent { get; private set; }
+    internal ScopeLevels Level { get; private set; }
 
     internal Dictionary<string, CatalogEntry> _entries = new Dictionary<string, CatalogEntry>();
 
-    public static CatalogScope Create(Catalog catalog, CatalogScope parent = null) {
+    public static CatalogScope Create(Catalog catalog, ScopeLevels level, CatalogScope parent = null) {
       return new CatalogScope {
         Catalog = catalog,
+        Level = level,
         Parent = parent,
       };
     }
@@ -302,13 +304,14 @@ namespace Andl.Runtime {
       _entries[entry.Name] = entry;
     }
 
-    public void Add(string name, DataType datatype, EntryKinds kind, EntryFlags flags) {
-      var level = (flags.HasFlag(EntryFlags.Persistent)) ? Catalog.PersistentVars : this;
-      level.Add(new CatalogEntry {
+    public void Add(string name, DataType datatype, EntryKinds kind, EntryFlags flags = EntryFlags.None) {
+      var scope = (flags.HasFlag(EntryFlags.Persistent)) ? Catalog.PersistentVars : this;
+      scope.Add(new CatalogEntry {
         Name = name,
         DataType = datatype,
         Kind = kind,
         Flags = flags,
+        Scope = scope,
       });
     }
 
@@ -320,36 +323,37 @@ namespace Andl.Runtime {
       _entries[name].NativeValue = TypeMaker.ToNativeValue(value);
     }
 
-    bool Exists(string key) {
-      return _entries.ContainsKey(key)
-        || Parent != null && Parent.Exists(key);
-    }
-
     // Return raw value from variable
-    internal CatalogEntry GetEntry(string name) {
-      return _entries.ContainsKey(name) ? _entries[name]
-        : Parent != null ? Parent.GetEntry(name)
-        : CatalogEntry.Empty;
+    internal CatalogEntry FindEntry(string name) {
+      CatalogEntry entry;
+      return (_entries.TryGetValue(name, out entry)) ? entry
+        : Parent != null ? Parent.FindEntry(name)
+        : null;
     }
 
     // Return raw value from variable
     internal TypedValue GetValue(string name) {
-      return _entries.ContainsKey(name) ? _entries[name].Value
-        : Parent != null ? Parent.GetValue(name)
-        : null;
+      var entry = FindEntry(name);
+      return entry == null ? null : entry.Value;
     }
 
     // Return type from variable as evaluated if needed
     public DataType GetDataType(string name) {
-      if (!Exists(name)) return null;
-      return GetEntry(name).DataType;
+      var entry = FindEntry(name);
+      return entry == null ? null : entry.DataType;
     }
 
     // Value replaces existing, type should be compatible
     // Supports assignment. Handles linked tables.
     public void SetValue(string name, TypedValue value) {
-      var entry = GetEntry(name);
-      if (entry.Flags.HasFlag(EntryFlags.System)) RuntimeError.Fatal("Catalog Set", "protected name");
+      if (Catalog.IsSystem(name)) RuntimeError.Fatal("Catalog Set", "protected name");
+      var entry = FindEntry(name);
+      if (entry == null && Level == ScopeLevels.Local) {
+          Add(name, value.DataType, EntryKinds.Value);
+          return;
+      }
+      Logger.Assert(entry != null);
+      //Logger.Assert(value.DataType == entry.DataType);
 
       // if relation value, convert to/from Sql
       var finalvalue = value;
@@ -372,7 +376,7 @@ namespace Andl.Runtime {
 
     // Return native for an entry that is settable
     public Type GetSetterType(string name) {
-      var entry = GetEntry(name);
+      var entry = FindEntry(name);
       if (entry == null) return null;
       if (entry.Kind == EntryKinds.Value) return entry.DataType.NativeType;
       if (entry.Kind == EntryKinds.Code) {
@@ -384,8 +388,9 @@ namespace Andl.Runtime {
 
     // Return native types for arguments
     public Type[] GetArgumentTypes(string name) {
-      if (!Exists(name)) return null;
-      var expr = GetEntry(name).Value as CodeValue;
+      var entry = FindEntry(name);
+      if (entry == null) return null;
+      var expr = entry.Value as CodeValue;
       if (expr == null) return null;
       return expr.Value.Lookup.Columns.Select(c => c.DataType.NativeType).ToArray();
     }
@@ -395,16 +400,19 @@ namespace Andl.Runtime {
 
   ///===========================================================================
   /// <summary>
-  /// Implement a private catalog for local variables
+  /// Implement a private catalog to support nested scopes
+  /// 
+  /// Note: initially created at global scope. Must Push to get new scope for local variables.
   /// </summary>
   public class CatalogPrivate {
     internal Catalog Catalog { get; private set; }
     internal CatalogScope Current { get; private set; }
 
-    public static CatalogPrivate Create(Catalog catalog) {
+    public static CatalogPrivate Create(Catalog catalog, ScopeLevels level = ScopeLevels.Local) {
       return new CatalogPrivate {
         Catalog = catalog,
-        Current = CatalogScope.Create(catalog, catalog.GlobalVars),
+        Current = (level == ScopeLevels.Local) ? CatalogScope.Create(catalog, ScopeLevels.Local, catalog.GlobalVars)
+        : catalog.GlobalVars,
       };
     }
 
@@ -413,7 +421,7 @@ namespace Andl.Runtime {
     }
 
     public void PushScope() {
-      Current = CatalogScope.Create(Catalog, Current);
+      Current = CatalogScope.Create(Catalog, ScopeLevels.Local, Current);
     }
 
     public void SetValue(string name, TypedValue value) {
@@ -424,7 +432,7 @@ namespace Andl.Runtime {
     public EntryKinds GetKind(string name) {
       if (Catalog.IsSystem(name))
         return (Catalog.GetProtectedHeading(name) == null) ? EntryKinds.None : EntryKinds.Value;
-      var entry = Current.GetEntry(name);
+      var entry = Current.FindEntry(name);
       return (entry == null) ? EntryKinds.None : entry.Kind;
     }
 
@@ -453,6 +461,7 @@ namespace Andl.Runtime {
     public DataType DataType { get; set; }
     public TypedValue Value { get; set; }
     public object NativeValue { get; set; }
+    public CatalogScope Scope { get; set; }
 
     public bool IsCode { get { return Kind == EntryKinds.Code; } }
     public bool IsDatabase { get { return Flags.HasFlag(EntryFlags.Database); } }

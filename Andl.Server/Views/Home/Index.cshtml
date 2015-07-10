@@ -1,5 +1,5 @@
 ﻿@section scripts {
-    @Scripts.Render("~/bundles/app")
+    @Scripts.Render("~/bundles/appsp")
 }
 
 <div class="jumbotron">
@@ -10,7 +10,7 @@
         Just add a user interface.
     </p>
     <p><a href="http://andl.org" class="btn btn-primary btn-lg">Learn more &raquo;</a></p>
-    <p><a href="employeeinfo" >Employee info</a></p>
+    <p><a href="employeeinfo">Employee info</a></p>
 </div>
 <div class="row">
     <p data-bind="text: error" />
@@ -18,11 +18,11 @@
 <div class="row">
     <div class="col-md-4">
         <div class="panel panel-default">
+            <div class="panel-heading">
+                <h2 class="panel-title">Suppliers</h2>
+                <p>Supplier data from the S table</p>
+            </div>
             <form role="form" class="form-inline" id="nsuppid">
-                <div class="panel-heading">
-                    <h2 class="panel-title">Suppliers</h2>
-                    <p>Supplier data from the S table</p>
-                </div>
                 <table class="table-condensed">
                     <thead>
                         <tr>
@@ -34,53 +34,25 @@
                     </thead>
                     <tbody data-bind="foreach: suppliers">
                         <tr>
-                            <td data-bind="text: Sid" />
-                            <td data-bind="text: SNAME" />
-                            <td class="pull-right" data-bind="text: STATUS" />
-                            <td data-bind="text: CITY" />
-                            <td><a href="#" data-bind="click: $root.delSupplier">delete</a></td>
+                            <td data-bind="text: Sid"></td>
+                            <td data-bind="text: SNAME"></td>
+                            <td class="pull-right" data-bind="text: STATUS"></td>
+                            <td data-bind="text: CITY"></td>
+                            <td><a href="#" data-bind="click: $root.deleteSupplier">delete</a></td>
                         </tr>
                     </tbody>
-                    <tbody data-bind="foreach: newsuppliers">
-                        <tr>
-                            <td><input type="text" class="form-control" data-bind="value: Sid, uniqueName: true" /></td>
-                            <td><input type="text" class="form-control" data-bind="value: SNAME" /></td>
-                            <td><input type="number" class="form-control" data-bind="value: STATUS" /></td>
-                            <td><input type="text" class="form-control" data-bind="value: CITY" /></td>
-                            <td><a href="#" data-bind="click: $root.delSupplier">delete</a></td>
-                        </tr>
-                    </tbody>
-                </table>
-                <button data-bind="click: newSupplier">Add supplier</button>
-                <button data-bind="enable: newsuppliers().length > 0, click: addSuppliers" type="submit">Submit</button>
-            </form>
-        </div>
-        <div class="panel panel-default">
-            <div class="panel-heading">
-                <h2 class="panel-title">Suppliers</h2>
-                <p>Supplier data filtered by name</p>
-                <div>
-                    <input type="text" id="sbntextid" size="5" value="e" />
-                    <input type="button" id="sbnbuttonid" value="Filter" />
-                    <p id="product" />
-                </div>
-            </div>
-            <table class="table-condensed">
-                <tr>
-                    <th>Id</th>
-                    <th>Name</th>
-                    <th>Status</th>
-                    <th>City</th>
-                </tr>
-                <tbody data-bind="foreach: sbyname">
-                    <tr>
-                        <td data-bind="text: Sid"></td>
-                        <td data-bind="text: SNAME"></td>
-                        <td class="pull-right" data-bind="text: STATUS"></td>
-                        <td data-bind="text: CITY"></td>
+
+                    <tr data-bind="visible: editmode, with: tempsupplier">
+                        <td><input type="text" class="form-control" data-bind="value: Sid, uniqueName: true"></td>
+                        <td><input type="text" class="form-control" data-bind="value: SNAME"></td>
+                        <td><input type="number" class="form-control" data-bind="value: STATUS"></td>
+                        <td><input type="text" class="form-control" data-bind="value: CITY"></td>
+                        <td><a href="#" data-bind="click: $root.cancelSupplier">cancel</a></td>
                     </tr>
-                </tbody>
-            </table>
+                </table>
+            </form>
+            <button data-bind="visible: editmode() == false, click: newSupplier">Add supplier</button>
+            <button data-bind="visible: editmode, click: addSupplier" type="submit">Submit</button>
         </div>
     </div>
     <div class="col-md-4">
@@ -107,6 +79,13 @@
                     </tr>
                 </tbody>
             </table>
+            <form role="form" class="form-inline" data-bind="with: partspattern">
+                <div class="panel-heading">
+                    <p>Find parts by name</p>
+                </div>
+                <input type="text" class="form-control" data-bind="value: PNAME">
+            </form>
+            <button data-bind="click: findParts">Find</button>
         </div>
     </div>
     <div class="col-md-4">

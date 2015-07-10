@@ -1,0 +1,16 @@
+﻿// webspshow.andl -- test for access by Web API
+// 
+#catalog
+
+'webspshow.andl -- show access by Web REST API'
+
+supplier
+part
+supplies
+findsome_part({{ Key := 'PNAME', Value := 'S.*' }})
+
+andl_catalog
+andl_variable
+andl_operator
+andl_member
+#stop

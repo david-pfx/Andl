@@ -120,7 +120,8 @@ namespace Andl.Main {
       //_catalog.CatalogName = _catalogname;
       _catalog.SourcePath = ".";
 
-      var catalogp = CatalogPrivate.Create(_catalog);
+      // Create private catalog with access to global level
+      var catalogp = CatalogPrivate.Create(_catalog, ScopeLevels.Global);
       _evaluator = (!_xsw) ? Evaluator.Create(catalogp) : null;
 
       return true;
