@@ -25,7 +25,7 @@ var ViewModel = function () {
             dataType: 'json',
             contentType: 'application/json',
         }).fail(function (jqXHR, textStatus, errorThrown) {
-            self.error(errorThrown);
+            self.error(errorThrown + ' : ' + jqXHR.responseText);
         });
     }
 

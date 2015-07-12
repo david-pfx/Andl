@@ -271,8 +271,8 @@ namespace Andl.Compiler {
           }
           return true;
         case "#catalog":
-          _catalog.NewFlag = cmd.Contains("new");
-          _catalog.PersistFlag = cmd.Contains("update");
+          _catalog.LoadFlag = !cmd.Contains("new");
+          _catalog.SaveFlag = cmd.Contains("update");
           return true;
         default:
           ErrLexer(token.LineNumber, "bad directive: {0}", cmd[0]);

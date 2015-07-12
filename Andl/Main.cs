@@ -35,7 +35,7 @@ namespace Andl.Main {
     static Evaluator _evaluator;
 
     static List<string> _paths = new List<string>();
-    static string _help = "Andl [<input path> [<database path>]] options\n"
+    static string _help = "Andl [<input path> [<catalog name> [<database path>]]] options\n"
       + "\t\tDefault is compile only with new catalog and local database\n"
       + "\t/c[nu]\tUse existing catalog, n for new, u for update\n"
       + "\t/i\tInteractive, execute one line at a time\n"
@@ -112,12 +112,13 @@ namespace Andl.Main {
       _catalog = Catalog.Create();
       _catalog.InteractiveFlag = _isw;
       _catalog.ExecuteFlag = _xsw && !_isw;
-      _catalog.PersistFlag = _usw;
+      _catalog.LoadFlag = !_nsw;
+      _catalog.SaveFlag = _usw;
       _catalog.DatabaseSqlFlag = _ssw;
-      _catalog.NewFlag = _nsw;
       if (_paths.Count > 1)
-        _catalog.DatabasePath = _paths[1];
-      //_catalog.CatalogName = _catalogname;
+        _catalog.CatalogName = _paths[1];
+      if (_paths.Count > 2)
+        _catalog.DatabasePath = _paths[2];
       _catalog.SourcePath = ".";
 
       // Create private catalog with access to global level
@@ -139,7 +140,7 @@ namespace Andl.Main {
     }
 
     static void Finish() {
-      if (_catalog.PersistFlag && _catalog.ExecuteFlag)
+      if (_catalog.SaveFlag && _catalog.ExecuteFlag)
         Logger.WriteLine("*** Updating: {0} ***", _paths[1]);
       _catalog.Finish();
     }

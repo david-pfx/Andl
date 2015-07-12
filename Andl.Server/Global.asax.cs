@@ -26,12 +26,14 @@ namespace Andl.Server {
       { "DatabasePathSqlFlag", "DatabaseSqlFlag" },
     };
 
+    public static Andl.API.Runtime Runtime;
+
     void AppStartup() {
       var appsettings = ConfigurationManager.AppSettings;
       var settings = appsettings.AllKeys
         .Where(k => _settingsdict.ContainsKey(k))
         .ToDictionary(k => _settingsdict[k], k => appsettings[k]);
-      var app = Andl.API.Runtime.StartUp(settings);
+      Runtime = Andl.API.Runtime.StartUp(settings);
     }
   }
 }

@@ -45,25 +45,35 @@ namespace Andl.Runtime {
     static string _persistpattern = @"^[@A-Za-z].*$";
     static string _databasepattern = @"^[A-Za-z].*$";
 
-    static string _localdatabasepath = "andltest.sandl";
-    static string _sqldatabasepath = "andltest.sqlite";
+    static readonly string _localdatabasepath = "default.sandl";
+    static readonly string _sqldatabasepath = "andl.sqlite";
+    static readonly string _catalogname = "andl_catalog";
 
-    static readonly string CatalogName = "andl_catalog";
     static readonly string VariableName = "andl_variable";
     static readonly string OperatorName = "andl_operator";
     static readonly string MemberName = "andl_member";
 
     static readonly DataHeading CatalogHeading = DataHeading.Create("Name:text", "Kind:text", "Type:text", "Value:binary");
     static readonly DataHeading VariableHeading = DataHeading.Create("Name:text", "Type:text", "Members:text");
-    static readonly DataHeading OperatorHeading = DataHeading.Create("Name:text", "Type:text", "Members:text", "Arguments:text");
+    static readonly DataHeading OperatorHeading = DataHeading.Create("Name:text", "Members:text", "Arguments:text");
     static readonly DataHeading MemberHeading = DataHeading.Create("MemberOf:text", "Index:number", "Name:text", "Type:text", "Members:text");
     static readonly DataHeading CatalogKey = DataHeading.Create("Name:text");
 
+    //static Dictionary<string, DataHeading> _protectedheadings;
+
     static Dictionary<string, DataHeading> _protectedheadings = new Dictionary<string, DataHeading> {
-      { CatalogName, CatalogHeading },
+      { _catalogname, CatalogHeading },
       { VariableName, VariableHeading },
       { OperatorName, OperatorHeading },
       { MemberName, MemberHeading },
+    };
+
+    static Dictionary<string, Func<CatalogTableMaker, IEnumerable<CatalogEntry>, CatalogTableMaker>> _protectedtablemaker = 
+      new Dictionary<string,Func<CatalogTableMaker, IEnumerable<CatalogEntry>,CatalogTableMaker>> {
+      { _catalogname, (c, e) => c.AddEntries(e) },
+      { VariableName, (c, e) => c.AddVariables(e) },
+      { OperatorName, (c, e) => c.AddOperators(e) },
+      { MemberName, (c, e) => c.AddMembers(e) },
     };
 
     static Dictionary<string, Action<Catalog, string>> _settings = new Dictionary<string, Action<Catalog, string>> {
@@ -72,17 +82,18 @@ namespace Andl.Runtime {
     };
 
     // configuration settings
-    public bool IsCompiling { get; set; }       // invoke builtin functions in preview/compile mode
+    //public bool IsCompiling { get; set; }       // invoke builtin functions in preview/compile mode
     public bool InteractiveFlag { get; set; }   // execute during compilation
     public bool ExecuteFlag { get; set; }       // execute after compilation
-    public bool PersistFlag { get; set; }       // persist the catalog after compilation
+    public bool LoadFlag { get; set; }          // load an existing catalog (else create new)
+    public bool SaveFlag { get; set; }          // save the updated the catalog after compilation
     public bool DatabaseSqlFlag { get; set; }   // use sql as the database
-    public bool NewFlag { get; set; }           // create new catalog
 
     public string SystemPattern { get; set; }   // variables protected from update
     public string PersistPattern { get; set; }  // variables that are persisted
     public string DatabasePattern { get; set; } // relvars kept in the (SQL) database
 
+    public string CatalogName { get; set; }    // path to the database (either kind)
     public string DatabasePath { get; set; }    // path to the database (either kind)
     public string SourcePath { get; set; }      // base path for reading a source
 
@@ -107,6 +118,7 @@ namespace Andl.Runtime {
     Catalog() { }
     public static Catalog Create() {
       var cat = new Catalog {
+        CatalogName = _catalogname,
         SystemPattern = _systempattern,
         PersistPattern = _persistpattern,
         DatabasePattern = _databasepattern,
@@ -133,13 +145,35 @@ namespace Andl.Runtime {
         var database = Sqlite.SqliteDatabase.Create(DatabasePath, sqleval);
         SqlTarget.Configure(database);
       }
+
+      // Add alternate catalog name as alias
+      if (CatalogName != _catalogname) {
+        _protectedheadings.Add(CatalogName, _protectedheadings[_catalogname]);
+        _protectedtablemaker.Add(CatalogName, _protectedtablemaker[_catalogname]);
+      }
+
+      //_protectedheadings = new Dictionary<string, DataHeading> {
+      //  { _catalogname, CatalogHeading },
+      //  { CatalogName, CatalogHeading },
+      //  { VariableName, VariableHeading },
+      //  { OperatorName, OperatorHeading },
+      //  { MemberName, MemberHeading },
+      //};
+      //_protectedtablemaker = new Dictionary<string,Func<CatalogTableMaker, IEnumerable<CatalogEntry>,CatalogTableMaker>> {
+      //  { _catalogname, (c, e) => c.AddEntries(e) },
+      //  { CatalogName, (c, e) => c.AddEntries(e) },
+      //  { VariableName, (c, e) => c.AddVariables(e) },
+      //  { OperatorName, (c, e) => c.AddOperators(e) },
+      //  { MemberName, (c, e) => c.AddMembers(e) },
+      //};
+
       foreach (var name in _protectedheadings.Keys) {
         var table = DataTableLocal.Create(_protectedheadings[name]);
         GlobalVars.Add(name, table.DataType, EntryKinds.Value, EntryFlags.Public | EntryFlags.System);
         GlobalVars.Set(name, TypedValue.Create(table));
       }
       GlobalVars.FindEntry(CatalogName).Flags |= EntryFlags.Database;
-      if (!NewFlag) {
+      if (LoadFlag) {
         if (!LinkRelvar(CatalogName))
           RuntimeError.Fatal("Catalog", "cannot load catalog");
         LoadFromTable();
@@ -148,37 +182,41 @@ namespace Andl.Runtime {
 
     // All done, persist catalog if required
     public void Finish() {
-      if (PersistFlag)
+      if (SaveFlag)
         StoreToTable();
     }
 
     // handle special protected pseudo-tables
     internal DataHeading GetProtectedHeading(string name) {
-      if (!_protectedheadings.ContainsKey(name)) return null;
-      return _protectedheadings[name];
+      DataHeading heading;
+      if (_protectedheadings.TryGetValue(name, out heading)) return heading;
+      else return null;
+      //if (!_protectedheadings.ContainsKey(name)) return null;
+      //return _protectedheadings[name];
     }
 
     internal TypedValue GetProtectedValue(string name) {
       var heading = GetProtectedHeading(name);
       if (heading == null) return null;
       var tablemaker = CatalogTableMaker.Create(heading);
-      switch (name) {
-      case "andl_catalog":
-        tablemaker.AddEntries(PersistentVars.GetEntries());
-        break;
-      case "andl_variable":
-        tablemaker.AddVariables(PersistentVars.GetEntries());
-        break;
-      case "andl_operator":
-        tablemaker.AddOperators(PersistentVars.GetEntries());
-        break;
-      case "andl_member":
-        tablemaker.AddMembers(PersistentVars.GetEntries());
-        break;
-      default:
-        RuntimeError.Fatal("Catalog table", "invalid table name: " + name);
-        break;
-      }
+      _protectedtablemaker[name](tablemaker, PersistentVars.GetEntries());
+      //switch (name) {
+      //case "andl_catalog":
+      //  tablemaker.AddEntries(PersistentVars.GetEntries());
+      //  break;
+      //case "andl_variable":
+      //  tablemaker.AddVariables(PersistentVars.GetEntries());
+      //  break;
+      //case "andl_operator":
+      //  tablemaker.AddOperators(PersistentVars.GetEntries());
+      //  break;
+      //case "andl_member":
+      //  tablemaker.AddMembers(PersistentVars.GetEntries());
+      //  break;
+      //default:
+      //  RuntimeError.Fatal("Catalog table", "invalid table name: " + name);
+      //  break;
+      //}
       return RelationValue.Create(tablemaker.Table);
     }
 
@@ -430,21 +468,23 @@ namespace Andl.Runtime {
 
     // Return type of entry
     public EntryKinds GetKind(string name) {
-      if (Catalog.IsSystem(name))
-        return (Catalog.GetProtectedHeading(name) == null) ? EntryKinds.None : EntryKinds.Value;
+      //if (Catalog.IsSystem(name))
+      //  return (Catalog.GetProtectedHeading(name) == null) ? EntryKinds.None : EntryKinds.Value;
       var entry = Current.FindEntry(name);
       return (entry == null) ? EntryKinds.None : entry.Kind;
     }
 
-    // Return raw type of variable 
+    // Return raw value of variable 
     public TypedValue GetValue(string name) {
-      if (Catalog.IsSystem(name)) return Catalog.GetProtectedValue(name);
+      var value = Catalog.GetProtectedValue(name);
+      if (value != null) return value;
+      //if (Catalog.IsSystem(name)) return Catalog.GetProtectedValue(name);
       return Current.GetValue(name);
     }
 
     // Return raw type of variable 
     public DataType GetDataType(string name) {
-      if (Catalog.IsSystem(name)) DataTypeRelation.Get(Catalog.GetProtectedHeading(name));
+      //if (Catalog.IsSystem(name)) DataTypeRelation.Get(Catalog.GetProtectedHeading(name));
       return Current.GetDataType(name);
     }
 
@@ -559,7 +599,6 @@ namespace Andl.Runtime {
     void AddOperator(string name, DataType datatype, ExpressionBlock value) {
       var addrow = DataRow.Create(Table.Heading, new TypedValue[] 
           { TextValue.Create(name), 
-            TextValue.Create(datatype.BaseType.Name), 
             TextValue.Create(value.DataType.GenUniqueName ?? ""),
             TextValue.Create(value.SubtypeName) });
       Table.AddRow(addrow);

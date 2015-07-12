@@ -15,6 +15,8 @@ namespace Andl.Server.Controllers {
   }
 
   public class RestController : ApiController {
+    Runtime Runtime { get { return WebApiApplication.Runtime; } }
+
     // GET: rest/name
     public IHttpActionResult Get(string name) {
       var query = Request.GetQueryNameValuePairs();
@@ -52,13 +54,13 @@ namespace Andl.Server.Controllers {
     }
 
     IHttpActionResult Common(string name, params object[] args) {
-      var ret = Runtime.Gateway.Evaluate(name, args);
+      var ret = Runtime.Evaluate(name, args);
       if (ret.Ok) return Ok(ret.Value);
       return BadRequest(ret.Message);
     }
 
     bool ParseBody(string name, string body, out object value) {
-      Type[] types = Runtime.Gateway.GetArgumentTypes(name);
+      Type[] types = Runtime.GetArgumentTypes(name);
       if (types == null || types.Length == 0) value = "unknown name";
       else try {
         value = JsonConvert.DeserializeObject(body, types[types.Length - 1]);

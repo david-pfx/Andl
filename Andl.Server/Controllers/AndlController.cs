@@ -10,12 +10,14 @@ using Newtonsoft.Json;
 
 namespace Andl.Server.Controllers {
   public class AndlController : ApiController {
+    Runtime Runtime { get { return WebApiApplication.Runtime; } }
+
     // GET api/<catalog>/<name>
 
     // get value of variable/function, no arguments
     public async Task<IHttpActionResult> GetValue(string catalog, string name) {
       string body = await Request.Content.ReadAsStringAsync();
-      var ret = Runtime.Gateway.GetValue(name);
+      var ret = Runtime.GetValue(name);
       if (ret.Ok) return Ok(ret.Value);
       return BadRequest(ret.Message);
     }
@@ -23,11 +25,11 @@ namespace Andl.Server.Controllers {
     // set value of variable or call function with one argument
     public async Task<IHttpActionResult> PutValue(string catalog, string name) {
       string body = await Request.Content.ReadAsStringAsync();
-      Type type = Runtime.Gateway.GetSetterType(name);
+      Type type = Runtime.GetSetterType(name);
       if (type == null) return BadRequest("unknown name");
       var value = JsonConvert.DeserializeObject(body, type);
       if (value == null) return BadRequest("bad argument");
-      var ret = Runtime.Gateway.Evaluate(name, value);
+      var ret = Runtime.Evaluate(name, value);
       if (ret.Ok) return Ok(ret.Value);
       return BadRequest(ret.Message);
     }
@@ -35,7 +37,7 @@ namespace Andl.Server.Controllers {
     // call function or command with arguments, optional return value
     public async Task<IHttpActionResult> PostEvaluate(string catalog, string name) {
       string body = await Request.Content.ReadAsStringAsync();
-      Type[] types = Runtime.Gateway.GetArgumentTypes(name);
+      Type[] types = Runtime.GetArgumentTypes(name);
       if (types == null) return BadRequest("unknown name");
       string[] bodies;
       if (types.Length == 0) bodies = new string[0];
@@ -46,7 +48,7 @@ namespace Andl.Server.Controllers {
       }
       var values = types.Select((t, x) => JsonConvert.DeserializeObject(bodies[x], t)).ToArray();
       if (values.Any(v => v == null)) return BadRequest("bad arguments");
-      var ret = Runtime.Gateway.Evaluate(name, values);
+      var ret = Runtime.Evaluate(name, values);
       if (ret.Ok) return Ok(ret.Value);
       return BadRequest(ret.Message);
     }
