@@ -80,8 +80,9 @@ namespace Andl.Host {
       string content = (body == null) ? null : ReadStream(body);
       var qparams = GetQueryParams();
 
-      // TODO: implement catalog
-      var result = HostProgram.Gateway.JsonCall(method, name, id, qparams, content);
+      var gateway = HostProgram.GetGateway(catalog);
+      var result = (gateway == null) ? API.Result.Failure("catalog not found: " + catalog)
+        : gateway.JsonCall(method, name, id, qparams, content);
 
       WebOperationContext.Current.OutgoingResponse.StatusCode = result.Ok ? HttpStatusCode.OK : HttpStatusCode.BadRequest;
       WebOperationContext.Current.OutgoingResponse.ContentType = "application/json";
@@ -133,18 +134,26 @@ namespace Andl.Host {
   /// Implement calling program
   /// </summary>
   class HostProgram {
-    public static Runtime Gateway;
 
+    // mainline
+    // start up web host, then run tests
     static void Main(string[] args) {
       AppStartup();
       string baseAddress = "http://" + Environment.MachineName + ":8000/api";
       var host = CreateHost(baseAddress, "");
       host.Open();
-      Console.WriteLine("Host opened, Enter to close.");
+      Console.WriteLine("Host opened.");
       SendTests(baseAddress);
+      Console.WriteLine("Press Enter to close.");
       Console.ReadLine();
       host.Close();
     }
+
+    // return gateway for this catalog
+    public static Runtime GetGateway(string catalog) {
+      return catalog == _gateway.CatalogName ? _gateway : null;
+    }
+    static Runtime _gateway;
 
     static WebServiceHost CreateHost(string address, string endpoint) {
       var host = new WebServiceHost(typeof(RawDataService), new Uri(address));
@@ -159,8 +168,7 @@ namespace Andl.Host {
     public class RawMapper : WebContentTypeMapper {
       public override WebContentFormat GetMessageFormatForContentType(string contentType) {
         if (contentType == "application/json") return WebContentFormat.Raw;
-        return WebContentFormat.Default;
-        //return WebContentFormat.Raw; // always
+        else return WebContentFormat.Default;
       }
     }
 
@@ -173,7 +181,7 @@ namespace Andl.Host {
 
     static readonly Dictionary<string, string> _settingsdict = new Dictionary<string, string> {
       { "DatabasePath", "DatabasePath" },
-      { "DatabasePathSqlFlag", "DatabaseSqlFlag" },
+      { "DatabaseSqlFlag", "DatabaseSqlFlag" },
     };
 
     static void AppStartup() {
@@ -181,29 +189,31 @@ namespace Andl.Host {
       var settings = appsettings.AllKeys
         .Where(k => _settingsdict.ContainsKey(k))
         .ToDictionary(k => _settingsdict[k], k => appsettings[k]);
-      Gateway = Andl.API.Runtime.StartUp(settings);
-      Gateway.JsonReturnFlag = true;
+      _gateway = Andl.API.Runtime.StartUp(settings);
+      _gateway.JsonReturnFlag = true;
     }
 
+    //--- test only
+
     static void SendTests(string baseaddress) {
-      SendRequest(baseaddress + "/main/supplier", "GET");
-      SendRequest(baseaddress + "/main/supplier/S2", "GET");
+      SendRequest(baseaddress + "/default/supplier", "GET");
+      SendRequest(baseaddress + "/default/supplier/S2", "GET");
       var newsupp = "[{'Sid':'S9','SNAME':'Adolph','STATUS':99,'CITY':'Melbourne'}]".Replace('\'', '"');
-      SendRequest(baseaddress + "/main/supplier/x", "POST", "json", newsupp);
-      SendRequest(baseaddress + "/main/supplier/", "POST", "json", newsupp);
-      SendRequest(baseaddress + "/main/supplier", "POST", "json", newsupp);
-      SendRequest(baseaddress + "/main/supplier", "DELETE");
-      SendRequest(baseaddress + "/main/supplier/S9", "DELETE");
-      SendRequest(baseaddress + "/main/supplier/S9", "GET");
-      SendRequest(baseaddress + "/main/supplier", "PUT", "json", newsupp);
-      SendRequest(baseaddress + "/main/supplier/S9", "PUT", "json", newsupp);
-      SendRequest(baseaddress + "/main/supplier/S9", "GET");
-      SendRequest(baseaddress + "/main/part", "GET");
-      SendRequest(baseaddress + "/main/part?PNAME=S.*", "GET");
-      SendRequest(baseaddress + "/main/xsupplier", "DELETE");
+      SendRequest(baseaddress + "/default/supplier/x", "POST", "json", newsupp);
+      SendRequest(baseaddress + "/default/supplier/", "POST", "json", newsupp);
+      SendRequest(baseaddress + "/default/supplier", "POST", "json", newsupp);
+      SendRequest(baseaddress + "/default/supplier", "DELETE");
+      SendRequest(baseaddress + "/default/supplier/S9", "DELETE");
+      SendRequest(baseaddress + "/default/supplier/S9", "GET");
+      SendRequest(baseaddress + "/default/supplier", "PUT", "json", newsupp);
+      SendRequest(baseaddress + "/default/supplier/S9", "PUT", "json", newsupp);
+      SendRequest(baseaddress + "/default/supplier/S9", "GET");
+      SendRequest(baseaddress + "/default/part", "GET");
+      SendRequest(baseaddress + "/default/part?PNAME=S.*", "GET");
+      SendRequest(baseaddress + "/default/xsupplier", "DELETE");
 #if tests
-      SendRequest(baseaddress + "/main/badsupplier", "GET");
-      SendRequest(baseaddress + "/main/badsupplier", "POST", "json", "post 1");
+      SendRequest(baseaddress + "/default/badsupplier", "GET");
+      SendRequest(baseaddress + "/default/badsupplier", "POST", "json", "post 1");
 #endif
     }
 
@@ -217,25 +227,6 @@ namespace Andl.Host {
         var bytes = Encoding.UTF8.GetBytes(content);
         reqStream.Write(bytes, 0, bytes.Length);
         reqStream.Close();
-        //byte[] fileToSend = null;
-
-        //switch (kind) {
-        //case "text":
-        //  req.ContentType = "text/plain";
-
-        //  fileToSend = new byte[12345];
-        //  for (int i = 0; i < fileToSend.Length; i++) {
-        //    fileToSend[i] = (byte)('a' + (i % 26));
-        //  }
-        //  break;
-        //case "json":
-        //  req.ContentType = "application/json";
-        //  //req.ContentType = "json";
-        //  fileToSend = Encoding.UTF8.GetBytes("[{\"Sid\":\"" + content + "\",\"SNAME\":\"\",\"STATUS\":0,\"CITY\":\"\"}]");
-        //  break;
-        //}
-        //reqStream.Write(fileToSend, 0, fileToSend.Length);
-        //reqStream.Close();
       }
       //--- send it
       HttpWebResponse resp;

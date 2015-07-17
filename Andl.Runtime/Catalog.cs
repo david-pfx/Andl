@@ -47,11 +47,14 @@ namespace Andl.Runtime {
 
     static readonly string _localdatabasepath = "default.sandl";
     static readonly string _sqldatabasepath = "andl.sqlite";
-    static readonly string _catalogname = "andl_catalog";
+    static readonly string _catalogname = "default";
+    static readonly string _sysprefix = "andl_";
 
-    static readonly string VariableName = "andl_variable";
-    static readonly string OperatorName = "andl_operator";
-    static readonly string MemberName = "andl_member";
+    // internally visible tables
+    static readonly string _catalogtablename = "andl_catalog";
+    static readonly string _variabletablename = "andl_variable";
+    static readonly string _operatortablename = "andl_operator";
+    static readonly string _membertablename = "andl_member";
 
     static readonly DataHeading CatalogHeading = DataHeading.Create("Name:text", "Kind:text", "Type:text", "Value:binary");
     static readonly DataHeading VariableHeading = DataHeading.Create("Name:text", "Type:text", "Members:text");
@@ -62,23 +65,24 @@ namespace Andl.Runtime {
     //static Dictionary<string, DataHeading> _protectedheadings;
 
     static Dictionary<string, DataHeading> _protectedheadings = new Dictionary<string, DataHeading> {
-      { _catalogname, CatalogHeading },
-      { VariableName, VariableHeading },
-      { OperatorName, OperatorHeading },
-      { MemberName, MemberHeading },
+      { _catalogtablename, CatalogHeading },
+      { _variabletablename, VariableHeading },
+      { _operatortablename, OperatorHeading },
+      { _membertablename, MemberHeading },
     };
 
     static Dictionary<string, Func<CatalogTableMaker, IEnumerable<CatalogEntry>, CatalogTableMaker>> _protectedtablemaker = 
       new Dictionary<string,Func<CatalogTableMaker, IEnumerable<CatalogEntry>,CatalogTableMaker>> {
-      { _catalogname, (c, e) => c.AddEntries(e) },
-      { VariableName, (c, e) => c.AddVariables(e) },
-      { OperatorName, (c, e) => c.AddOperators(e) },
-      { MemberName, (c, e) => c.AddMembers(e) },
+      { _catalogtablename, (c, e) => c.AddEntries(e) },
+      { _variabletablename, (c, e) => c.AddVariables(e) },
+      { _operatortablename, (c, e) => c.AddOperators(e) },
+      { _membertablename, (c, e) => c.AddMembers(e) },
     };
 
     static Dictionary<string, Action<Catalog, string>> _settings = new Dictionary<string, Action<Catalog, string>> {
       { "DatabasePath", (c,s) => c.DatabasePath = s },
       { "DatabaseSqlFlag", (c,s) => c.DatabaseSqlFlag = (s.ToLower() == "true") },
+      { "CatalogName", (c,s) => c.CatalogName = s },
     };
 
     // configuration settings
@@ -93,7 +97,8 @@ namespace Andl.Runtime {
     public string PersistPattern { get; set; }  // variables that are persisted
     public string DatabasePattern { get; set; } // relvars kept in the (SQL) database
 
-    public string CatalogName { get; set; }    // path to the database (either kind)
+    public string CatalogName { get; set; }     // public name for the catalog
+    public string CatalogFullName { get { return _sysprefix + CatalogName; } } // storage name
     public string DatabasePath { get; set; }    // path to the database (either kind)
     public string SourcePath { get; set; }      // base path for reading a source
 
@@ -147,34 +152,21 @@ namespace Andl.Runtime {
       }
 
       // Add alternate catalog name as alias
-      if (CatalogName != _catalogname) {
-        _protectedheadings.Add(CatalogName, _protectedheadings[_catalogname]);
-        _protectedtablemaker.Add(CatalogName, _protectedtablemaker[_catalogname]);
-      }
-
-      //_protectedheadings = new Dictionary<string, DataHeading> {
-      //  { _catalogname, CatalogHeading },
-      //  { CatalogName, CatalogHeading },
-      //  { VariableName, VariableHeading },
-      //  { OperatorName, OperatorHeading },
-      //  { MemberName, MemberHeading },
-      //};
-      //_protectedtablemaker = new Dictionary<string,Func<CatalogTableMaker, IEnumerable<CatalogEntry>,CatalogTableMaker>> {
-      //  { _catalogname, (c, e) => c.AddEntries(e) },
-      //  { CatalogName, (c, e) => c.AddEntries(e) },
-      //  { VariableName, (c, e) => c.AddVariables(e) },
-      //  { OperatorName, (c, e) => c.AddOperators(e) },
-      //  { MemberName, (c, e) => c.AddMembers(e) },
-      //};
+      _protectedheadings.Add(CatalogFullName, _protectedheadings[_catalogtablename]);
+      _protectedtablemaker.Add(CatalogFullName, _protectedtablemaker[_catalogtablename]);
+      //if (CatalogName != _catalogtablename) {
+      //  _protectedheadings.Add(CatalogName, _protectedheadings[_catalogtablename]);
+      //  _protectedtablemaker.Add(CatalogName, _protectedtablemaker[_catalogtablename]);
+      //}
 
       foreach (var name in _protectedheadings.Keys) {
         var table = DataTableLocal.Create(_protectedheadings[name]);
         GlobalVars.Add(name, table.DataType, EntryKinds.Value, EntryFlags.Public | EntryFlags.System);
         GlobalVars.Set(name, TypedValue.Create(table));
       }
-      GlobalVars.FindEntry(CatalogName).Flags |= EntryFlags.Database;
+      GlobalVars.FindEntry(CatalogFullName).Flags |= EntryFlags.Database;
       if (LoadFlag) {
-        if (!LinkRelvar(CatalogName))
+        if (!LinkRelvar(CatalogFullName))
           RuntimeError.Fatal("Catalog", "cannot load catalog");
         LoadFromTable();
       }
@@ -295,12 +287,12 @@ namespace Andl.Runtime {
         table.AddRow(addrow);
       }
       if (DatabaseSqlFlag)
-        DataTableSql.Create(CatalogName, table);
-      else Persist.Create(DatabasePath).Store(CatalogName, RelationValue.Create(table));
+        DataTableSql.Create(CatalogFullName, table);
+      else Persist.Create(DatabasePath).Store(CatalogFullName, RelationValue.Create(table));
     }
 
     public void LoadFromTable() {
-      var table = GlobalVars.GetValue(CatalogName).AsTable();
+      var table = GlobalVars.GetValue(CatalogFullName).AsTable();
       //var level = FindLevel(ScopeLevels.Persistent);
       foreach (var row in table.GetRows()) {
         var blob = (row.Values[3] as BinaryValue).Value;

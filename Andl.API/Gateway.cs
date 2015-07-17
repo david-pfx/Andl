@@ -40,12 +40,11 @@ namespace Andl.API {
 
     // Start the engine and let it configure itself
     public static Runtime StartUp(Dictionary<string, string> settings) {
-      return RuntimeImpl.Startup(settings);
-      //Gateway = RuntimeImpl.Startup(settings);
-      //return Gateway;
+      return RuntimeImpl.Create(settings);
     }
 
     public bool JsonReturnFlag { get; set; }
+    public abstract string CatalogName { get; }
 
     // Get the value of a variable, or evaluate a function of no arguments.
     public abstract Result GetValue(string name);
@@ -75,7 +74,7 @@ namespace Andl.API {
   public class RuntimeImpl : Runtime {
     Catalog _catalog;
 
-    public static RuntimeImpl Startup(Dictionary<string, string> settings) {
+    public static RuntimeImpl Create(Dictionary<string, string> settings) {
       var ret = new RuntimeImpl();
       ret.Start(settings);
       return ret;
@@ -88,6 +87,10 @@ namespace Andl.API {
       foreach (var key in settings.Keys)
         _catalog.SetConfig(key, settings[key]);
       _catalog.Start();
+    }
+
+    public override string CatalogName {
+      get { return _catalog.CatalogName; }
     }
 
     // Support implementation functions at catalog level

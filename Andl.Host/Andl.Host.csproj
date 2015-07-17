@@ -44,7 +44,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="HostProgram.cs" />
+    <Compile Include="www\HostProgram.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -56,6 +56,16 @@
       <Project>{1201feff-69fc-4720-8b03-059697b41ed3}</Project>
       <Name>Andl.API</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="www\appwebsp.html" />
+    <Content Include="www\appwebsp.js" />
+    <Content Include="www\bootstrap.css" />
+    <Content Include="www\bootstrap.js" />
+    <Content Include="www\jquery-1.10.2.js" />
+    <Content Include="www\knockout-3.3.0.js" />
+    <Content Include="www\respond.js" />
+    <Content Include="www\Site.css" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

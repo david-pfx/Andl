@@ -1,0 +1,127 @@
+﻿<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title>Andl try wcf hosting</title>
+    <link href="bootstrap.css" rel="stylesheet" />
+    <link href="site.css" rel="stylesheet" />
+    <script src="modernizr-2.6.2.js"></script>
+</head>
+<body>
+    <div class="jumbotron">
+        <h1>Andl is a New Data Language</h1>
+        <p class="lead">
+            Andl does what SQL does, but it is not SQL.
+            Andl has been developed as a fully featured database programming language, providing everything an application to manage its data.
+            Just add a user interface.
+        </p>
+        <p><a href="http://andl.org" class="btn btn-primary btn-lg">Learn more &raquo;</a></p>
+        <p><a href="employeeinfo">Employee info</a></p>
+    </div>
+    <div class="row">
+        <p data-bind="text: error"></p>
+    </div>
+    <div class="row">
+        <div class="col-md-4">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <h2 class="panel-title">Suppliers</h2>
+                    <p>Supplier data from the S table</p>
+                </div>
+                <form role="form" class="form-inline" id="nsuppid">
+                    <table class="table-condensed">
+                        <thead>
+                            <tr>
+                                <th>Id</th>
+                                <th>Name</th>
+                                <th>Status</th>
+                                <th>City</th>
+                            </tr>
+                        </thead>
+                        <tbody data-bind="foreach: suppliers">
+                            <tr>
+                                <td data-bind="text: Sid"></td>
+                                <td data-bind="text: SNAME"></td>
+                                <td class="pull-right" data-bind="text: STATUS"></td>
+                                <td data-bind="text: CITY"></td>
+                                <td><a href="#" data-bind="click: $root.deleteSupplier">delete</a></td>
+                            </tr>
+                        </tbody>
+
+                        <tr data-bind="visible: editmode, with: tempsupplier">
+                            <td><input type="text" class="form-control" data-bind="value: Sid, uniqueName: true"></td>
+                            <td><input type="text" class="form-control" data-bind="value: SNAME"></td>
+                            <td><input type="number" class="form-control" data-bind="value: STATUS"></td>
+                            <td><input type="text" class="form-control" data-bind="value: CITY"></td>
+                            <td><a href="#" data-bind="click: $root.cancelSupplier">cancel</a></td>
+                        </tr>
+                    </table>
+                </form>
+                <button data-bind="visible: editmode() == false, click: newSupplier">Add supplier</button>
+                <button data-bind="visible: editmode, click: addSupplier" type="submit">Submit</button>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <h2 class="panel-title">Parts</h2>
+                    <p>Parts data from the P table</p>
+                </div>
+                <table class="table-condensed">
+                    <tr>
+                        <th>Id</th>
+                        <th>Name</th>
+                        <th>Colour</th>
+                        <th>Weight</th>
+                        <th>City</th>
+                    </tr>
+                    <tbody data-bind="foreach: parts">
+                        <tr>
+                            <td data-bind="text: Pid"></td>
+                            <td data-bind="text: PNAME"></td>
+                            <td data-bind="text: COLOR"></td>
+                            <td class="pull-right" data-bind="text: WEIGHT"></td>
+                            <td data-bind="text: CITY"></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <form role="form" class="form-inline" data-bind="with: partspattern">
+                    <div class="panel-heading">
+                        <p>Find parts by name</p>
+                    </div>
+                    <input type="text" class="form-control" data-bind="value: PNAME">
+                </form>
+                <button data-bind="click: findParts">Find</button>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <h2 class="panel-title">Supplies</h2>
+                    <p>Supplies data from the SP table</p>
+                </div>
+                <table class="table-condensed">
+                    <tr>
+                        <th>Supplier</th>
+                        <th>Part</th>
+                        <th>Quantity</th>
+                    </tr>
+                    <tbody data-bind="foreach: supplies">
+                        <tr>
+                            <td data-bind="text: Sid"></td>
+                            <td data-bind="text: Pid"></td>
+                            <td class="pull-right" data-bind="text: QTY"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <script src="jquery-1.10.2.js"></script>
+    <script src="bootstrap.js"></script>
+    <script src="respond.js"></script>
+    <script src="knockout-3.3.0.js"></script>
+    <script src="appwebsp.js"></script>
+</body>
+</html>
