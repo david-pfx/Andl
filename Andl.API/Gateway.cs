@@ -45,6 +45,8 @@ namespace Andl.API {
       //return Gateway;
     }
 
+    public bool JsonReturnFlag { get; set; }
+
     // Get the value of a variable, or evaluate a function of no arguments.
     public abstract Result GetValue(string name);
     // Set the result of a variable, or call a command with one argument.
@@ -56,7 +58,9 @@ namespace Andl.API {
     // Evaluate a function with json arguments and return
     public abstract Result JsonCall(string name, params string[] arguments);
     // Evaluate a function with id, query and json arguments and return
-    public abstract Result JsonCall(string name, string id, IEnumerable<KeyValuePair<string, string>> query, string json);
+    public abstract Result JsonCall(string name, string id, KeyValuePair<string, string>[] query, string json);
+    // Evaluate a function with method, name, id, query and json arguments and return
+    public abstract Result JsonCall(string method, string name, string id, KeyValuePair<string, string>[] query, string json);
 
     // Get the required type for a setter
     public abstract Type GetSetterType(string name);
@@ -97,26 +101,41 @@ namespace Andl.API {
 
     // Main implementation functions
     public override Result GetValue(string name) {
-      return RequestSession.Create(_catalog).GetValue(name);
+      return RequestSession.Create(this, _catalog).GetValue(name);
     }
     public override Result SetValue(string name, object value) {
-      return RequestSession.Create(_catalog).SetValue(name, value);
+      return RequestSession.Create(this, _catalog).SetValue(name, value);
     }
 
     public override Result Evaluate(string name, params object[] arguments) {
-      return RequestSession.Create(_catalog).Evaluate(name, arguments);
+      return RequestSession.Create(this, _catalog).Evaluate(name, arguments);
     }
 
     public override Result Command(string name, params object[] arguments) {
-      return RequestSession.Create(_catalog).Evaluate(name, arguments);
+      return RequestSession.Create(this, _catalog).Evaluate(name, arguments);
     }
 
     public override Result JsonCall(string name, string[] arguments) {
-      return RequestSession.Create(_catalog).JsonCall(name, arguments);
+      return RequestSession.Create(this, _catalog).JsonCall(name, arguments);
     }
 
-    public override Result JsonCall(string name, string id, IEnumerable<KeyValuePair<string, string>> query, string json) {
-      return RequestSession.Create(_catalog).JsonCall(name, id, query, json);
+    public override Result JsonCall(string name, string id, KeyValuePair<string, string>[] query, string body) {
+      return RequestSession.Create(this, _catalog).JsonCall(name, id, query, body);
+    }
+
+    public override Result JsonCall(string method, string name, string id, KeyValuePair<string, string>[] query, string body) {
+      var newname = BuildName(method, name, id != null, query != null);
+      return RequestSession.Create(this, _catalog).JsonCall(newname, id, query, body);
+    }
+
+    static string BuildName(string method, string name, bool hasid, bool hasquery) {
+      var pref = method.ToLower();
+      if (pref == "post") pref = "add";
+      var newname = pref + "_" + name + (hasid ? "_id" : "") + (hasquery ? "_q" : "");
+      //if (!hasid && (pref == "get" || pref == "del")) pref += "_all";
+      //var newname = pref + "_" +  name;
+      //if (hasquery) newname += "_q";
+      return newname;
     }
 
   }
@@ -128,11 +147,13 @@ namespace Andl.API {
   ///
 
   internal class RequestSession {
+    Runtime _runtime;
     CatalogPrivate _catalogpriv;
     Evaluator _evaluator;
 
-    internal static RequestSession Create(Catalog catalog) {
+    internal static RequestSession Create(Runtime runtime, Catalog catalog) {
       var ret = new RequestSession();
+      ret._runtime = runtime;
       ret._catalogpriv = CatalogPrivate.Create(catalog);
       ret._evaluator = Evaluator.Create(ret._catalogpriv);
       return ret;
@@ -199,17 +220,23 @@ namespace Andl.API {
       }
       if (retvalue != VoidValue.Void) {
         var nret = TypeMaker.ToNativeValue(retvalue);
-        var jret = JsonConvert.SerializeObject(nret);
-        return Result.Success(jret);
+        if (_runtime.JsonReturnFlag) {
+          var jret = JsonConvert.SerializeObject(nret);
+          return Result.Success(jret);
+        }
+        return Result.Success(nret);
       }
       return Result.Success(null);
     }
 
     // call a function with args passed as id, query and json, return Result with message or json
-    public Result JsonCall(string name, string id, IEnumerable<KeyValuePair<string, string>> query, string json) {
+    public Result JsonCall(string name, string id, KeyValuePair<string, string>[] query, string json) {
       var kind = _catalogpriv.GetKind(name);
-      if (kind != EntryKinds.Code) return Result.Failure("unknown or invalid name");
+      if (kind != EntryKinds.Code) return Result.Failure("unknown or invalid name: " + name);
       var expr = (_catalogpriv.GetValue(name) as CodeValue).Value;
+
+      var argcount = (id != null ? 1 : 0) + (query != null ? 1 : 0) + (json != null ? 1 : 0);
+      if (expr.Lookup.Degree != argcount) return Result.Failure("wrong no of args, expected " + expr.Lookup.Degree.ToString());
 
       DataRow argvalue;
       List<object> nargvalues = new List<object>();
@@ -217,7 +244,7 @@ namespace Andl.API {
       // convert each argument to a native form TypeMaker will understand
       if (id != null)
         nargvalues.Add(id);
-      if (query != null)
+      if (query != null && query.Length > 0)
         nargvalues.Add(query.Select(kvp => new KeyValue { Key = kvp.Key, Value = kvp.Value }).ToList());
       if (json != null) {
         try {
@@ -232,7 +259,6 @@ namespace Andl.API {
           var datatype = expr.Lookup.Columns[x].DataType;
           return TypeMaker.FromNativeValue(nv, datatype);
         }).ToArray();
-        if (expr.Lookup.Degree != argvalues.Length) return Result.Failure("wrong no of args");
         argvalue = DataRow.Create(expr.Lookup, argvalues);
       } catch {
         return Result.Failure("argument conversion error");
@@ -242,10 +268,14 @@ namespace Andl.API {
       } catch {
         return Result.Failure("evaluator error");
       }
-      if (retvalue == VoidValue.Void) return Result.Success(null);
-      var nret = TypeMaker.ToNativeValue(retvalue);
-      var jret = JsonConvert.SerializeObject(nret);
-      return Result.Success(jret);
+      var nret = (retvalue == VoidValue.Void) ? null : TypeMaker.ToNativeValue(retvalue);
+      //if (retvalue == VoidValue.Void) return Result.Success(null);
+      //var nret = TypeMaker.ToNativeValue(retvalue);
+      if (_runtime.JsonReturnFlag) {
+        var jret = JsonConvert.SerializeObject(nret);
+        return Result.Success(jret);
+      }
+      return Result.Success(nret);
     }
 
   }

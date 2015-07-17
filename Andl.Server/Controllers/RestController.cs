@@ -19,10 +19,9 @@ namespace Andl.Server.Controllers {
 
     // GET: rest/name
     public IHttpActionResult Get(string name) {
-      var query = Request.GetQueryNameValuePairs();
-      if (query.Count() == 0) return Common("findall_" + name);
-      var args = query.Select(kvp => new KeyValue { Key = kvp.Key, Value = kvp.Value }).ToList();
-      return Common("findsome_" + name, args as object);
+      var query = Request.GetQueryNameValuePairs().ToArray();
+      if (query.Count() == 0) return Common("findall_" + name, null);
+      return Common("findsome_" + name, null, query);
     }
 
     // GET: rest/name/5
@@ -32,20 +31,14 @@ namespace Andl.Server.Controllers {
 
     // POST: rest/name
     public async Task <IHttpActionResult> Post(string name) {
-      var reqname = "create_" + name;
-      object body;
-      if (!ParseBody(reqname, await Request.Content.ReadAsStringAsync(), out body))
-        return BadRequest(body as string);
-      return Common(reqname, body);
+      var body = await Request.Content.ReadAsStringAsync();
+      return Common("create_" + name, null, null, body);
     }
 
     // PUT: rest/name/5
     public async Task <IHttpActionResult> Put(string name, string id) {
-      var reqname = "update_" + name;
-      object body;
-      if (!ParseBody(reqname, await Request.Content.ReadAsStringAsync(), out body))
-        return BadRequest(body as string);
-      return Common(reqname, id, body);
+      var body = await Request.Content.ReadAsStringAsync();
+      return Common("update_" + name, id, null, body);
     }
 
     // DELETE: rest/name/5
@@ -53,22 +46,12 @@ namespace Andl.Server.Controllers {
       return Common("delete_" + name, id);
     }
 
-    IHttpActionResult Common(string name, params object[] args) {
-      var ret = Runtime.Evaluate(name, args);
+    // Common code for all requests
+    IHttpActionResult Common(string name, string id, KeyValuePair<string, string>[] query = null, string jsonbody = null) {
+      var ret = Runtime.JsonCall(name, id, query, jsonbody);
       if (ret.Ok) return Ok(ret.Value);
       return BadRequest(ret.Message);
     }
 
-    bool ParseBody(string name, string body, out object value) {
-      Type[] types = Runtime.GetArgumentTypes(name);
-      if (types == null || types.Length == 0) value = "unknown name";
-      else try {
-        value = JsonConvert.DeserializeObject(body, types[types.Length - 1]);
-        return true;
-      } catch {
-        value = "bad argument";
-      }
-      return false;
-    }
   }
 }

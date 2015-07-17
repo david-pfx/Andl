@@ -108,7 +108,6 @@ var ViewModel = function () {
     self.getSupplies();
     self.getParts();
     self.cancelSupplier();
-    //getSbyname( 'a' );
 };
 
 ko.applyBindings(new ViewModel());
