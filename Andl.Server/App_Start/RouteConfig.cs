@@ -11,10 +11,25 @@ namespace Andl.Server {
       routes.IgnoreRoute("{resource}.axd/{*pathInfo}");
 
       routes.MapRoute(
-          name: "Default",
-          url: "{controller}/{action}/{id}",
-          defaults: new { controller = "Home", action = "Index", id = UrlParameter.Optional }
+          name: "Third",
+          url: "api/{catalog}/{name}/{id}",
+          defaults: new { controller = "Third", action = "Action", id = UrlParameter.Optional }
       );
+      routes.MapRoute(
+          name: "Rest",
+          url: "{controller}/{action}/{id}",
+          defaults: new { id = UrlParameter.Optional }
+      );
+      routes.MapRoute(
+          name: "Default",
+          url: "",
+          defaults: new { controller = "Home", action = "Index" }
+      );
+      //routes.MapRoute(
+      //    name: "Default",
+      //    url: "{controller}/{catalog}/{action}/{id}",
+      //    defaults: new { controller = "Home", action = "Index", Catalog = "default", id = UrlParameter.Optional }
+      //);
     }
   }
 }

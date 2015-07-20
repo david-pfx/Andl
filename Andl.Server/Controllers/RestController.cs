@@ -20,35 +20,34 @@ namespace Andl.Server.Controllers {
     // GET: rest/name
     public IHttpActionResult Get(string name) {
       var query = Request.GetQueryNameValuePairs().ToArray();
-      if (query.Count() == 0) return Common("findall_" + name, null);
-      return Common("findsome_" + name, null, query);
+      return Common("get", name, null, query.Count() > 0 ? query : null);
     }
 
     // GET: rest/name/5
     public IHttpActionResult Get(string name, string id) {
-      return Common("find_" + name, id);
+      return Common("get", name, id);
     }
 
     // POST: rest/name
-    public async Task <IHttpActionResult> Post(string name) {
+    public async Task<IHttpActionResult> Post(string name) {
       var body = await Request.Content.ReadAsStringAsync();
-      return Common("create_" + name, null, null, body);
+      return Common("post", name, null, null, body);
     }
 
     // PUT: rest/name/5
-    public async Task <IHttpActionResult> Put(string name, string id) {
+    public async Task<IHttpActionResult> Put(string name, string id) {
       var body = await Request.Content.ReadAsStringAsync();
-      return Common("update_" + name, id, null, body);
+      return Common("put", name, id, null, body);
     }
 
     // DELETE: rest/name/5
     public IHttpActionResult Delete(string name, string id) {
-      return Common("delete_" + name, id);
+      return Common("delete", name, id);
     }
 
     // Common code for all requests
-    IHttpActionResult Common(string name, string id, KeyValuePair<string, string>[] query = null, string jsonbody = null) {
-      var ret = Runtime.JsonCall(name, id, query, jsonbody);
+    IHttpActionResult Common(string method, string name, string id, KeyValuePair<string, string>[] query = null, string jsonbody = null) {
+      var ret = Runtime.JsonCall(method, name, id, query, jsonbody);
       if (ret.Ok) return Ok(ret.Value);
       return BadRequest(ret.Message);
     }

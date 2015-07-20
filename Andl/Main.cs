@@ -37,6 +37,7 @@ namespace Andl.Main {
     static List<string> _paths = new List<string>();
     static string _help = "Andl [<input path> [<catalog name> [<database path>]]] options\n"
       + "\t\tDefault is compile only with new catalog and local database\n"
+      + "\t\tDefault catalog is 'default', default database is 'andl.sandl' or 'andl.sqlite'\n"
       + "\t/c[nu]\tUse existing catalog, n for new, u for update\n"
       + "\t/i\tInteractive, execute one line at a time\n"
       + "\t/x\tExecute after compilation\n"

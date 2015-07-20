@@ -24,6 +24,8 @@ namespace Andl.Server {
     Dictionary<string, string> _settingsdict = new Dictionary<string, string> {
       { "DatabasePath", "DatabasePath" },
       { "DatabasePathSqlFlag", "DatabaseSqlFlag" },
+      { "CatalogName", "CatalogName" },
+      { "Noisy", "Noisy" },
     };
 
     public static Andl.API.Gateway Runtime;

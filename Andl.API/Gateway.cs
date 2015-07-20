@@ -132,6 +132,8 @@ namespace Andl.API {
       return RequestSession.Create(this, _catalog).JsonCall(newname, id, query, body);
     }
 
+    // Build function name
+    // NOTE: empty query string here is NOT the same as null
     static string BuildName(string method, string name, bool hasid, bool hasquery) {
       var pref = method.ToLower();
       if (pref == "post") pref = "add";
@@ -230,6 +232,7 @@ namespace Andl.API {
     }
 
     // call a function with args passed as id, query and json, return Result with message or json
+    // NOTE: empty query array here is NOT the same as a null
     public Result JsonCall(string name, string id, KeyValuePair<string, string>[] query, string json) {
       var kind = _catalogpriv.GetKind(name);
       if (kind != EntryKinds.Code) return Result.Failure("unknown or invalid name: " + name);

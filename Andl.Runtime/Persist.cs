@@ -34,15 +34,26 @@ namespace Andl.Runtime {
     string _basepath;
 
     // Create a persister, in memory or to a path
-    public static Persist Create(string basepath = null) {
-      if (basepath != null) {
-        if (!Directory.Exists(basepath))
-          Directory.CreateDirectory(basepath);
-        return new Persist { _basepath = basepath };
-      } else {
-        return new Persist();
-      }
+    public static Persist Create(string basepath, bool cancreate) {
+      if (!Directory.Exists(basepath))
+        if (!cancreate) RuntimeError.Fatal("Persist", "database does not exist: " + basepath);
+        Directory.CreateDirectory(basepath);
+      return new Persist { _basepath = basepath };
     }
+
+    public static Persist Create() {
+      return new Persist();
+    }
+
+    //public static Persist Create(string basepath = null) {
+    //  if (basepath != null) {
+    //    if (!Directory.Exists(basepath))
+    //      Directory.CreateDirectory(basepath);
+    //    return new Persist { _basepath = basepath };
+    //  } else {
+    //    return new Persist();
+    //  }
+    //}
 
     public PersistWriter Writer(string name) {
       var path = Path.Combine(_basepath, name + "." + VariableExtension);
@@ -66,8 +77,7 @@ namespace Andl.Runtime {
           var w = PersistWriter.Create(writer);
           w.Store(value);
         }
-      } catch (Exception) {
-        RuntimeError.Fatal("Persist Store", "storing {0}", name);
+      } catch (Exception) {        RuntimeError.Fatal("Persist Store", "storing {0}", name);
       }
     }
 

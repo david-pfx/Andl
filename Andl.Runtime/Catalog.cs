@@ -45,7 +45,7 @@ namespace Andl.Runtime {
     static string _persistpattern = @"^[@A-Za-z].*$";
     static string _databasepattern = @"^[A-Za-z].*$";
 
-    static readonly string _localdatabasepath = "default.sandl";
+    static readonly string _localdatabasepath = "andl.sandl";
     static readonly string _sqldatabasepath = "andl.sqlite";
     static readonly string _catalogname = "default";
     static readonly string _sysprefix = "andl_";
@@ -170,13 +170,16 @@ namespace Andl.Runtime {
         if (!LinkRelvar(CatalogFullName))
           RuntimeError.Fatal("Catalog", "cannot load catalog");
         LoadFromTable();
+        Logger.WriteLine(1, "Loaded catalog '{0}'", CatalogName);
       }
     }
 
     // All done, persist catalog if required
     public void Finish() {
-      if (SaveFlag)
+      if (SaveFlag) {
         StoreToTable();
+        Logger.WriteLine(1, "Updated catalog '{0}'", CatalogName);
+      }
     }
 
     // handle special protected pseudo-tables
@@ -193,23 +196,6 @@ namespace Andl.Runtime {
       if (heading == null) return null;
       var tablemaker = CatalogTableMaker.Create(heading);
       _protectedtablemaker[name](tablemaker, PersistentVars.GetEntries());
-      //switch (name) {
-      //case "andl_catalog":
-      //  tablemaker.AddEntries(PersistentVars.GetEntries());
-      //  break;
-      //case "andl_variable":
-      //  tablemaker.AddVariables(PersistentVars.GetEntries());
-      //  break;
-      //case "andl_operator":
-      //  tablemaker.AddOperators(PersistentVars.GetEntries());
-      //  break;
-      //case "andl_member":
-      //  tablemaker.AddMembers(PersistentVars.GetEntries());
-      //  break;
-      //default:
-      //  RuntimeError.Fatal("Catalog table", "invalid table name: " + name);
-      //  break;
-      //}
       return RelationValue.Create(tablemaker.Table);
     }
 
@@ -224,7 +210,7 @@ namespace Andl.Runtime {
           var heading = SqlTarget.Create().GetTableHeading(name);
           return (heading == null) ? null : DataTypeRelation.Get(heading);
         } else {
-          var type = Persist.Create(DatabasePath).Peek(name);
+          var type = Persist.Create(DatabasePath, false).Peek(name);
           return type;
         }
       } else {
@@ -248,7 +234,7 @@ namespace Andl.Runtime {
         var table = DataTableSql.Create(name, heading);
         entry.Value = RelationValue.Create(table);
       } else {
-        var tablev = Persist.Create(DatabasePath).Load(name);
+        var tablev = Persist.Create(DatabasePath, false).Load(name);
         if (tablev == null || !heading.Equals(tablev.Heading))
           RuntimeError.Fatal("Catalog link relvar", "local table not found: {0}", name);
         entry.Value = RelationValue.Create(tablev.AsTable());
@@ -289,7 +275,7 @@ namespace Andl.Runtime {
       }
       if (DatabaseSqlFlag)
         DataTableSql.Create(CatalogFullName, table);
-      else Persist.Create(DatabasePath).Store(CatalogFullName, RelationValue.Create(table));
+      else Persist.Create(DatabasePath, true).Store(CatalogFullName, RelationValue.Create(table));
     }
 
     public void LoadFromTable() {
@@ -396,7 +382,7 @@ namespace Andl.Runtime {
         else {
           finalvalue = RelationValue.Create(DataTableLocal.Convert(table));
           // note: could defer persistence until shutdown
-          Persist.Create(Catalog.DatabasePath).Store(name, finalvalue);
+          Persist.Create(Catalog.DatabasePath, true).Store(name, finalvalue);
         }
       }
       entry.Value = value;

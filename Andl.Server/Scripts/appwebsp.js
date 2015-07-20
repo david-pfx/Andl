@@ -11,9 +11,10 @@ var ViewModel = function () {
     self.editmode = ko.observable();
     self.error = ko.observable();
 
-    var supplierUri = '/rest/supplier';
-    var partUri = '/rest/part';
-    var suppliesUri = '/rest/supplies';
+    var baseUri = '/rest';
+    var supplierUri = baseUri + '/supplier';
+    var partUri = baseUri + '/part';
+    var suppliesUri = baseUri + '/supplies';
 
     // Common code to call uri with method passing JSON data or nothing
     function ajaxHelper(uri, method, id, data, raw) {
