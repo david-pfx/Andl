@@ -15,7 +15,7 @@ namespace Andl.Server.Controllers {
   }
 
   public class RestController : ApiController {
-    Runtime Runtime { get { return WebApiApplication.Runtime; } }
+    Gateway Runtime { get { return WebApiApplication.Runtime; } }
 
     // GET: rest/name
     public IHttpActionResult Get(string name) {

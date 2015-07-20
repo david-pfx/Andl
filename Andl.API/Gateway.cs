@@ -35,12 +35,11 @@ namespace Andl.API {
   /// <summary>
   /// Anstract class representing runtime
   /// </summary>
-  public abstract class Runtime {
-    //    public static Runtime Gateway;
+  public abstract class Gateway {
 
     // Start the engine and let it configure itself
-    public static Runtime StartUp(Dictionary<string, string> settings) {
-      return RuntimeImpl.Create(settings);
+    public static Gateway StartUp(Dictionary<string, string> settings) {
+      return GatewayImpl.Create(settings);
     }
 
     public bool JsonReturnFlag { get; set; }
@@ -71,11 +70,11 @@ namespace Andl.API {
   /// <summary>
   /// The implementation of the gateway API
   /// </summary>
-  public class RuntimeImpl : Runtime {
+  public class GatewayImpl : Gateway {
     Catalog _catalog;
 
-    public static RuntimeImpl Create(Dictionary<string, string> settings) {
-      var ret = new RuntimeImpl();
+    public static GatewayImpl Create(Dictionary<string, string> settings) {
+      var ret = new GatewayImpl();
       ret.Start(settings);
       return ret;
     }
@@ -103,6 +102,7 @@ namespace Andl.API {
     }
 
     // Main implementation functions
+    //-- direct calls
     public override Result GetValue(string name) {
       return RequestSession.Create(this, _catalog).GetValue(name);
     }
@@ -118,6 +118,7 @@ namespace Andl.API {
       return RequestSession.Create(this, _catalog).Evaluate(name, arguments);
     }
 
+    //--- json calls
     public override Result JsonCall(string name, string[] arguments) {
       return RequestSession.Create(this, _catalog).JsonCall(name, arguments);
     }
@@ -135,12 +136,8 @@ namespace Andl.API {
       var pref = method.ToLower();
       if (pref == "post") pref = "add";
       var newname = pref + "_" + name + (hasid ? "_id" : "") + (hasquery ? "_q" : "");
-      //if (!hasid && (pref == "get" || pref == "del")) pref += "_all";
-      //var newname = pref + "_" +  name;
-      //if (hasquery) newname += "_q";
       return newname;
     }
-
   }
 
   ///===========================================================================
@@ -150,11 +147,11 @@ namespace Andl.API {
   ///
 
   internal class RequestSession {
-    Runtime _runtime;
+    Gateway _runtime;
     CatalogPrivate _catalogpriv;
     Evaluator _evaluator;
 
-    internal static RequestSession Create(Runtime runtime, Catalog catalog) {
+    internal static RequestSession Create(Gateway runtime, Catalog catalog) {
       var ret = new RequestSession();
       ret._runtime = runtime;
       ret._catalogpriv = CatalogPrivate.Create(catalog);
@@ -272,8 +269,6 @@ namespace Andl.API {
         return Result.Failure("evaluator error");
       }
       var nret = (retvalue == VoidValue.Void) ? null : TypeMaker.ToNativeValue(retvalue);
-      //if (retvalue == VoidValue.Void) return Result.Success(null);
-      //var nret = TypeMaker.ToNativeValue(retvalue);
       if (_runtime.JsonReturnFlag) {
         var jret = JsonConvert.SerializeObject(nret);
         return Result.Success(jret);

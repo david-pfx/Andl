@@ -44,17 +44,23 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="www\HostProgram.cs" />
+    <Compile Include="HostProgram.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="App.config" />
+    <None Include="App.config">
+      <SubType>Designer</SubType>
+    </None>
     <None Include="webhostspsetup.andl" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Andl.API\Andl.API.csproj">
       <Project>{1201feff-69fc-4720-8b03-059697b41ed3}</Project>
       <Name>Andl.API</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Andl.Runtime\Andl.Runtime.csproj">
+      <Project>{c7d6d0e8-dc93-4d12-b580-34d09e284873}</Project>
+      <Name>Andl.Runtime</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

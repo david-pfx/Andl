@@ -83,6 +83,7 @@ namespace Andl.Runtime {
       { "DatabasePath", (c,s) => c.DatabasePath = s },
       { "DatabaseSqlFlag", (c,s) => c.DatabaseSqlFlag = (s.ToLower() == "true") },
       { "CatalogName", (c,s) => c.CatalogName = s },
+      { "Noisy", (c,s) => Logger.Level = Int32.Parse(s) },
     };
 
     // configuration settings

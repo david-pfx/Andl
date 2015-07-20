@@ -11,7 +11,7 @@ namespace Andl.Run {
         { "DatabasePath", @"D:\MyDocs\Dev\vs13\Andl\Work\andltest.sandl" },
       };
 
-      var app = Andl.API.Runtime.StartUp(settings);
+      var app = Andl.API.Gateway.StartUp(settings);
 
       string[] names = { "suppliers", "parts", "supplies", "sandsp" };
       foreach (var n in names) {
