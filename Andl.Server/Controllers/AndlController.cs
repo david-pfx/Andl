@@ -10,7 +10,7 @@ using Newtonsoft.Json;
 
 namespace Andl.Server.Controllers {
   public class AndlController : ApiController {
-    Gateway Runtime { get { return WebApiApplication.Runtime; } }
+    Gateway Runtime { get { return WebApiApplication.GetGateway(); } }
 
     // GET api/<catalog>/<name>
 

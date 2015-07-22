@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Andl.API;
+using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Linq;
@@ -11,7 +12,7 @@ using System.Web.Routing;
 namespace Andl.Server {
   public class WebApiApplication : System.Web.HttpApplication {
     protected void Application_Start() {
-      AreaRegistration.RegisterAllAreas();
+      AreaRegistration.RegisterAllAreas(); 
       GlobalConfiguration.Configure(WebApiConfig.Register);
       FilterConfig.RegisterGlobalFilters(GlobalFilters.Filters);
       RouteConfig.RegisterRoutes(RouteTable.Routes);
@@ -28,14 +29,19 @@ namespace Andl.Server {
       { "Noisy", "Noisy" },
     };
 
-    public static Andl.API.Gateway Runtime;
+    // Access the required catalog
+    // TODO: support non-default catalog
+    public static Gateway GetGateway(string catalog = null) {
+      return (catalog == null || catalog == _gateway.CatalogName) ? _gateway : null;
+    }
+    static Gateway _gateway;
 
     void AppStartup() {
       var appsettings = ConfigurationManager.AppSettings;
       var settings = appsettings.AllKeys
         .Where(k => _settingsdict.ContainsKey(k))
         .ToDictionary(k => _settingsdict[k], k => appsettings[k]);
-      Runtime = Andl.API.Gateway.StartUp(settings);
+      _gateway = Andl.API.Gateway.StartUp(settings);
     }
   }
 }
