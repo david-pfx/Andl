@@ -7,13 +7,24 @@ using System.Reflection.Emit;
 
 namespace Andl.Runtime {
   public class TypeMaker {
+    /// <summary>
+    /// Convert a single TypedValue to or from its corresponding native value.
+    /// 
+    /// Primitive values are converted directly to system types. 
+    /// Structured values depending on first creating a type, then filling an instance.
+    /// Tuple or user is converted to a simple class instance
+    /// Relation is convered to a generic list of class instances
+    /// 
+    /// All native values are cast to or from object.
+    /// </summary>
     static AssemblyName _assemblyname = new AssemblyName("TypeMakerAssembly");
     static AssemblyBuilder _assbuilder = AppDomain.CurrentDomain.DefineDynamicAssembly(_assemblyname, AssemblyBuilderAccess.RunAndCollect);
     static ModuleBuilder _modulebuilder = _assbuilder.DefineDynamicModule("TypeMakerModule");
 
+    // type builder for creating structured types
     TypeBuilder _typebuilder;
 
-    // Use this type maker to create a type, recursively
+    // Use this type maker to create a structured type, recursively
     public static Type CreateType(DataType datatype) {
       var typemaker = new TypeMaker {
         _typebuilder = _modulebuilder.DefineType(datatype.GenCleanName, TypeAttributes.Public),
@@ -27,13 +38,13 @@ namespace Andl.Runtime {
       } else return type;
     }
 
-    public void DefineMembers(DataColumn[] columns) {
+    void DefineMembers(DataColumn[] columns) {
       foreach (var col in columns)
         if (col.Name != "")   // special for anonymous in Lift
           DefineField(col.Name, col.DataType);
     }
 
-    public void DefineField(string name, DataType datatype) {
+    void DefineField(string name, DataType datatype) {
       Logger.Assert(datatype.NativeType != null, datatype);
       _typebuilder.DefineField(name, datatype.NativeType, FieldAttributes.Public);
     }
@@ -41,27 +52,6 @@ namespace Andl.Runtime {
     void DefineField(string name, Type type) {
       _typebuilder.DefineField(name, type, FieldAttributes.Public);
     }
-
-    public static Dictionary<DataType, Func<TypedValue, object>> _fillerdict = new Dictionary<DataType, Func<TypedValue, object>> {
-      { DataTypes.Binary, (v) => ((BinaryValue)v).Value },
-      { DataTypes.Bool,   (v) => ((BoolValue)v).Value },
-      { DataTypes.Number, (v) => ((NumberValue)v).Value },
-      { DataTypes.Row,    (v) => GetNativeValue(v.DataType, ((TupleValue)v).Value) },
-      { DataTypes.Table,  (v) => GetNativeValue(v.DataType as DataTypeRelation, ((RelationValue)v).Value.GetRows()) },
-      { DataTypes.Text,   (v) => ((TextValue)v).Value },
-      { DataTypes.Time,   (v) => ((TimeValue)v).Value },
-      { DataTypes.User,   (v) => GetNativeValue(v.DataType, ((UserValue)v).Value) },
-    };
-
-    public static Dictionary<DataType, Func<object, DataType, TypedValue>> _getterdict = new Dictionary<DataType,Func<object,DataType,TypedValue>> {
-      { DataTypes.Binary, (v, dt) => BinaryValue.Create(v as byte[]) },
-      { DataTypes.Bool, (v, dt) =>   BoolValue.Create((bool)v) },
-      { DataTypes.Number, (v, dt) => NumberValue.Create((decimal)v) },
-      { DataTypes.Row, (v, dt) =>    TupleValue.Create(DataRow.Create(dt.Heading, GetValues(v, dt.Heading.Columns))) },
-      { DataTypes.Table, (v, dt) =>  RelationValue.Create(DataTableLocal.Create(dt.Heading, GetRows(v, dt.Heading.Columns))) },
-      { DataTypes.Text, (v, dt) =>   TextValue.Create(v as string) },
-      { DataTypes.Time, (v, dt) =>   TimeValue.Create((DateTime)v) },
-      { DataTypes.User, (v, dt) =>   UserValue.Create(GetValues(v, dt.Heading.Columns), dt as DataTypeUser) },    };
 
     // any -- dispatch
     public static object ToNativeValue(TypedValue value) {
@@ -76,6 +66,27 @@ namespace Andl.Runtime {
     }
 
     // --- impl
+
+    static Dictionary<DataType, Func<TypedValue, object>> _fillerdict = new Dictionary<DataType, Func<TypedValue, object>> {
+      { DataTypes.Binary, (v) => ((BinaryValue)v).Value },
+      { DataTypes.Bool,   (v) => ((BoolValue)v).Value },
+      { DataTypes.Number, (v) => ((NumberValue)v).Value },
+      { DataTypes.Row,    (v) => GetNativeValue(v.DataType, ((TupleValue)v).Value) },
+      { DataTypes.Table,  (v) => GetNativeValue(v.DataType as DataTypeRelation, ((RelationValue)v).Value.GetRows()) },
+      { DataTypes.Text,   (v) => ((TextValue)v).Value },
+      { DataTypes.Time,   (v) => ((TimeValue)v).Value },
+      { DataTypes.User,   (v) => GetNativeValue(v.DataType, ((UserValue)v).Value) },
+    };
+
+    static Dictionary<DataType, Func<object, DataType, TypedValue>> _getterdict = new Dictionary<DataType, Func<object, DataType, TypedValue>> {
+      { DataTypes.Binary, (v, dt) => BinaryValue.Create(v as byte[]) },
+      { DataTypes.Bool, (v, dt) =>   BoolValue.Create((bool)v) },
+      { DataTypes.Number, (v, dt) => NumberValue.Create((decimal)v) },
+      { DataTypes.Row, (v, dt) =>    TupleValue.Create(DataRow.Create(dt.Heading, GetValues(v, dt.Heading.Columns))) },
+      { DataTypes.Table, (v, dt) =>  RelationValue.Create(DataTableLocal.Create(dt.Heading, GetRows(v, dt.Heading.Columns))) },
+      { DataTypes.Text, (v, dt) =>   TextValue.Create(v as string) },
+      { DataTypes.Time, (v, dt) =>   TimeValue.Create((DateTime)v) },
+      { DataTypes.User, (v, dt) =>   UserValue.Create(GetValues(v, dt.Heading.Columns), dt as DataTypeUser) },    };
 
     // tuple -- with ordered heading
     static object GetNativeValue(DataType datatype, DataRow row) {

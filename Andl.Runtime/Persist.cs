@@ -35,25 +35,15 @@ namespace Andl.Runtime {
 
     // Create a persister, in memory or to a path
     public static Persist Create(string basepath, bool cancreate) {
-      if (!Directory.Exists(basepath))
+      if (!Directory.Exists(basepath)) 
         if (!cancreate) RuntimeError.Fatal("Persist", "database does not exist: " + basepath);
-        Directory.CreateDirectory(basepath);
+      Directory.CreateDirectory(basepath);
       return new Persist { _basepath = basepath };
     }
 
     public static Persist Create() {
       return new Persist();
     }
-
-    //public static Persist Create(string basepath = null) {
-    //  if (basepath != null) {
-    //    if (!Directory.Exists(basepath))
-    //      Directory.CreateDirectory(basepath);
-    //    return new Persist { _basepath = basepath };
-    //  } else {
-    //    return new Persist();
-    //  }
-    //}
 
     public PersistWriter Writer(string name) {
       var path = Path.Combine(_basepath, name + "." + VariableExtension);
@@ -77,7 +67,8 @@ namespace Andl.Runtime {
           var w = PersistWriter.Create(writer);
           w.Store(value);
         }
-      } catch (Exception) {        RuntimeError.Fatal("Persist Store", "storing {0}", name);
+      } catch (Exception) {
+        RuntimeError.Fatal("Persist Store", "storing {0}", name);
       }
     }
 
@@ -124,27 +115,10 @@ namespace Andl.Runtime {
 
   //////////////////////////////////////////////////////////////////////
   /// <summary>
-  /// Implement writing a value to a persistence store
+  /// Implement writing a value to a persistence stream or store
   /// </summary>
-  public class PersistWriter :IDisposable {
+  public class PersistWriter : IDisposable {
     BinaryWriter _writer;
-
-    // function to write out typed value
-    Dictionary<DataType, Action<PersistWriter, TypedValue>> _writerdict = new Dictionary<DataType, Action<PersistWriter, TypedValue>>() {
-      { DataTypes.Binary, (pw, v) => {  pw._writer.Write(((BinaryValue)v).Value.Length); 
-                                        pw._writer.Write(((BinaryValue)v).Value);  } },
-      { DataTypes.Bool,   (pw, v) => pw._writer.Write(((BoolValue)v).Value) },
-      { DataTypes.Code,   (pw, v) => pw.Write((v as CodeValue).Value) },
-      { DataTypes.Heading,(pw, v) => pw.Write(v.AsHeading()) },
-      { DataTypes.Number, (pw, v) => pw._writer.Write(((NumberValue)v).Value) },      // TODO: platform
-      { DataTypes.Row,    (pw, v) => pw.Write(v.AsRow()) },
-      { DataTypes.Table,  (pw, v) => pw.Write(v.AsTable()) },
-      { DataTypes.Text,   (pw, v) => pw._writer.Write(((TextValue)v).Value) },
-      { DataTypes.Time,   (pw, v) => pw._writer.Write(((TimeValue)v).Value.Ticks) },  // TODO: platform
-      { DataTypes.User,   (pw, v) => {  pw._writer.Write(Persist.UserSignature);
-                                        pw.Write(v.AsUser()); } },
-
-    };
 
     protected virtual void Dispose(bool disposing) {
       if (disposing) _writer.Dispose();
@@ -156,7 +130,7 @@ namespace Andl.Runtime {
     }
 
     public Byte[] ToArray() {
-        return (_writer.BaseStream as MemoryStream).ToArray();
+      return (_writer.BaseStream as MemoryStream).ToArray();
     }
 
     public static PersistWriter Create() {
@@ -202,7 +176,7 @@ namespace Andl.Runtime {
 
     // === Functions to write recursively all possible elements ===
 
-    // Write a typed value preceded by type - also called by emitter
+    // Write a typed value with its type - also called by emitter
     // note that the heading from the value preserves column order, which type may not
     public void WriteValue(TypedValue value) {
       Write(value.DataType, value.Heading);
@@ -211,8 +185,10 @@ namespace Andl.Runtime {
     }
 
     // Write a typed value bare
+    // Works by dispatching to  specific routine (which will be generic for relation, tuple and user)
+    // Note: in general a call to this function does not write out any type information. The
+    // exceptions are ExpressionBlock and AccumulatorBlock.
     public void Write(TypedValue value) {
-      // call specific routine (which will be generic for relation, tuple and user)
       Logger.Assert(_writerdict.ContainsKey(value.DataType.BaseType), value.DataType.BaseType);
       _writerdict[value.DataType.BaseType](this, value);
     }
@@ -257,6 +233,25 @@ namespace Andl.Runtime {
       }
     }
 
+    //-- implementation
+
+    // function to write out typed value
+    Dictionary<DataType, Action<PersistWriter, TypedValue>> _writerdict = new Dictionary<DataType, Action<PersistWriter, TypedValue>>() {
+      { DataTypes.Binary, (pw, v) => {  pw._writer.Write(((BinaryValue)v).Value.Length); 
+                                        pw._writer.Write(((BinaryValue)v).Value);  } },
+      { DataTypes.Bool,   (pw, v) => pw._writer.Write(((BoolValue)v).Value) },
+      { DataTypes.Code,   (pw, v) => pw.Write((v as CodeValue).Value) },
+      { DataTypes.Heading,(pw, v) => pw.Write(v.AsHeading()) },
+      { DataTypes.Number, (pw, v) => pw._writer.Write(((NumberValue)v).Value) },      // TODO: platform
+      { DataTypes.Row,    (pw, v) => pw.Write(v.AsRow()) },
+      { DataTypes.Table,  (pw, v) => pw.Write(v.AsTable()) },
+      { DataTypes.Text,   (pw, v) => pw._writer.Write(((TextValue)v).Value) },
+      { DataTypes.Time,   (pw, v) => pw._writer.Write(((TimeValue)v).Value.Ticks) },  // TODO: platform
+      { DataTypes.User,   (pw, v) => {  //pw._writer.Write(Persist.UserSignature);
+                                        pw.Write(v.AsUser()); } },
+
+    };
+
     void Write(ByteCode code) {
       Write(code.Length);
       if (code.Length > 0)
@@ -282,32 +277,32 @@ namespace Andl.Runtime {
         Write(heading ?? datatype.Heading);
     }
 
-    public void Write(DataHeading heading) {
+    void Write(DataHeading heading) {
       Write(heading.Degree);
       foreach (var col in heading.Columns)
         Write(col);
     }
 
-    public void Write(DataColumn column) {
+    void Write(DataColumn column) {
       Write(column.Name);
       Write(column.DataType); //BUG: column does not remember its heading. Hopefully it matches type.
     }
 
-    public void Write(DataTable table) {
+    void Write(DataTable table) {
       var tbl = DataTableLocal.Convert(table);
-      Write(Persist.RelationSignature);
+      //Write(Persist.RelationSignature);
       Write(tbl.Cardinality);
       foreach (var row in tbl.GetRows())
         Write(row);
     }
 
-    public void Write(DataRow row) {
-      Write(Persist.TupleSignature);
+    void Write(DataRow row) {
+      //Write(Persist.TupleSignature);
       Write(row.Values);
     }
 
     // Tuple or User value is just an ordered sequence of typed values
-    public void Write(TypedValue[] values) {
+    void Write(TypedValue[] values) {
       foreach (var v in values)
         Write(v);
     }
@@ -316,39 +311,22 @@ namespace Andl.Runtime {
     public void Write(string value) {
       _writer.Write(value);
     }
-    public void Write(int value) {
+    void Write(int value) {
       _writer.Write(value);
     }
-    public void Write(byte value) {
+    internal void Write(byte value) {
       _writer.Write(value);
     }
-    public void Write(bool value) {
+    void Write(bool value) {
       _writer.Write(value);
     }
   }
 
   //////////////////////////////////////////////////////////////////////
   /// <summary>
-  /// Implement reading a value from a persistence store
+  /// Implement reading a value from a persistence stream or store
   /// </summary>
-  public class PersistReader :IDisposable {
-    // functions to create typed value from column value of given type
-    // composite types need heading (for column order); user needs datatype (for name)
-    static Dictionary<DataType, Func<PersistReader, DataType, DataHeading, TypedValue>> _readdict = new Dictionary<DataType, Func<PersistReader, DataType, DataHeading, TypedValue>>() {
-      { DataTypes.Bool,   (pr, dt, dh) => BoolValue.Create(pr._reader.ReadBoolean()) },
-      { DataTypes.Number, (pr, dt, dh) => NumberValue.Create(pr._reader.ReadDecimal()) },
-      { DataTypes.Time,   (pr, dt, dh) => TimeValue.Create(new DateTime(pr._reader.ReadInt64())) },
-      { DataTypes.Text,   (pr, dt, dh) => TextValue.Create(pr._reader.ReadString()) },
-      { DataTypes.Binary, (pr, dt, dh) => { var length = pr._reader.ReadInt32(); 
-                                        var bytes = pr._reader.ReadBytes(length);
-                                        return BinaryValue.Create(bytes); } },
-      { DataTypes.Code,   (pr, dt, dh) => CodeValue.Create(pr.ReadExpr()) },
-      { DataTypes.Heading,(pr, dt, dh) => HeadingValue.Create(pr.ReadHeading()) },
-      { DataTypes.Table,  (pr, dt, dh) => TypedValue.Create(pr.ReadTable(dh)) },
-      { DataTypes.Row,    (pr, dt, dh) => TypedValue.Create(pr.ReadRow(dh)) },
-      { DataTypes.User,   (pr, dt, dh) => UserValue.Create(pr.ReadUser(dh), dt as DataTypeUser) },
-    };
-
+  public class PersistReader : IDisposable {
     //--- publics
     public Stream BaseStream { get { return _reader.BaseStream; } }
     public bool More { get { return BaseStream.Position < BaseStream.Length; } }
@@ -367,8 +345,8 @@ namespace Andl.Runtime {
       return new PersistReader { _reader = new BinaryReader(File.OpenRead(path)) };
     }
 
-    // shorthand to serialise reading a value
-    // must include type to know column order
+    // Serialise reading a value
+    // must include type to know column order :BUG
     public static TypedValue FromBinary(byte[] buffer, DataType datatype) {
       using (var reader = PersistReader.Create(buffer)) {
         var value = reader.ReadValue();
@@ -377,7 +355,7 @@ namespace Andl.Runtime {
       }
     }
 
-    // Load the value of a variable in the database
+    // Load the value of a variable from the database
     // Complements Store
     public TypedValue Load() {
       if (_reader.ReadString() != Persist.Signature) RuntimeError.Fatal("Load catalog", "invalid signature");
@@ -388,27 +366,44 @@ namespace Andl.Runtime {
 
     // Peek the type of a variable in the database
     public DataType Peek() {
-      Logger.Assert(_reader.ReadString() == Persist.Signature);
+      //Logger.Assert(_reader.ReadString() == Persist.Signature);
       var type = ReadDataType();
       return type;
     }
 
-    // read a value -- type not yet known
-    // need to read heading to preserve column order
+    // Read a value -- type not yet known
+    // Must read both type and heading to preserve column order
     public TypedValue ReadValue() {
       var basetype = ReadBaseType();
       var username = (basetype == DataTypes.User) ? ReadString() : null;
       var heading = (basetype.HasHeading) ? ReadHeading() : null;
-      return ReadValue(DataType.Derive(basetype, heading, username), heading);
+      return Read(DataType.Derive(basetype, heading, username), heading);
     }
 
-    // read a value -- type already known
-    TypedValue ReadValue(DataType datatype, DataHeading heading = null) {
+    // Read a value -- type already known
+    // Must provide heading to preserve column order
+    public TypedValue Read(DataType datatype, DataHeading heading = null) {
       Logger.Assert(_readdict.ContainsKey(datatype.BaseType), datatype);
       return _readdict[datatype.BaseType](this, datatype, heading);
     }
 
     // --- functions to read each kind of data from the reader
+    // functions to create typed value from column value of given type
+    // composite types need heading (for column order); user needs datatype (for name)
+    static Dictionary<DataType, Func<PersistReader, DataType, DataHeading, TypedValue>> _readdict = new Dictionary<DataType, Func<PersistReader, DataType, DataHeading, TypedValue>>() {
+      { DataTypes.Bool,   (pr, dt, dh) => BoolValue.Create(pr._reader.ReadBoolean()) },
+      { DataTypes.Number, (pr, dt, dh) => NumberValue.Create(pr._reader.ReadDecimal()) },
+      { DataTypes.Time,   (pr, dt, dh) => TimeValue.Create(new DateTime(pr._reader.ReadInt64())) },
+      { DataTypes.Text,   (pr, dt, dh) => TextValue.Create(pr._reader.ReadString()) },
+      { DataTypes.Binary, (pr, dt, dh) => { var length = pr._reader.ReadInt32(); 
+                                        var bytes = pr._reader.ReadBytes(length);
+                                        return BinaryValue.Create(bytes); } },
+      { DataTypes.Code,   (pr, dt, dh) => CodeValue.Create(pr.ReadExpr()) },
+      { DataTypes.Heading,(pr, dt, dh) => HeadingValue.Create(pr.ReadHeading()) },
+      { DataTypes.Table,  (pr, dt, dh) => TypedValue.Create(pr.ReadTable(dh)) },
+      { DataTypes.Row,    (pr, dt, dh) => TypedValue.Create(pr.ReadRow(dh)) },
+      { DataTypes.User,   (pr, dt, dh) => UserValue.Create(pr.ReadUser(dh), dt as DataTypeUser) },
+    };
 
     // read an accumulator block
     public AccumulatorBlock ReadAccum() {
@@ -462,7 +457,7 @@ namespace Andl.Runtime {
     }
 
     // read a full data type
-    // note: does not preserve column order
+    // note: final type may not preserve column order
     public DataType ReadDataType() {
       var basetype = ReadBaseType();
       var username = (basetype.HasName) ? ReadString() : null;
@@ -480,7 +475,7 @@ namespace Andl.Runtime {
       var degree = _reader.ReadInt32();
       Logger.Assert(degree >= 0 && degree < Persist.MaxDegree, degree);
       var cols = new List<DataColumn>();
-      while (degree-- >0)
+      while (degree-- > 0)
         cols.Add(ReadColumn());
       return DataHeading.Create(cols.ToArray());
     }
@@ -496,7 +491,7 @@ namespace Andl.Runtime {
 
     // read a table -- heading already known
     DataTable ReadTable(DataHeading heading) {
-      Logger.Assert(_reader.ReadInt32() == Persist.RelationSignature);
+      //Logger.Assert(_reader.ReadInt32() == Persist.RelationSignature);
       var table = DataTableLocal.Create(heading);
       var cardinality = _reader.ReadInt32();
       while (cardinality-- > 0)
@@ -506,35 +501,35 @@ namespace Andl.Runtime {
 
     // read a row -- heading already known
     DataRow ReadRow(DataHeading heading) {
-      Logger.Assert(_reader.ReadInt32() == Persist.TupleSignature);
+      //Logger.Assert(_reader.ReadInt32() == Persist.TupleSignature);
       var values = new TypedValue[heading.Degree];
       for (int x = 0; x < heading.Degree; ++x) {
         var datatype = heading.Columns[x].DataType;
-        values[x] = ReadValue(datatype, datatype.Heading); // NOTE: this heading could be out of order
+        values[x] = Read(datatype, datatype.Heading); // NOTE: this heading could be out of order
       }
       return DataRow.Create(heading, values);
     }
 
     // read a user defined type, already known
     TypedValue[] ReadUser(DataHeading heading) {
-      Logger.Assert(_reader.ReadInt32() == Persist.UserSignature);
+      //Logger.Assert(_reader.ReadInt32() == Persist.UserSignature);
       var values = new TypedValue[heading.Degree];
       for (var i = 0; i < heading.Degree; ++i)
-        values[i] = ReadValue(heading.Columns[i].DataType);
+        values[i] = Read(heading.Columns[i].DataType);
       return values;
     }
 
     // read an opcode
-    public Opcodes ReadOpcode() { 
-      return (Opcodes)ReadByte(); 
+    public Opcodes ReadOpcode() {
+      return (Opcodes)ReadByte();
     }
 
     // read base types
-    public string ReadString() { 
-      return _reader.ReadString(); 
+    public string ReadString() {
+      return _reader.ReadString();
     }
-    public int ReadInteger() { 
-      return _reader.ReadInt32(); 
+    public int ReadInteger() {
+      return _reader.ReadInt32();
     }
     public int ReadByte() {
       return _reader.ReadByte();

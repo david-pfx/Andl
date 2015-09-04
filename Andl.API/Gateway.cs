@@ -54,11 +54,14 @@ namespace Andl.API {
     // Evaluate a function that changes state. May fail if not permitted.
     public abstract Result Command(string name, params object[] arguments);
     // Evaluate a function with json arguments and return
+
     public abstract Result JsonCall(string name, params string[] arguments);
     // Evaluate a function with id, query and json arguments and return
     public abstract Result JsonCall(string name, string id, KeyValuePair<string, string>[] query, string json);
     // Evaluate a function with method, name, id, query and json arguments and return
     public abstract Result JsonCall(string method, string name, string id, KeyValuePair<string, string>[] query, string json);
+
+    public abstract bool Call(string name, byte[] arguments, out byte[] result);
 
     // Get the required type for a setter
     public abstract Type GetSetterType(string name);
@@ -102,7 +105,7 @@ namespace Andl.API {
     }
 
     // Main implementation functions
-    //-- direct calls
+    //-- direct calls, native types
     public override Result GetValue(string name) {
       return RequestSession.Create(this, _catalog).GetValue(name);
     }
@@ -127,6 +130,7 @@ namespace Andl.API {
       return RequestSession.Create(this, _catalog).JsonCall(name, id, query, body);
     }
 
+    // Implement REST-like interface, building function name according to HTTP method
     public override Result JsonCall(string method, string name, string id, KeyValuePair<string, string>[] query, string body) {
       var newname = BuildName(method, name, id != null, query != null);
       return RequestSession.Create(this, _catalog).JsonCall(newname, id, query, body);
@@ -139,6 +143,11 @@ namespace Andl.API {
       if (pref == "post") pref = "add";
       var newname = pref + "_" + name + (hasid ? "_id" : "") + (hasquery ? "_q" : "");
       return newname;
+    }
+
+    //-- serialised interface
+    public override bool Call(string name, byte[] arguments, out byte[] result) {
+      return RequestSession.Create(this, _catalog).Call(name, arguments, out result);
     }
   }
 
@@ -279,6 +288,43 @@ namespace Andl.API {
       return Result.Success(nret);
     }
 
+    // call using serialised arguments, return serialised result
+    internal bool Call(string name, byte[] arguments, out byte[] result) {
+      var kind = _catalogpriv.GetKind(name);
+      if (kind != EntryKinds.Code) return Fail("unknown or invalid name: " + name, out result);
+      var expr = (_catalogpriv.GetValue(name) as CodeValue).Value;
+
+      TypedValue[] argvalues = new TypedValue[expr.NumArgs];
+      using (var pr = PersistReader.Create(arguments)) {
+        for (var i = 0; i < expr.NumArgs; ++i)
+        try {
+          argvalues[i] = pr.Read(expr.Lookup.Columns[i].DataType); // BUG: needs heading
+        } catch {
+          return Fail("argument conversion error", out result);
+        }
+      }
+      var argvalue = DataRow.Create(expr.Lookup, argvalues);
+      TypedValue retvalue;
+
+      try {
+        retvalue = _evaluator.Exec(expr.Code, argvalue);
+      } catch {
+        return Fail("evaluator error", out result);
+      }
+      using (var pw = PersistWriter.Create()) {
+        pw.Write(retvalue);
+        result = pw.ToArray();
+      }
+      return true;
+    }
+
+    bool Fail(string message, out byte[] data) {
+      using (var pw = PersistWriter.Create()) {
+        pw.Write(message);
+        data = pw.ToArray();
+      }
+      return false;
+    }
   }
 
 }

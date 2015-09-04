@@ -79,7 +79,7 @@ namespace Andl.Runtime {
     // Create new empty table
     public new static DataTableLocal Create(DataHeading heading) {
       DataTableLocal newtable = new DataTableLocal() { 
-        Heading = heading,
+        Heading = heading, // TODO: normalise heading
       };
       return newtable;
     }
@@ -446,17 +446,17 @@ namespace Andl.Runtime {
     public bool AddRow(DataRow row) {
       Logger.Assert(row.Heading.Equals(Heading), "heading");
       var values = Heading.Columns.Select(c => row.Values[row.Heading.FindIndex(c)]).ToArray();
-      return AddRaw(DataRow.Create(Heading, values));
+      return AddRaw(DataRow.Create(Heading, values)); // TODO: normalise heading
     }
 
     // Add new row from strings in the right order
     public bool AddRow(params string[] values) {
-      return AddRaw(DataRow.Create(Heading, values));
+      return AddRaw(DataRow.Create(Heading, values)); // TODO: normalise heading
     }
 
     // Add new row from strings in the right order
     public bool AddRow(params TypedValue[] values) {
-      return AddRaw(DataRow.Create(Heading, values));
+      return AddRaw(DataRow.Create(Heading, values)); // TODO: normalise heading
     }
 
     ///=================================================================
@@ -477,7 +477,7 @@ namespace Andl.Runtime {
       var newheading = DataHeading.Create(exprs);
       var newtable = DataTableLocal.Create(newheading);
       foreach (var row in GetRows())  //TODO:Enumerable
-        newtable.AddRow(row.Transform(newheading, exprs));
+        newtable.AddRow(row.Transform(newheading, exprs)); // TODO: normalise heading
       Logger.WriteLine(4, "[Project={0}]", newtable);
       return newtable;
     }
@@ -488,7 +488,7 @@ namespace Andl.Runtime {
       var heading = Heading.Rename(exprs);
       var newtable = DataTableLocal.Create(heading);
       foreach (var row in GetRows())
-        newtable.AddRow(DataRow.Create(heading, row.Values));
+        newtable.AddRow(DataRow.Create(heading, row.Values)); // TODO: normalise heading
       Logger.WriteLine(4, "[Rename={0}]", newtable);
       return newtable;
     }
@@ -510,7 +510,7 @@ namespace Andl.Runtime {
       Logger.Assert(exprs.Count() == newheading.Degree, "degree");
       var newtable = DataTableLocal.Create(newheading);
       foreach (var row in GetRows()) {  //TODO:Enumerable
-        newtable.AddRow(row.Transform(newheading, exprs));
+        newtable.AddRow(row.Transform(newheading, exprs)); // TODO: normalise heading
       }
       Logger.WriteLine(4, "[{0}]", newtable);
       return newtable;
@@ -531,7 +531,7 @@ namespace Andl.Runtime {
         var temprow = oldrow.Transform(newheading, exprs);
         if (!dict.ContainsKey(temprow)) {
           var accblk = AccumulatorBlock.Create(numacc);
-          var newrow = oldrow.TransformAggregate(newheading, accblk, exprs);
+          var newrow = oldrow.TransformAggregate(newheading, accblk, exprs); // TODO: normalise heading
           newtable.AddRaw(newrow);
           Logger.Assert(newtable._dict[newtable._rows[newtable.Cardinality - 1]] == newtable.Cardinality - 1);
           dict.Add(temprow, newtable.Cardinality - 1);
@@ -573,7 +573,7 @@ namespace Andl.Runtime {
         //if (prevord == -1)
         if (ordidx.IsBreak)
           accblk = AccumulatorBlock.Create(numacc);
-        DataRow newrow = oldrow.TransformAggregate(newheading, accblk, exprs);
+        DataRow newrow = oldrow.TransformAggregate(newheading, accblk, exprs); // TODO: normalise heading
         newtable.AddRaw(newrow);
       }
       Logger.WriteLine(4, "[{0}]", newtable);
