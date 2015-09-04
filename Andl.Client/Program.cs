@@ -35,16 +35,6 @@ namespace Andl.Client {
       var ret = api.Call("func", args, out result);
       var rr = ResultReader.Create(result);
       Console.WriteLine("Result={0}", rr.ReadText());
-
-      //byte[] args;
-      //var ms = new MemoryStream();
-      //var bw = new BinaryWriter(ms);
-      //bw.Write("abcdef");
-      //args = ms.ToArray();
-      //byte[] result;
-      //var ret = api.Call("func", args, out result);
-      //var br = new BinaryReader(new MemoryStream(result));
-      //Console.WriteLine("Result={0}", br.ReadString());
     }
 
     static void ShowCatalog() {

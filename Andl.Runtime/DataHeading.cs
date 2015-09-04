@@ -50,7 +50,7 @@ namespace Andl.Runtime {
       return true;
     }
 
-    public override int GetHashCode() {
+    public override int GetHashCode() { /// TODO: cache hash code
       var h = Degree;
       // note: must not rely on order of dict
       for (var i = 0; i < Degree; ++i)
@@ -73,6 +73,12 @@ namespace Andl.Runtime {
     // Return true if this heading contains other
     public bool Contains(DataHeading other) {
       return other.Columns.All(c => this.Contains(c));
+    }
+
+    // Returns true if headings have same columns in same order
+    public bool EqualInOrder(DataHeading heading) {
+      if (!Equals(heading)) return false;
+      return Columns.SequenceEqual(heading.Columns);
     }
 
     // Return column index if found else -1

@@ -199,7 +199,7 @@ namespace Andl.API {
       if (arguments.Length != expr.Lookup.Degree) return Result.Failure("wrong no of args");
 
       var argvalues = arguments.Select((a, x) => TypeMaker.FromNativeValue(a, expr.Lookup.Columns[x].DataType)).ToArray();
-      var args = DataRow.Create(expr.Lookup, argvalues);
+      var args = DataRow.CreateUntyped(expr.Lookup, argvalues);
       var value = _evaluator.Exec(expr.Code, args);
       var nvalue = (value == VoidValue.Void) ? null : TypeMaker.ToNativeValue(value);
       return Result.Success(nvalue);
@@ -220,7 +220,7 @@ namespace Andl.API {
           var nvalue = JsonConvert.DeserializeObject(a, datatype.NativeType);
           return TypeMaker.FromNativeValue(nvalue, datatype);
         }).ToArray();
-        argvalue = DataRow.Create(expr.Lookup, argvalues);
+        argvalue = DataRow.CreateUntyped(expr.Lookup, argvalues);
       } catch {
         return Result.Failure("argument conversion error");
       }
@@ -271,7 +271,7 @@ namespace Andl.API {
           var datatype = expr.Lookup.Columns[x].DataType;
           return TypeMaker.FromNativeValue(nv, datatype);
         }).ToArray();
-        argvalue = DataRow.Create(expr.Lookup, argvalues);
+        argvalue = DataRow.CreateUntyped(expr.Lookup, argvalues);
       } catch {
         return Result.Failure("argument conversion error");
       }
@@ -303,7 +303,7 @@ namespace Andl.API {
           return Fail("argument conversion error", out result);
         }
       }
-      var argvalue = DataRow.Create(expr.Lookup, argvalues);
+      var argvalue = DataRow.CreateUntyped(expr.Lookup, argvalues);
       TypedValue retvalue;
 
       try {

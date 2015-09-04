@@ -79,7 +79,7 @@ namespace Andl.Runtime {
     // Create new empty table
     public new static DataTableLocal Create(DataHeading heading) {
       DataTableLocal newtable = new DataTableLocal() { 
-        Heading = heading, // TODO: normalise heading
+        DataType = DataTypeRelation.Get(heading),
       };
       return newtable;
     }

@@ -27,8 +27,11 @@ namespace Andl.Runtime {
       get { return DataRow.Create(DataHeading.Empty, new TypedValue[0]); }
     }
 
-    // Tuple heading: order of columns and types are reliable but names could have changed
-    DataHeading _heading;
+    // Specified heading. Required.
+    public DataHeading Heading { get; protected set; }
+    // Data type. Must match Heading or be null.
+    public DataTypeTuple DataType { get; protected set; }
+    
     // Actual values: order and types given by heading
     TypedValue[] _values;
     // Hash code calculated from values
@@ -41,9 +44,7 @@ namespace Andl.Runtime {
     public OrderedIndex OrderedIndex { get; set; }
 
     public int Degree { get { return _values.Length; } }
-    public DataHeading Heading { get { return _heading; } }
     public TypedValue[] Values { get { return _values; } }
-    public DataTypeTuple DataType { get { return DataTypeTuple.Get(_heading); } }
 
     // OBS:lookups?
     public ILookupValue PreLookup { get; set; }
@@ -55,10 +56,10 @@ namespace Andl.Runtime {
     public override bool Equals(object obj) {
       var other = obj as DataRow;
       if (other == this) return true;
-      if (other == null || other.GetHashCode() != _hashcode || !other.Heading.Equals(_heading))
+      if (other == null || other.GetHashCode() != _hashcode || !other.Heading.Equals(Heading))
         return false;
       for (var i = 0; i < _values.Length; ++i) {
-        var x = _heading.FindIndex(other.Heading.Columns[i]);
+        var x = Heading.FindIndex(other.Heading.Columns[i]);
         if (!_values[x].Equals(other._values[i])) return false;
       }
       return true;
@@ -75,7 +76,7 @@ namespace Andl.Runtime {
     }
 
     public string Format() {
-      var ss = Enumerable.Range(0, Degree).Select(x => String.Format("{0}:{1}",_heading.Columns[x].Name, _values[x].Format()));
+      var ss = Enumerable.Range(0, Degree).Select(x => String.Format("{0}:{1}",Heading.Columns[x].Name, _values[x].Format()));
       return String.Format("{{{0}}}", String.Join(",", ss));
     }
 
@@ -97,7 +98,7 @@ namespace Andl.Runtime {
     public bool LookupValue(string name, ref TypedValue value) {
       if (PreLookup != null && PreLookup.LookupValue(name, ref value))
         return true;
-      var x = _heading.FindIndex(name);
+      var x = Heading.FindIndex(name);
       if (x >= 0)
         value = _values[x];
       else if (PostLookup != null && PostLookup.LookupValue(name, ref value))
@@ -112,36 +113,61 @@ namespace Andl.Runtime {
 
     ///=================================================================
     ///
-    /// Fluent functions, return (possibly new) row as result
+    /// Creation functions
+    /// 
+    /// The primary purpose of a DataRow is as a row of a table. Such a row must have the same heading
+    /// and the same attribute order as the table. It ensures this by conforming to the DataTypeTuple.
+    /// Values are passed in with a heading that has the same attributes but perhaps in a different order, 
+    /// and must then be put in the correct order.
+    /// 
+    /// One exception is a heading known to come from the same table. No reordering necessary.
+    /// The other exception is a row used as a function argument. The value order must be preserved.
+    /// 
 
-    public static DataRow Create(DataHeading newheading, TypedValue[] values) {
+    // Create a row that has no data type and can be used as an argument
+    public static DataRow CreateUntyped(DataHeading newheading, TypedValue[] values) {
       if (values.Length != newheading.Degree) throw new ArgumentOutOfRangeException("values", "wrong degree");
-      var dr = new DataRow() { 
-        _heading = newheading,
+      var dr = new DataRow() {
+        Heading = newheading,
+        DataType = null,
         _values = values,
       };
       dr._hashcode = dr.CalcHashCode();
       return dr;
     }
 
-    public static DataRow Create(DataHeading newheading, params string[] values) {
+    // Create a row that belongs to a table. Reorder values to match.
+    public static DataRow Create(DataHeading heading, TypedValue[] values) {
+      if (values.Length != heading.Degree) throw new ArgumentOutOfRangeException("values", "wrong degree");
+      var newheading = DataTypeTuple.Get(heading).Heading;
+      var dr = new DataRow() {
+        DataType = DataTypeTuple.Get(heading),
+        Heading = newheading,
+        _values = newheading.Columns.Select(c => values[heading.FindIndex(c)]).ToArray(),
+      };
+      dr._hashcode = dr.CalcHashCode();
+      return dr;
+    }
+
+    public static DataRow Create(DataHeading heading, params string[] values) {
       var newvalues = values
-        .Select((v, x) => TypedValue.Parse(newheading.Columns[x].DataType, v))
+        .Select((v, x) => TypedValue.Parse(heading.Columns[x].DataType, v))
         .ToArray();
-      return DataRow.Create(newheading, newvalues);
+      return DataRow.Create(heading, newvalues);
     }
 
     // Create row by evaluating an expression list
-    public static DataRow Create(DataHeading newheading, ExpressionEval[] exprs) {
-      var newvalues = newheading.Columns
+    // TODO: use exprs to derive heading directly
+    public static DataRow Create(DataHeading heading, ExpressionEval[] exprs) {
+      var newvalues = heading.Columns
         .Select(c => exprs.First(e => e.Name == c.Name).Evaluate())
         .ToArray();
-      return DataRow.Create(newheading, newvalues);
+      return DataRow.Create(heading, newvalues);
     }
 
     // Create new row from this one using a new set of values
     public DataRow Create(TypedValue[] values) {
-      return DataRow.Create(_heading, values);
+      return DataRow.Create(Heading, values);
     }
 
     // Update existing row to match parent table
@@ -149,7 +175,7 @@ namespace Andl.Runtime {
     public DataRow Update(DataTable table, int ord) {
       Logger.Assert(table.Heading.Degree == Degree, "length");
       Parent = table;
-      _heading = table.Heading;
+      //Heading = table.Heading;
       Order = ord;
       return this;
     }
@@ -169,14 +195,14 @@ namespace Andl.Runtime {
       return Update(other._values);
     }
 
-    // new row, merge invidivual values from expressions
-    // TODO: do not use
-    public DataRow Merge(ExpressionEval[] exprs) {
-      var values = _values.Clone() as TypedValue[]; //??
-      foreach (var expr in exprs)
-        values[Heading.FindIndex(expr.Name)] = expr.EvalOpen(this);
-      return Create(_heading, values);
-    }
+    //// new row, merge invidivual values from expressions
+    //// TODO: do not use
+    //public DataRow Merge(ExpressionEval[] exprs) {
+    //  var values = _values.Clone() as TypedValue[]; //??
+    //  foreach (var expr in exprs)
+    //    values[Heading.FindIndex(expr.Name)] = expr.EvalOpen(this);
+    //  return Create(Heading, values);
+    //}
 
     // new row, merge values using index (on this). Empty fields still have nulls.
     // TODO: do not use
@@ -185,14 +211,14 @@ namespace Andl.Runtime {
       for (int i = 0; i < index.Length; ++i)
         if (index[i] >= 0)
           values[i] = other.Values[index[i]];
-      return Create(_heading, values);
+      return Create(Heading, values);
     }
 
     // Test for match of fields according to index (on this)
     public bool IsMatch(DataRow other, int[] index) {
       for (var i = 0; i < index.Length; ++i) {
         if (index[i] >= 0) {
-          Logger.Assert(Heading.Columns[i].Equals(other._heading.Columns[index[i]]));
+          Logger.Assert(Heading.Columns[i].Equals(other.Heading.Columns[index[i]]));
           if (!Values[i].Equals(other.Values[index[i]]))
             return false;
         }
@@ -254,7 +280,7 @@ namespace Andl.Runtime {
     }
 
     // Create new row from this one using index (on new). Empty fields have nulls.
-    public DataRow Transform(DataHeading newheading, int[] index) {
+    public DataRow Transform(DataHeading newheading, int[] index) { // TODO: normalised heading
       var values = new TypedValue[newheading.Degree];
       for (int i = 0; i < index.Length; ++i)
         if (index[i] >= 0)

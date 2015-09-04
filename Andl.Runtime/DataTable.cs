@@ -18,10 +18,11 @@ namespace Andl.Runtime {
   public enum MixedDyadics { None, LeftLocal, RightLocal };
 
   abstract public class DataTable {
-    // Data type, fully derived
-    public DataTypeRelation DataType { get { return DataTypeRelation.Get(Heading); } }
-    // Explicit heading, in same order as row values
-    public DataHeading Heading { get; protected set; }
+    // Data type, guarantees same heading wherever used
+    public DataTypeRelation DataType { get; protected set; }
+    // Implied heading, from data type
+    public DataHeading Heading { get { return DataType.Heading; } }
+
     // Return the number of columns.
     public int Degree { get { return Heading.Degree; } }
 

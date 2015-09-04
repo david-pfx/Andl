@@ -108,7 +108,7 @@ namespace Andl.Runtime {
     // Create new base table, assumed to exist
     public static DataTableSql Create(string name, DataHeading heading) {
       return new DataTableSql {
-        Heading = heading,
+        DataType = DataTypeRelation.Get(heading),
         TableName = name,
       };
     }
@@ -116,7 +116,7 @@ namespace Andl.Runtime {
     // Create new virtual table based on a query
     static DataTableSql CreateFromSql(DataHeading heading, string sql, string ord = null) {
       var newtable = new DataTableSql {
-        Heading = heading,
+        DataType = DataTypeRelation.Get(heading),
         SqlSelectText = sql,
         SqlOrderByText = ord,
       };
@@ -126,10 +126,9 @@ namespace Andl.Runtime {
     // Create new virtual table based on an existing table/query
     static DataTableSql CreateFromSql(DataTableSql table) {
       var newtable = new DataTableSql {
-        Heading = table.Heading,
+        DataType = DataTypeRelation.Get(table.Heading),
         SqlSelectText = table.GetQuery(),
       };
-      //newtable._lookups.AddRange(table._lookups);
       return newtable;
     }
 

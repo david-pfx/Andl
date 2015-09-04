@@ -189,7 +189,7 @@ namespace Andl.Runtime {
 
       // wrap raw value with evaluator
       var func = ExpressionEval.Create(_evaluator, funcarg.Value);
-      var args = DataRow.Create(func.Lookup, valargs);
+      var args = DataRow.CreateUntyped(func.Lookup, valargs);
       TypedValue ret;
       if (func.HasFold) {
         var accblk = accblkarg.Value as AccumulatorBlock;

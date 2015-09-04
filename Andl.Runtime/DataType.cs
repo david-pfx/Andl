@@ -282,7 +282,7 @@ namespace Andl.Runtime {
 
     // Create a new relation type for a particular heading
     // Called once for the generic, then once for each specific
-    public static DataTypeTuple Create(string name, DataHeading heading, TypeFlags flags, ConvertDelegate converter = null, DefaultDelegate defaulter = null) {
+    static DataTypeTuple Create(string name, DataHeading heading, TypeFlags flags, ConvertDelegate converter = null, DefaultDelegate defaulter = null) {
       var dt = new DataTypeTuple {
         Name = name,
         Heading = heading,
@@ -355,9 +355,11 @@ namespace Andl.Runtime {
     }
 
     // Get type from dictionary, or create and add
+    // Every relation needs a row type, so make sure they use the same heading
     public static DataTypeRelation Get(DataHeading heading) {
       if (_headings.ContainsKey(heading)) return _headings[heading];
-      var dt = DataTypeRelation.Create("relation", heading, TypeFlags.Variable | TypeFlags.Generated);
+      var rowtype = DataTypeTuple.Get(heading);
+      var dt = DataTypeRelation.Create("relation", rowtype.Heading, TypeFlags.Variable | TypeFlags.Generated);
       dt.Ordinal = _headings.Count + 1;
       dt.NativeType = TypeMaker.CreateType(dt);
       _headings[heading] = dt;
