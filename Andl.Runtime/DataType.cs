@@ -296,13 +296,17 @@ namespace Andl.Runtime {
     // Get type from dictionary, or create and add
     public static DataTypeTuple Get(DataHeading heading) {
       if (_headings.ContainsKey(heading)) return _headings[heading];
-      var dt = DataTypeTuple.Create("tuple", heading, TypeFlags.Variable | TypeFlags.Generated);
+      var dt = DataTypeTuple.Create("tuple", heading, TypeFlags.Variable | TypeFlags.Generated | TypeFlags.HasHeading);
       dt.Ordinal = _headings.Count + 1;
       dt.NativeType = TypeMaker.CreateType(dt);
       _headings[heading] = dt;
       return dt;
     }
 
+    public RelationValue CreateValue(List<TypedValue[]> values) {
+      var rows = values.Select(v => DataRow.Create(Heading, v));
+      return RelationValue.Create(DataTableLocal.Create(Heading, rows));
+    }
   }
 
   //////////////////////////////////////////////////////////////////////
@@ -359,7 +363,7 @@ namespace Andl.Runtime {
     public static DataTypeRelation Get(DataHeading heading) {
       if (_headings.ContainsKey(heading)) return _headings[heading];
       var rowtype = DataTypeTuple.Get(heading);
-      var dt = DataTypeRelation.Create("relation", rowtype.Heading, TypeFlags.Variable | TypeFlags.Generated);
+      var dt = DataTypeRelation.Create("relation", rowtype.Heading, TypeFlags.Variable | TypeFlags.Generated | TypeFlags.HasHeading);
       dt.Ordinal = _headings.Count + 1;
       dt.NativeType = TypeMaker.CreateType(dt);
       _headings[heading] = dt;
@@ -367,6 +371,10 @@ namespace Andl.Runtime {
       return dt;
     }
 
+    // Create a value for this type
+    public TupleValue CreateValue(TypedValue[] values) {
+      return TupleValue.Create(DataRow.Create(Heading, values));
+    }
   }
 
   //////////////////////////////////////////////////////////////////////
@@ -434,7 +442,7 @@ namespace Andl.Runtime {
       if (old != null && columns.SequenceEqual(old.Heading.Columns)) return old;
       Logger.Assert(!_usertypes.ContainsKey(name), name);
       var flags = columns.Any(c => c.DataType.IsOrdered) ? TypeFlags.Ordered : TypeFlags.None;
-      var dt = DataTypeUser.Create(name, DataHeading.Create(columns), flags | TypeFlags.Variable | TypeFlags.Generated);
+      var dt = DataTypeUser.Create(name, DataHeading.Create(columns), flags | TypeFlags.Variable | TypeFlags.Generated | TypeFlags.HasHeading);
       _usertypes[name] = dt;
       return dt;
     }

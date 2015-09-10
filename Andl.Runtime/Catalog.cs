@@ -335,9 +335,10 @@ namespace Andl.Runtime {
     // set a variable to a new value of the same type
     // NOTE: if level is global, needs concurrency control
     internal void Set(string name, TypedValue value) {
-      Logger.Assert(value.DataType == _entries[name].DataType);
-      _entries[name].Value = value;
-      _entries[name].NativeValue = TypeMaker.ToNativeValue(value);
+      _entries[name].Set(value);
+      //Logger.Assert(value.DataType == _entries[name].DataType);
+      //_entries[name].Value = value;
+      //_entries[name].NativeValue = TypeMaker.ToNativeValue(value);
     }
 
     // Return raw value from variable
@@ -385,31 +386,34 @@ namespace Andl.Runtime {
           Persist.Create(Catalog.DatabasePath, true).Store(name, finalvalue);
         }
       }
-      entry.Value = value;
-      entry.NativeValue = TypeMaker.ToNativeValue(value);  // TEMP: just so it gets exercised
-      if (entry.NativeValue != null)  // TODO: CodeValue
-        entry.Value = TypeMaker.FromNativeValue(entry.NativeValue, entry.DataType);  // TEMP: just so it gets exercised
+      entry.Set(value);
+      //entry.Value = value;
+      //entry.NativeValue = TypeMaker.ToNativeValue(value);  // TEMP: just so it gets exercised
+      //if (entry.NativeValue != null)  // TODO: CodeValue
+      //  entry.Value = TypeMaker.FromNativeValue(entry.NativeValue, entry.DataType);  // TEMP: just so it gets exercised
     }
 
     // Return native for an entry that is settable
-    public Type GetSetterType(string name) {
+    public DataType GetSetterType(string name) {
       var entry = FindEntry(name);
       if (entry == null) return null;
-      if (entry.Kind == EntryKinds.Value) return entry.DataType.NativeType;
+      if (entry.Kind == EntryKinds.Value) return entry.DataType;
+      //if (entry.Kind == EntryKinds.Value) return entry.DataType.NativeType;
       if (entry.Kind == EntryKinds.Code) {
         var expr = entry.Value as CodeValue;
-        if (expr.Value.NumArgs == 1) return expr.Value.Lookup.Columns[0].DataType.NativeType;
+        if (expr.Value.NumArgs == 1) return expr.Value.Lookup.Columns[0].DataType;
+        //if (expr.Value.NumArgs == 1) return expr.Value.Lookup.Columns[0].DataType.NativeType;
       }
       return null;
     }
 
-    // Return native types for arguments
-    public Type[] GetArgumentTypes(string name) {
+    // Return types for arguments
+    public DataType[] GetArgumentTypes(string name) {
       var entry = FindEntry(name);
       if (entry == null) return null;
       var expr = entry.Value as CodeValue;
       if (expr == null) return null;
-      return expr.Value.Lookup.Columns.Select(c => c.DataType.NativeType).ToArray();
+      return expr.Value.Lookup.Columns.Select(c => c.DataType).ToArray();
     }
 
   }
@@ -490,6 +494,17 @@ namespace Andl.Runtime {
     public CodeValue CodeValue { get { return Value as CodeValue; } }
 
     public static readonly CatalogEntry Empty = new CatalogEntry();
+
+    // Common code for setting a value
+    public void Set(TypedValue value) {
+      Logger.Assert(value.DataType == DataType);
+      Value = value;
+      // TEMP: following code is just so it gets exercised
+      NativeValue = TypeMaker.ToNativeValue(value);  
+      if (NativeValue != null)  // TODO: CodeValue
+        Value = TypeMaker.FromNativeValue(NativeValue, DataType);
+      TypedValueBuilderTest.Test(value);
+    }
 
     public override string ToString() {
       return String.Format("{0} {1} {2} {3} {4}", Name, Kind, Value, Flags, DataType);

@@ -67,6 +67,12 @@ namespace Andl.API {
     public abstract Type GetSetterType(string name);
     // Get the required type for function arguments
     public abstract Type[] GetArgumentTypes(string name);
+
+    // Get a TypedValueBuilder for the arguments to a function call
+    public abstract TypedValueBuilder GetTypedValueBuilder(string name);
+    // Function call using builders
+    public abstract bool BuilderCall(string name, TypedValueBuilder arguments, out TypedValueBuilder result);
+
   }
 
   ///===========================================================================
@@ -97,11 +103,18 @@ namespace Andl.API {
 
     // Support implementation functions at catalog level
     public override Type[] GetArgumentTypes(string name) {
-      return _catalog.GlobalVars.GetArgumentTypes(name);
+      return _catalog.GlobalVars.GetArgumentTypes(name).Select(t => t.NativeType).ToArray();
     }
 
     public override Type GetSetterType(string name) {
-      return _catalog.GlobalVars.GetSetterType(name);
+      return _catalog.GlobalVars.GetSetterType(name).NativeType;
+    }
+
+    // Support implementation functions at catalog level
+    public override TypedValueBuilder GetTypedValueBuilder(string name) {
+      var types = _catalog.GlobalVars.GetArgumentTypes(name);
+      if (types == null) return null;
+      return TypedValueBuilder.Create(types);
     }
 
     // Main implementation functions
@@ -147,6 +160,11 @@ namespace Andl.API {
 
     //-- serialised interface
     public override bool Call(string name, byte[] arguments, out byte[] result) {
+      return RequestSession.Create(this, _catalog).Call(name, arguments, out result);
+    }
+
+    //-- builder interface
+    public override bool BuilderCall(string name, TypedValueBuilder arguments, out TypedValueBuilder result) {
       return RequestSession.Create(this, _catalog).Call(name, arguments, out result);
     }
   }
@@ -325,6 +343,12 @@ namespace Andl.API {
       }
       return false;
     }
+
+    public bool Call(string name, TypedValueBuilder arguments, out TypedValueBuilder result) {
+      result = null;
+      return false;
+    }
+
   }
 
 }
