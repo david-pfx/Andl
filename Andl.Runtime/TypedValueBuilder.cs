@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 namespace Andl.Runtime {
   public class ValueHolder {
     public DataType[] _types;
+    public string[] _names;
     public TypedValue[] _values;
     public int _colidx = 0;
     public List<TypedValue[]> _list;
@@ -28,26 +29,33 @@ namespace Andl.Runtime {
     ValueHolder _valueholder;
 
     public DataType[] DataTypes { get { return _valueholder._types; } }
+    public string[] Names { 
+      get { return _valueholder._names; } 
+      set { _valueholder._names = value; } 
+    }
     public int StructSize { get { return _valueholder._values.Length; } }
+    public int ListSize { get { return _valueholder._list.Count; } }
     public TypedValue[] Values { get { return _valueholder._values; } }
     public bool Done { get { return _valueholder._rowidx >= _valueholder._list.Count; } }
 
     // Create a builder to receive values
-    public static TypedValueBuilder Create(DataType[] types) {
+    public static TypedValueBuilder Create(DataType[] types, string[] names = null) {
       return new TypedValueBuilder { 
         _valueholder = new ValueHolder {
           _types = types,
+          _names = names ?? new string[types.Length],
           _values = new TypedValue[types.Length],
         },
       };
     }
 
     // Create a builder to emit values
-    public static TypedValueBuilder Create(TypedValue[] tuple) {
+    public static TypedValueBuilder Create(TypedValue[] values, string[] names = null) {
       return new TypedValueBuilder { 
         _valueholder = new ValueHolder {
-          _types = tuple.Select(t => t.DataType).ToArray(),
-          _values = tuple,
+          _types = values.Select(t => t.DataType).ToArray(),
+          _names = names ?? new string[values.Length],
+          _values = values,
         },
       };
     }
@@ -75,11 +83,12 @@ namespace Andl.Runtime {
     public void SetStructBegin(int colno) {
       _valueholder._colidx = colno;
       Logger.Assert(_valueholder.DataType.HasHeading);
-      var cols = _valueholder._types[colno].Heading.Columns.Select(c => c.DataType).ToArray();
+      var cols = _valueholder._types[colno].Heading.Columns.ToArray();
+      //var cols = _valueholder._types[colno].Heading.Columns.Select(c => c.DataType).ToArray();
       _valueholder = new ValueHolder {
-          _types = cols,
-          _values = new TypedValue[cols.Length],
-          _parent = _valueholder,
+        _types = cols.Select(c => c.DataType).ToArray(),
+        _values = new TypedValue[cols.Length],
+        _parent = _valueholder,
       };
     }
 
@@ -137,13 +146,14 @@ namespace Andl.Runtime {
     public void GetStructBegin(int colno) {
       _valueholder._colidx = colno;
       Logger.Assert(_valueholder.DataType.HasHeading);
-      var types = _valueholder._types[colno].Heading.Columns.Select(c => c.DataType).ToArray();
+      var cols = _valueholder._types[colno].Heading.Columns;
       var value = _valueholder._values[colno];
       var tuple = (value is TupleValue) ? value.AsRow().Values 
                 : (value is UserValue) ? value.AsUser()
                 : _valueholder._list[_valueholder._rowidx++];
       _valueholder = new ValueHolder {
-        _types = types,
+        _types = cols.Select(c => c.DataType).ToArray(),
+        _names = cols.Select(c => c.Name).ToArray(),
         _values = tuple,
         _parent = _valueholder,
       };

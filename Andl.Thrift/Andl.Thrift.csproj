@@ -46,8 +46,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AndlProcessor.cs" />
-    <Compile Include="ThriftProgram.cs" />
+    <Compile Include="Processor.cs" />
+    <Compile Include="ThriftServer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

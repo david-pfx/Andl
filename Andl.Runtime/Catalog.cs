@@ -497,13 +497,15 @@ namespace Andl.Runtime {
 
     // Common code for setting a value
     public void Set(TypedValue value) {
-      Logger.Assert(value.DataType == DataType);
       Value = value;
-      // TEMP: following code is just so it gets exercised
-      NativeValue = TypeMaker.ToNativeValue(value);  
-      if (NativeValue != null)  // TODO: CodeValue
-        Value = TypeMaker.FromNativeValue(NativeValue, DataType);
-      TypedValueBuilderTest.Test(value);
+      if (value.DataType != DataTypes.Code) {
+        Logger.Assert(value.DataType == DataType);
+        // TEMP: following code is just so it gets exercised
+        NativeValue = TypeMaker.ToNativeValue(value);
+        if (NativeValue != null)  // TODO: CodeValue
+          Value = TypeMaker.FromNativeValue(NativeValue, DataType);
+        TypedValueBuilderTest.Test(value);
+      }
     }
 
     public override string ToString() {

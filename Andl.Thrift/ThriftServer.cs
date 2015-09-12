@@ -14,14 +14,14 @@ namespace Andl.Thrift {
   /// <summary>
   /// Implement Thrift server
   /// </summary>
-  class ThriftProgram {
+  class ThriftServer {
     static void Main(string[] args) {
       Console.WriteLine("Andl Thrift Server");
       Logger.Open(0);   // no default logging
       try {
         var gateway = AppStartup();
-        AndlProcessor processor = new AndlProcessor(gateway);
-        TServerTransport serverTransport = new TServerSocket(9095);
+        Processor processor = new Processor(gateway);
+        TServerTransport serverTransport = new TServerSocket(9095); // TODO: config it
         TServer server = new TSimpleServer(processor, serverTransport);
         Console.WriteLine("Starting the server...");
         server.Serve();

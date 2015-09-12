@@ -165,7 +165,7 @@ namespace Andl.API {
 
     //-- builder interface
     public override bool BuilderCall(string name, TypedValueBuilder arguments, out TypedValueBuilder result) {
-      return RequestSession.Create(this, _catalog).Call(name, arguments, out result);
+      return RequestSession.Create(this, _catalog).BuilderCall(name, arguments, out result);
     }
   }
 
@@ -349,6 +349,23 @@ namespace Andl.API {
       return false;
     }
 
+    internal bool BuilderCall(string name, TypedValueBuilder arguments, out TypedValueBuilder result) {
+      var kind = _catalogpriv.GetKind(name);
+      Logger.Assert(kind == EntryKinds.Code);
+      var expr = (_catalogpriv.GetValue(name) as CodeValue).Value;
+
+      var argvalue = DataRow.CreateUntyped(expr.Lookup, arguments.Values);
+      TypedValue retvalue;
+
+      try {
+        retvalue = _evaluator.Exec(expr.Code, argvalue);
+      } catch {
+        result = null;
+        return false;
+      }
+      result = TypedValueBuilder.Create(new TypedValue[] { retvalue });
+      return true;
+    }
   }
 
 }
