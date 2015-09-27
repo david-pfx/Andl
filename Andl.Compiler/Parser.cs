@@ -388,6 +388,8 @@ namespace Andl.Compiler {
       case SymKinds.FIELD:
       case SymKinds.CATVAR:
       case SymKinds.PARAM:
+        // TODO: guard other kinds of invalid symbol
+        if (symbol.DataType == DataTypes.Unknown) return ErrSyntax("unknown type: {0}", symbol.Name);
         if (symbol.IsField) Scope.Current.LookupItems.Add(DataColumn.Create(symbol.Name, symbol.DataType));
         _emitter.OutName(symbol.IsLookup ? Opcodes.LDFIELD : Opcodes.LDCAT, symbol);
         datatype = symbol.DataType;
@@ -742,7 +744,7 @@ namespace Andl.Compiler {
 
       _emitter.Out(Opcodes.LDACCBLK);
       _emitter.OutLoad(NumberValue.Create(_accuminfo.AccumCount++));
-      _emitter.OutLoad(expr.DataType.Default());
+      _emitter.OutLoad(expr.DataType.DefaultValue());
       _emitter.OutSeg(expr.Expression());
       _emitter.OutCall(foldsym);
 
@@ -1033,6 +1035,7 @@ namespace Andl.Compiler {
       for (; ; ) {
         exprs.Add(expr);
         if (!Match(Atoms.SEP)) return true;
+        if (Check(Atoms.RC)) return true; // allow trailing comma
         if (!ParseOpenExpression(out expr))
           return ErrExpect("expression");
       }
@@ -1127,7 +1130,6 @@ namespace Andl.Compiler {
         // type is not optional
         if (!ParseType(out datatype)) return ErrExpect("type or expression");
         if (!datatype.IsVariable) return ErrSyntax("not a valid type");
-        //if (ParseType(out datatype) && !datatype.IsVariable) return ErrSyntax("not a valid type");
       }
       if (idsym.Level != Scope.Current.Level)
         idsym = SymbolTable.MakeIdent(idsym.Name);

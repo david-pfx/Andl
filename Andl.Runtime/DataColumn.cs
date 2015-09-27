@@ -52,6 +52,10 @@ namespace Andl.Runtime {
       return String.Format("{0}:{1}", Name, DataType);
     }
 
+    public string Format() {
+      return ToString();
+    }
+
     // --- create ------------------------------------------------------
 
     // Create column from name[:type[:length]] -- default is string

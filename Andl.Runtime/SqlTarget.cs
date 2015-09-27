@@ -201,7 +201,7 @@ namespace Andl.Runtime {
         throw new SqlException("get data failed code={0} message={1}", _database.LastResult, _database.LastMessage);
       for (int i = 0; i < heading.Degree; ++i) {
         var datatype = heading.Columns[i].DataType;
-        values[i] = (ovalues[i] == null) ? datatype.Default()
+        values[i] = (ovalues[i] == null) ? datatype.DefaultValue()
           : FromObjectDict[datatype.BaseType](ovalues[i], datatype);
       }
     }
@@ -313,7 +313,7 @@ namespace Andl.Runtime {
       for (int i = 0; i < expr.NumArgs; ++i) {
         //var value = TypedValue.Parse(expr.Lookup.Columns[i].DataType, values[i]);
         var datatype = expr.Lookup.Columns[i].DataType;
-        var value = (ovalues[i] == null) ? datatype.Default()
+        var value = (ovalues[i] == null) ? datatype.DefaultValue()
           : SqlTarget.FromObjectDict[datatype.BaseType](ovalues[i], datatype);
         lookup.LookupDict.Add(expr.Lookup.Columns[i].Name, value);
       }

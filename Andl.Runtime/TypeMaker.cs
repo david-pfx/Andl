@@ -26,16 +26,16 @@ namespace Andl.Runtime {
 
     // Use this type maker to create a structured type, recursively
     public static Type CreateType(DataType datatype) {
+      // For relation wrap tuple type in a generic List<>
+      if (datatype is DataTypeRelation) {
+        var listtype = typeof(List<>);
+        return listtype.MakeGenericType((datatype as DataTypeRelation).ChildTupleType.NativeType);
+      }
       var typemaker = new TypeMaker {
         _typebuilder = _modulebuilder.DefineType(datatype.GenCleanName, TypeAttributes.Public),
       };
       typemaker.DefineMembers(datatype.Heading.Columns);
-      var type = typemaker._typebuilder.CreateType();
-      // Wrap a relation in a generic List<>
-      if (datatype is DataTypeRelation) {
-        var listtype = typeof(List<>);
-        return listtype.MakeGenericType(type);
-      } else return type;
+      return typemaker._typebuilder.CreateType();
     }
 
     void DefineMembers(DataColumn[] columns) {

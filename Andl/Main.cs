@@ -27,6 +27,7 @@ namespace Andl.Main {
     static bool _xsw = false; // compile only
     static bool _isw = false; // interactive
     static bool _nsw = true;  // new catalog
+    static bool _tsw = false; // Thrift IDL
     static bool _usw = false; // update catalog
     static bool _ssw = false; // sql
     static string _defaultinput = @"test.andl";
@@ -40,6 +41,7 @@ namespace Andl.Main {
       + "\t\tDefault catalog is 'default', default database is 'andl.sandl' or 'andl.sqlite'\n"
       + "\t/c[nu]\tUse existing catalog, n for new, u for update\n"
       + "\t/i\tInteractive, execute one line at a time\n"
+      + "\t/t\tOutput Thrift IDL file\n"
       + "\t/x\tExecute after compilation\n"
       + "\t/s\tUse Sql to access the database\n"
       + "\t/1\tListing to console\n"
@@ -90,6 +92,8 @@ namespace Andl.Main {
         _isw = true;
       else if (arg == "s")
         _ssw = true;
+      else if (arg == "t")
+        _tsw = true;
       else if (Regex.IsMatch(arg, "[0-9]+"))
         Logger.Level = int.Parse(arg);
       else {
@@ -116,6 +120,7 @@ namespace Andl.Main {
       _catalog.LoadFlag = !_nsw;
       _catalog.SaveFlag = _usw;
       _catalog.DatabaseSqlFlag = _ssw;
+      _catalog.BaseName = Path.GetFileNameWithoutExtension(_paths[0]);
       if (_paths.Count > 1)
         _catalog.CatalogName = _paths[1];
       if (_paths.Count > 2)
@@ -123,7 +128,8 @@ namespace Andl.Main {
       _catalog.SourcePath = ".";
 
       // Create private catalog with access to global level
-      var catalogp = CatalogPrivate.Create(_catalog, ScopeLevels.Global);
+      var catalogp = CatalogPrivate.Create(_catalog, true);
+      //var catalogp = CatalogPrivate.Create(_catalog, ScopeLevels.Global);
       _evaluator = (!_xsw) ? Evaluator.Create(catalogp) : null;
 
       return true;
@@ -141,6 +147,13 @@ namespace Andl.Main {
     }
 
     static void Finish() {
+      if (_tsw) {
+        var thriftname = Path.ChangeExtension(_paths[0], ".thrift");
+        using (StreamWriter sw = new StreamWriter(thriftname)) {
+          Logger.WriteLine("*** Writing: {0} ***", thriftname);
+          (new CatalogInterfaceWriter()).WriteThrift(sw, _catalog.BaseName, _catalog.PersistentVars.GetEntries());
+        }
+      }
       if (_catalog.SaveFlag && _catalog.ExecuteFlag)
         Logger.WriteLine("*** Updating: {0} ***", _paths[1]);
       _catalog.Finish();

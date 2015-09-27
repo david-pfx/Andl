@@ -102,6 +102,10 @@ namespace Andl.Runtime {
         DataType, HasFold ? AccumCount : 0, Code.Length, NumArgs, Lookup.ToString());
     }
 
+    public string ToFormat() {
+      return ToString();
+    }
+
     // Create an expression block with code to evaluate.
     public static ExpressionBlock Create(string name, ExpressionKinds kind, ByteCode code, DataType type, 
                                          int accums = 0, DataHeading lookup = null, bool lazy = false, int serial = 0) {
@@ -152,6 +156,7 @@ namespace Andl.Runtime {
     public DataColumn MakeDataColumn() {
       return DataColumn.Create(Name, DataType);
     }
+
   }
 
   //////////////////////////////////////////////////////////////////////
@@ -192,7 +197,7 @@ namespace Andl.Runtime {
       if (IsValue)
         return Value;
       if (HasFold)
-        return DataType.Default();
+        return DataType.DefaultValue();
       TypedValue ret;
       if (IsRename || IsProject)
         ret = Evaluator.Lookup(OldName, lookup);

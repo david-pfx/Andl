@@ -7,6 +7,7 @@ using System.Configuration;
 using Thrift;
 using Thrift.Server;
 using Thrift.Transport;
+using Thrift.Protocol;
 using Andl.API;
 using Andl.Runtime; // for logging!
 
@@ -22,7 +23,11 @@ namespace Andl.Thrift {
         var gateway = AppStartup();
         Processor processor = new Processor(gateway);
         TServerTransport serverTransport = new TServerSocket(9095); // TODO: config it
-        TServer server = new TSimpleServer(processor, serverTransport);
+        //TServer server = new TThreadPoolServer(processor, serverTransport, new TTransportFactory(), new TCompactProtocol.Factory());
+        TServer server = new TThreadPoolServer(processor, serverTransport);
+        //TServer server = new TThreadedServer(processor, serverTransport);
+        //TServer server = new TSimpleServer(processor, serverTransport);
+        server.setEventHandler(new ServerEventHandler());
         Console.WriteLine("Starting the server...");
         server.Serve();
       } catch (Exception ex) {
@@ -42,6 +47,26 @@ namespace Andl.Thrift {
         .Where(k => _settingshash.Contains(k))
         .ToDictionary(k => k, k => appsettings[k]);
       return Andl.API.Gateway.StartUp(settings);
+    }
+
+    /// <summary>
+    /// Implement server event handler
+    /// </summary>
+    class ServerEventHandler : TServerEventHandler {
+
+      public object createContext(global::Thrift.Protocol.TProtocol input, global::Thrift.Protocol.TProtocol output) {
+        Console.WriteLine("Connected... {0} {1}", input, output);
+        return null;
+      }
+
+      public void deleteContext(object serverContext, global::Thrift.Protocol.TProtocol input, global::Thrift.Protocol.TProtocol output) {
+      }
+
+      public void preServe() {
+      }
+
+      public void processContext(object serverContext, TTransport transport) {
+      }
     }
 
   }

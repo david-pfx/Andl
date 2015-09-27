@@ -107,10 +107,12 @@ namespace Andl.Runtime {
 
     // Create new base table, assumed to exist
     public static DataTableSql Create(string name, DataHeading heading) {
-      return new DataTableSql {
+      var ret = new DataTableSql {
         DataType = DataTypeRelation.Get(heading),
         TableName = name,
       };
+      ret.DataType.ProposeCleanName(name);
+      return ret;
     }
 
     // Create new virtual table based on a query
@@ -321,7 +323,7 @@ namespace Andl.Runtime {
       if (!(Degree > 0)) return TypedValue.Empty;
       var row = GetRows().FirstOrDefault();
       DropRows();
-      return row != null ? row.Values[0] : Heading.Columns[0].DataType.Default();
+      return row != null ? row.Values[0] : Heading.Columns[0].DataType.DefaultValue();
     }
 
     public override DataTable Project(ExpressionEval[] exprs) {

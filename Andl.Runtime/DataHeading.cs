@@ -60,7 +60,13 @@ namespace Andl.Runtime {
 
     public override string ToString() {
       var s = String.Join(",", _columns.Select(c => c.ToString()).ToArray());
-      return String.Format("{{{0}}}", s);
+      return "{" + s + "}";
+      //return String.Format("{{{0}}}", s);
+    }
+
+    internal string Format() {
+      var s = String.Join(",", _columns.Select(c => c.Format()).ToArray());
+      return "{" + s + "}";
     }
 
     // Return true if column by this name and columns test equal
@@ -219,5 +225,6 @@ namespace Andl.Runtime {
       return DataHeading.Create(Columns.Union(newcols).ToArray());
 
     }
+
   }
 }

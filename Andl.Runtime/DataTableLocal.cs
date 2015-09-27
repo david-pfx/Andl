@@ -468,7 +468,7 @@ namespace Andl.Runtime {
     // First tuple if more than one, default value if none
     public override TypedValue Lift() {
       if (!(Degree > 0)) return TypedValue.Empty;
-      if (!(Cardinality > 0)) return Heading.Columns[0].DataType.Default();
+      if (!(Cardinality > 0)) return Heading.Columns[0].DataType.DefaultValue();
       return _rows[0].Values[0];
     }
 

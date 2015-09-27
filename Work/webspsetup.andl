@@ -36,7 +36,8 @@ update_supplier(sid:text, s:supplier) => do {
 
 findall_part() => part
 
-findsome_part(query:{{ Key:text,Value:text }}) => do {
+tquery := {{ Key:text,Value:text }}
+findsome_part(query:tquery) => do {
     pattern := query [?(Key = 'PNAME') { (Value) }]
     part [?(PNAME =~ pattern)]
 }

@@ -299,7 +299,7 @@ namespace Andl.Runtime {
     public TypedValue CumFold(TypedValue accumulator, CodeValue expr) {
       // if accum is Empty this is a request for a default value
       if (accumulator == TypedValue.Empty)
-        return expr.AsEval.DataType.Default();
+        return expr.AsEval.DataType.DefaultValue();
       return expr.AsEval.EvalIsFolded(null, accumulator);
     }
 

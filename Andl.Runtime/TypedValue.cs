@@ -361,7 +361,7 @@ namespace Andl.Runtime {
     }
 
     public override string ToString() {
-      return Value.ToString();
+      return Value;
     }
     public override string Format() {
       return "'" + Value + "'";
@@ -400,6 +400,7 @@ namespace Andl.Runtime {
       Default = new TupleValue { Value = DataRow.Empty };
     }
 
+    // delegate formatting to DataRow
     public override string Format() {
       return Value.Format();
     }
@@ -432,6 +433,7 @@ namespace Andl.Runtime {
       Default = new RelationValue { Value = DataTable.Empty };
     }
 
+    // delegate formatting to DataTable
     public override string ToString() {
       return Value.ToString();
     }
@@ -466,11 +468,12 @@ namespace Andl.Runtime {
       Default = new HeadingValue { Value = DataHeading.Empty };
     }
 
+    // delegate formatting to DataHeading
     public override string ToString() {
       return Value.ToString();
     }
     public override string Format() {
-      return Value.ToString();
+      return Value.Format();
     }
     public override DataType DataType {
       get { return DataTypes.Heading; }
@@ -503,7 +506,7 @@ namespace Andl.Runtime {
       return Value.ToString();
     }
     public override string Format() {
-      return Value.ToString();
+      return Value.ToFormat();
     }
     public override DataType DataType {
       get { return DataTypes.Code; }
@@ -523,8 +526,13 @@ namespace Andl.Runtime {
   /// Stored as an ordered array of other values. Names only exist at compile time.
   /// </summary>
   public class UserValue : TypedValue, IDataValue, IOrderedValue {
+    // the default value for the type
     public static UserValue Default;
+    // values of each component
     public TypedValue[] Value { get; set; }
+    // Hash code calculated from values
+    int _hashcode;
+    // the data type for this value
     public override DataType DataType { get { return _datatype; } }
     DataTypeUser _datatype;
 
@@ -533,7 +541,9 @@ namespace Andl.Runtime {
     }
 
     static public UserValue Create(TypedValue[] value, DataTypeUser datatype) {
-      return new UserValue { Value = value, _datatype = datatype };
+      var ret = new UserValue { Value = value, _datatype = datatype };
+      ret._hashcode = ret.CalcHashCode();
+      return ret;
     }
 
     public override string ToString() {
@@ -543,18 +553,23 @@ namespace Andl.Runtime {
       return str;
     }
     public override string Format() {
-      return "(" + ToString() + ")";
+      if (Value == null) return "()";
+      var str = _datatype.Name + "(" + String.Join(",", Value.Select(s => s.Format())) + ")";
+      return str;
+      //return ToString();
+      //return "(" + ToString() + ")";
     }
 
     public override bool Equals(object other) {
       var uvo = (UserValue)other;
-      return DataType == uvo.DataType && 
-        Enumerable.Range(0, Value.Length)
+      if (uvo == null || uvo.DataType != DataType || uvo.GetHashCode() != GetHashCode()) return false;
+      return Enumerable.Range(0, Value.Length)
         .All(x => Value[x].Equals(uvo.Value[x]));
     }
 
     public override int GetHashCode() {
-      return Value.GetHashCode(); //bug:
+      Logger.Assert(_hashcode == CalcHashCode(), "uservalue hashcode");
+      return _hashcode;
     }
 
     // IOrdinal
@@ -573,6 +588,17 @@ namespace Andl.Runtime {
     public TypedValue GetComponentValue(string name) {
       var index = _datatype.Heading.FindIndex(name);
       return index == -1 ? TypedValue.Empty : Value[index];
+    }
+
+    // internal calculate hash code
+    // independent of column order, but need not be so
+    int CalcHashCode() {
+      var hash = 0;
+      for (var i = 0; i < Value.Length; ++i) {
+        var code = Value[i].GetHashCode();
+        hash ^= code;
+      }
+      return hash;
     }
 
   }

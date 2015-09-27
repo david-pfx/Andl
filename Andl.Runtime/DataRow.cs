@@ -232,7 +232,7 @@ namespace Andl.Runtime {
       var parent = Parent as DataTableLocal;
       Logger.Assert(parent != null);
       var ord = OrderedIndex.Offset(this, index, mode);
-      var value = (ord == -1) ? expr.DataType.Default()
+      var value = (ord == -1) ? expr.DataType.DefaultValue()
         : expr.EvalOpen(parent.GetRow(ord));
       return value;
     }

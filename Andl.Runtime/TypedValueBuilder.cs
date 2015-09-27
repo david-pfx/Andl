@@ -189,7 +189,7 @@ namespace Andl.Runtime {
       tvbt._output = TypedValueBuilder.Create(tvbt._input.DataTypes);
       tvbt.MoveData();
       for (var i = 0; i < values.Length; ++i)
-        Logger.Assert(values[i].Equals(tvbt._output.Values[i]));
+        Logger.Assert(values[i].Equals(tvbt._output.Values[i]), "value test");
     }
 
     void MoveData() {

@@ -29,7 +29,7 @@ namespace Andl.Runtime {
     // parse a string to return a value of this type
     TypedValue CreateValue(object value);
     // provide a default value for the type
-    TypedValue Default();
+    TypedValue DefaultValue();
     // return a heading if available OBS:?
     DataHeading Heading { get; }
     // Return the type flags
@@ -138,7 +138,7 @@ namespace Andl.Runtime {
     // return heading if it has one
     public virtual DataHeading Heading { get; protected set; }
     // Return default value for the type. Overridden in generated types
-    public virtual TypedValue Default() {
+    public virtual TypedValue DefaultValue() {
       return _defaulter();
     }
 
@@ -207,10 +207,10 @@ namespace Andl.Runtime {
     public virtual DataType BaseType { get { return this; } }
     // Base name from base type
     public string BaseName { get { return BaseType.Name; } }
-    // Name guaranteed to be unique for generated types
+    // Name guaranteed to be unique for generated types and null for others
     public virtual string GenUniqueName { get { return null; } }
-    // Name for code generation, unique within base type
-    public virtual string GenCleanName { get { return null; } }
+    // Name for code generation, unique (enough) on its own, never null
+    public virtual string GenCleanName { get { return BaseName; } }
 
     // Is other a type match where this is what is needed?
     public bool IsTypeMatch(DataType other) {
@@ -240,7 +240,7 @@ namespace Andl.Runtime {
     public static TypedValue[] MakeDefaultValues(DataHeading heading) {
       var values = new TypedValue[heading.Degree];
       for (var x = 0; x < values.Length; ++x)
-        values[x] = heading.Columns[x].DataType.Default();
+        values[x] = heading.Columns[x].DataType.DefaultValue();
       return values;
     }
 
@@ -253,6 +253,8 @@ namespace Andl.Runtime {
   public class DataTypeTuple : DataType {
     public override DataHeading Heading { get; protected set; }
     public int Ordinal { get; private set; }
+    // Name (possibly) given to this type
+    public string AltName { get; set; }
 
     static Dictionary<DataHeading, DataTypeTuple> _headings = new Dictionary<DataHeading, DataTypeTuple>();
     TupleValue _default;
@@ -272,9 +274,9 @@ namespace Andl.Runtime {
     public override DataType BaseType { get { return DataTypes.Row; } }
 
     public override string GenUniqueName { get { return "{" + Ordinal.ToString() + "}"; } }
-    public override string GenCleanName { get { return "tup_" + Ordinal.ToString(); } }
+    public override string GenCleanName { get { return AltName ?? "__t__" + Ordinal.ToString(); } }
 
-    public override TypedValue Default() {
+    public override TypedValue DefaultValue() {
       if (_default == null)
         _default = TupleValue.Create(DataRow.Create(Heading, MakeDefaultValues(Heading)));
       return _default;
@@ -307,6 +309,12 @@ namespace Andl.Runtime {
       var rows = values.Select(v => DataRow.Create(Heading, v));
       return RelationValue.Create(DataTableLocal.Create(Heading, rows));
     }
+
+    // Give this type a possible clean name if it doesn't already have one
+    public void ProposeCleanName(string name) {
+      if (AltName == null)
+        AltName = name;
+    }
   }
 
   //////////////////////////////////////////////////////////////////////
@@ -317,6 +325,8 @@ namespace Andl.Runtime {
     public static DataTypeRelation Empty { get { return Get(DataHeading.Empty);  } }
     public int Ordinal { get; private set; }
     public override DataHeading Heading { get; protected set; }
+    // the linked tuple type
+    public DataTypeTuple ChildTupleType { get; private set; }
 
     RelationValue _default;
 
@@ -337,9 +347,9 @@ namespace Andl.Runtime {
     public override DataType BaseType { get { return DataTypes.Table; } }
 
     public override string GenUniqueName { get { return "{{" + Ordinal.ToString() + "}}"; } }
-    public override string GenCleanName { get { return "rel_" + Ordinal.ToString(); } }
+    public override string GenCleanName { get { return ChildTupleType.GenCleanName; } }
 
-    public override TypedValue Default() {
+    public override TypedValue DefaultValue() {
       if (_default == null)
         _default = RelationValue.Create(DataTable.Create(Heading));
       return _default;
@@ -362,9 +372,10 @@ namespace Andl.Runtime {
     // Every relation needs a row type, so make sure they use the same heading
     public static DataTypeRelation Get(DataHeading heading) {
       if (_headings.ContainsKey(heading)) return _headings[heading];
-      var rowtype = DataTypeTuple.Get(heading);
-      var dt = DataTypeRelation.Create("relation", rowtype.Heading, TypeFlags.Variable | TypeFlags.Generated | TypeFlags.HasHeading);
+      var tupletype = DataTypeTuple.Get(heading);
+      var dt = DataTypeRelation.Create("relation", tupletype.Heading, TypeFlags.Variable | TypeFlags.Generated | TypeFlags.HasHeading);
       dt.Ordinal = _headings.Count + 1;
+      dt.ChildTupleType = tupletype;
       dt.NativeType = TypeMaker.CreateType(dt);
       _headings[heading] = dt;
       var x = Activator.CreateInstance(dt.NativeType);
@@ -374,6 +385,11 @@ namespace Andl.Runtime {
     // Create a value for this type
     public TupleValue CreateValue(TypedValue[] values) {
       return TupleValue.Create(DataRow.Create(Heading, values));
+    }
+
+    // Give this type a possible clean name if it doesn't already have one
+    public void ProposeCleanName(string name) {
+      ChildTupleType.ProposeCleanName(name);
     }
   }
 
@@ -406,7 +422,7 @@ namespace Andl.Runtime {
     public override string GenUniqueName { get { return Name; } }
     public override string GenCleanName { get { return Name; } }
 
-    public override TypedValue Default() {
+    public override TypedValue DefaultValue() {
       if (_default == null)
         _default = UserValue.Create(MakeDefaultValues(Heading), this);
       return _default;

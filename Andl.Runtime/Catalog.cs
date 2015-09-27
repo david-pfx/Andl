@@ -98,6 +98,7 @@ namespace Andl.Runtime {
     public string PersistPattern { get; set; }  // variables that are persisted
     public string DatabasePattern { get; set; } // relvars kept in the (SQL) database
 
+    public string BaseName { get; set; }        // base name for application
     public string CatalogName { get; set; }     // public name for the catalog
     public string CatalogFullName { get { return _sysprefix + CatalogName; } } // storage name
     public string DatabasePath { get; set; }    // path to the database (either kind)
@@ -162,8 +163,7 @@ namespace Andl.Runtime {
 
       foreach (var name in _protectedheadings.Keys) {
         var table = DataTableLocal.Create(_protectedheadings[name]);
-        GlobalVars.Add(name, table.DataType, EntryKinds.Value, EntryFlags.Public | EntryFlags.System);
-        GlobalVars.Set(name, TypedValue.Create(table));
+        GlobalVars.Add(name, table.DataType, EntryKinds.Value, EntryFlags.Public | EntryFlags.System, TypedValue.Create(table));
       }
       GlobalVars.FindEntry(CatalogFullName).Flags |= EntryFlags.Database;
       if (LoadFlag) {
@@ -321,7 +321,9 @@ namespace Andl.Runtime {
       _entries[entry.Name] = entry;
     }
 
-    public void Add(string name, DataType datatype, EntryKinds kind, EntryFlags flags = EntryFlags.None) {
+    // Add new catalog entry to proper scope
+    // Risky: caller may not know where it went; maybe merge Global & Persistent?
+    public void Add(string name, DataType datatype, EntryKinds kind, EntryFlags flags = EntryFlags.None, TypedValue value = null) {
       var scope = (flags.HasFlag(EntryFlags.Persistent)) ? Catalog.PersistentVars : this;
       scope.Add(new CatalogEntry {
         Name = name,
@@ -329,8 +331,23 @@ namespace Andl.Runtime {
         Kind = kind,
         Flags = flags,
         Scope = scope,
+        Value = value,
       });
     }
+
+    // Add a new entry to the catalog.
+    // Do kind, flags and other stuff here
+    public void AddNew(string name, DataType datatype, EntryKinds kind, EntryFlags flags) {
+      if (Catalog.IsPersist(name)) flags |= EntryFlags.Persistent;
+      if (kind == EntryKinds.Value && datatype is DataTypeRelation && Catalog.IsDatabase(name))
+        flags |= EntryFlags.Database;
+      Add(name, datatype, kind, flags, datatype.DefaultValue());   // make sure it has something, to avoid later errrors
+      if (datatype is DataTypeRelation)
+        (datatype as DataTypeRelation).ProposeCleanName(name);
+      if (datatype is DataTypeTuple)
+        (datatype as DataTypeTuple).ProposeCleanName(name);
+    }
+
 
     // set a variable to a new value of the same type
     // NOTE: if level is global, needs concurrency control
@@ -367,42 +384,34 @@ namespace Andl.Runtime {
       if (Catalog.IsSystem(name)) RuntimeError.Fatal("Catalog Set", "protected name");
       var entry = FindEntry(name);
       if (entry == null && Level == ScopeLevels.Local) {
-          Add(name, value.DataType, EntryKinds.Value);
-          return;
+        Add(name, value.DataType, EntryKinds.Value);
+        return;
       }
       Logger.Assert(entry != null);
-      //Logger.Assert(value.DataType == entry.DataType);
+      entry.Set(value);
 
       // if relation value, convert to/from Sql
-      var finalvalue = value;
       // database flag means linked entry, value in database
       if (entry.IsDatabase) {
-        var table = finalvalue.AsTable();
+        var table = value.AsTable();
         if (Catalog.DatabaseSqlFlag)
-          finalvalue = RelationValue.Create(DataTableSql.Create(name, table));
+          RelationValue.Create(DataTableSql.Create(name, table));
         else {
-          finalvalue = RelationValue.Create(DataTableLocal.Convert(table));
+          var finalvalue = RelationValue.Create(DataTableLocal.Convert(table));
           // note: could defer persistence until shutdown
           Persist.Create(Catalog.DatabasePath, true).Store(name, finalvalue);
         }
       }
-      entry.Set(value);
-      //entry.Value = value;
-      //entry.NativeValue = TypeMaker.ToNativeValue(value);  // TEMP: just so it gets exercised
-      //if (entry.NativeValue != null)  // TODO: CodeValue
-      //  entry.Value = TypeMaker.FromNativeValue(entry.NativeValue, entry.DataType);  // TEMP: just so it gets exercised
     }
 
-    // Return native for an entry that is settable
+    // Return type for an entry that is settable
     public DataType GetSetterType(string name) {
       var entry = FindEntry(name);
       if (entry == null) return null;
       if (entry.Kind == EntryKinds.Value) return entry.DataType;
-      //if (entry.Kind == EntryKinds.Value) return entry.DataType.NativeType;
       if (entry.Kind == EntryKinds.Code) {
         var expr = entry.Value as CodeValue;
         if (expr.Value.NumArgs == 1) return expr.Value.Lookup.Columns[0].DataType;
-        //if (expr.Value.NumArgs == 1) return expr.Value.Lookup.Columns[0].DataType.NativeType;
       }
       return null;
     }
@@ -429,11 +438,11 @@ namespace Andl.Runtime {
     internal Catalog Catalog { get; private set; }
     internal CatalogScope Current { get; private set; }
 
-    public static CatalogPrivate Create(Catalog catalog, ScopeLevels level = ScopeLevels.Local) {
+    public static CatalogPrivate Create(Catalog catalog, bool global = false) {
       return new CatalogPrivate {
         Catalog = catalog,
-        Current = (level == ScopeLevels.Local) ? CatalogScope.Create(catalog, ScopeLevels.Local, catalog.GlobalVars)
-        : catalog.GlobalVars,
+        Current = (global) ? catalog.GlobalVars
+                           : CatalogScope.Create(catalog, ScopeLevels.Local, catalog.GlobalVars),
       };
     }
 
@@ -445,14 +454,13 @@ namespace Andl.Runtime {
       Current = CatalogScope.Create(Catalog, ScopeLevels.Local, Current);
     }
 
+    // Set a value for a variable in the current scope ie assignment
     public void SetValue(string name, TypedValue value) {
       Current.SetValue(name, value);
     }
 
     // Return type of entry
     public EntryKinds GetKind(string name) {
-      //if (Catalog.IsSystem(name))
-      //  return (Catalog.GetProtectedHeading(name) == null) ? EntryKinds.None : EntryKinds.Value;
       var entry = Current.FindEntry(name);
       return (entry == null) ? EntryKinds.None : entry.Kind;
     }
@@ -461,13 +469,11 @@ namespace Andl.Runtime {
     public TypedValue GetValue(string name) {
       var value = Catalog.GetProtectedValue(name);
       if (value != null) return value;
-      //if (Catalog.IsSystem(name)) return Catalog.GetProtectedValue(name);
       return Current.GetValue(name);
     }
 
     // Return raw type of variable 
     public DataType GetDataType(string name) {
-      //if (Catalog.IsSystem(name)) DataTypeRelation.Get(Catalog.GetProtectedHeading(name));
       return Current.GetDataType(name);
     }
 
@@ -625,6 +631,42 @@ namespace Andl.Runtime {
         // Recursive call. note: may be duplicate, but no matter.
         if (column.DataType.GenUniqueName != null)
           AddMember(column.DataType.GenUniqueName, column.DataType.Heading);
+      }
+    }
+  }
+
+  ///===========================================================================
+  /// <summary>
+  /// Implement writing out varioues interface definitions
+  /// </summary>
+  public class CatalogInterfaceWriter {
+    List<DataType> _datatypes = new List<DataType>();
+
+    public void WriteThrift(TextWriter tw, string basename, IEnumerable<CatalogEntry> entries) {
+      var operators = entries.Where(e => e.IsCode)
+        .Select(e => e.CodeValue.Value).ToArray();
+      AddTypes(operators.Select(e => e.DataType));
+      AddTypes(operators.SelectMany(e => e.Lookup.Columns.Select(c => c.DataType)));
+      ThriftGen.Process(tw, basename, _datatypes.ToArray(), operators);
+    }
+
+    //public void WriteThrift(TextWriter tw, string basename, IEnumerable<CatalogEntry> entries) {
+    //  var operators = entries.Where(e => e.IsCode)
+    //    .Select(e => e.CodeValue.Value).ToArray();
+    //  var rtypes = operators.Select(e => e.DataType);
+    //  var atypes = operators.SelectMany(e => e.Lookup.Columns.Select(c => c.DataType));
+    //  var types = rtypes.Union(atypes)
+    //    .Where(t => t.HasHeading)
+    //    .OrderBy(t => t.GenCleanName).ToArray();
+    //  ThriftGen.Process(tw, basename, types, operators);
+    //}
+
+    // Recursively add types that have headings to list
+    void AddTypes(IEnumerable<DataType> types) {
+      var htypes = types.Where(t => t.HasHeading);
+      _datatypes.AddRange(htypes);
+      foreach (var type in htypes) {
+        AddTypes(type.Heading.Columns.Select(c => c.DataType));
       }
     }
   }
