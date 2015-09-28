@@ -1,0 +1,68 @@
+﻿// Test Suite 2 -- basic testing of relational features
+
+#include SuiteLib.andl
+#include SupplierData.andl
+
+start($filename$)
+
+t1 := {name := 'Smith', age := 17} 
+assert($lineno$, t1 = {age := 16+1, name := 'Smi''th'})
+r1 := {{name := 'Smith', age := 17}} 
+assert($lineno$, r1 = {{age := 1+16, name := 'S'&'mith'}})
+r2 := {{name := 'Smith', age := 17},
+       {name := 'Jones', age := 35},
+       {age :=199,name:='Frankenstein' }} 
+assert($lineno$, r2 = {{age := 35, name := 'Jones'},
+      {age := 17, name := 'Smith'},
+      {name:='Frankenstein',age :=199}})
+
+assert($lineno$, r1 = {{name:'',age:0}('Smith', 17)})
+assert($lineno$, r1 = {{name:text,age:number}('Smith', 17)})
+assert($lineno$, r2 = {{name:'',age:0}('Smith', 17),('Jones', 35),('Frankenstein',199 )})
+
+assert($lineno$, r1.count = 1)
+assert($lineno$, r2.count = 3)
+
+assert($lineno$, r1 sub r1)
+assert($lineno$, r1 sub r2)
+assert($lineno$, r2 sup r1)
+assert($lineno$, r2 sup r2)
+assert($lineno$, r1 sep r2 = false)
+assert($lineno$, r2 sep r1 = false)
+
+Smeta := {{ Name := 'S#', Type := 'text'}, 
+    { Name := 'SNAME', Type := 'text'}, 
+    { Name := 'STATUS', Type := 'number'}, 
+    { Name := 'CITY', Type := 'text'} }
+
+assert($lineno$, count(S) = 5)
+assert($lineno$, S.count = 5)
+assert($lineno$, schema(S) = Smeta)
+assert($lineno$, S.schema = Smeta)
+
+assert($lineno$, S sub S)
+assert($lineno$, not(S sub S[?(SNAME='Smith')]))
+assert($lineno$, S sup S)
+assert($lineno$, S sup S[?(SNAME = 'Smith')])
+assert($lineno$, S sup S[?(SNAME <> 'Smith')])
+assert($lineno$, not(S sep S))
+assert($lineno$, S[?(SNAME = 'Smith')] sep S[?(SNAME <> 'Smith')])
+
+assert($lineno$, S[?(true)] = S)
+assert($lineno$, S[?(false)] <> S)
+assert($lineno$, S[?(false)] = {{STATUS : 0, CITY : '', S# : '', SNAME : ''}})
+assert($lineno$, S[?(false)] = {{S# := '', SNAME := '', STATUS := 0, CITY := ''}}[?(false)])
+assert($lineno$, S[?(false)] = {{STATUS := 0, CITY := '', S# := '', SNAME := ''}}[?(false)])
+
+Sstatus := {{STATUS := 20}, {STATUS := 10}, {STATUS := 30} }
+assert($lineno$, S[{STATUS}] = Sstatus)
+assert($lineno$, S[{X := STATUS}] = Sstatus[{X := STATUS}])
+
+Ss4 := {{ S# := 'S4', CITY := 'London', STATUS := 020, SNAME := 'Clark' }}
+assert($lineno$, S[?(S# = 'S4')] = Ss4)
+assert($lineno$, count(S[?(SNAME = 'Clark')]) = 1)
+assert($lineno$, S[?(STATUS = 20)] <> Ss4)
+assert($lineno$, S[?(STATUS = 20)] sup Ss4)
+assert($lineno$, count(S[?(STATUS = 20)]) = 2)
+
+finish($filename$)

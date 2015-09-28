@@ -1,0 +1,55 @@
+// Test Suite 3 -- testing of RA
+
+#include SuiteLib.andl
+#include SupplierData.andl
+
+start($filename$)
+
+assert($lineno$, 12=count(S join SP))
+assert($lineno$, 4=count(S joinl SP))
+assert($lineno$, 10=count(S joinr SP))
+assert($lineno$, 4=count(S joinlc SP))
+assert($lineno$, 12=count(S joinlr SP))
+assert($lineno$, 12=count(S joincr SP))
+
+assert($lineno$, 1=count(S ajoin SP))
+assert($lineno$, 1=count(S ajoinl SP))
+assert($lineno$, 0=count(S rajoin SP))
+assert($lineno$, 0=count(S rajoinr SP))
+
+assert($lineno$, 1=count(S minus     SP))
+assert($lineno$, 4=count(S intersect SP))
+assert($lineno$, 0=count(S rminus    SP))
+assert($lineno$, 1=count(S symdiff   SP))
+assert($lineno$, 5=count(S union     SP))
+
+assert($lineno$, 6=degree(S join SP))
+assert($lineno$, 3=degree(S joinl SP))
+assert($lineno$, 2=degree(S joinr SP))
+assert($lineno$, 4=degree(S joinlc SP))
+assert($lineno$, 5=degree(S joinlr SP))
+assert($lineno$, 3=degree(S joincr SP))
+
+assert($lineno$, 4=degree(S ajoin SP))
+assert($lineno$, 3=degree(S ajoinl SP))
+assert($lineno$, 3=degree(S rajoin SP))
+assert($lineno$, 2=degree(S rajoinr SP))
+
+assert($lineno$, 1=degree(S minus SP))
+assert($lineno$, 1=degree(S intersect SP))
+assert($lineno$, 1=degree(S rminus SP))
+assert($lineno$, 1=degree(S symdiff SP))
+assert($lineno$, 1=degree(S union SP))
+
+sr := P [?(COLOR='Red')]
+snr := P [?(PNAME='Screw')]
+assert($lineno$, 3=sr.count)
+assert($lineno$, 2=snr.count)
+
+assert($lineno$, 2=(sr minus snr).count)
+assert($lineno$, 1=(sr intersect snr).count)
+assert($lineno$, 1=(sr rminus snr).count)
+assert($lineno$, 3=(sr symdiff snr).count)
+assert($lineno$, 4=(sr union snr).count)
+
+finish($filename$)

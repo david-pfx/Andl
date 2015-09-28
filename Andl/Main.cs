@@ -139,6 +139,7 @@ namespace Andl.Main {
       Logger.WriteLine("*** Compiling: {0} ***", _paths[0]);
       var parser = Parser.Create(_catalog, _evaluator);
       using (StreamReader sr = File.OpenText(_paths[0])) {
+        parser.SymbolTable.Find("$filename$").Value = TextValue.Create(_paths[0]);
         var ret = parser.Compile(sr);
         Logger.WriteLine("*** Compiled {0} {1} ***", _paths[0], ret ? "OK"
           : "with error count = " + parser.ErrorCount.ToString());

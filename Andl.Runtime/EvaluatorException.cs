@@ -32,12 +32,15 @@ namespace Andl.Runtime {
   }
 
   public class RuntimeError {
-    public static void Fatal(string code, string message, params object[] args) {
-      var msg = code + ": " + String.Format(message, args);
-      throw new RuntimeErrorException(msg) {
+    public static void Fatal(string code, string message) {
+      throw new RuntimeErrorException("Fatal error " + code + ": " + message) {
         Fatal = true,
         Code = code,
       };
+    }
+
+    public static void Fatal(string code, string format, params object[] args) {
+      Fatal(code, String.Format(format, args));
     }
 
   }

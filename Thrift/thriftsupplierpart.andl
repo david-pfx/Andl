@@ -1,0 +1,56 @@
+﻿// thriftsupplierpart.andl -- set up for access by Thrift API
+// 
+#catalog new update
+
+'thriftsupplierpart.andl -- set up for access by Thrift API'
+
+// load initial data
+def S:db(csv), P:db(csv), SP:db(csv)
+
+Supplier := S [{ *Sid:=S# }]
+Part := P [{ *Pid := P# }]
+Supplies := SP [{ *Sid := S#, Pid:= P# }]
+Tquery := {{ Key:text,Value:text }}
+
+// CRUD interface for supplier table
+
+find_supplier(sid:text) => do {
+    Supplier [?(Sid = sid)]
+}
+
+findall_supplier() => do {
+    Supplier [$(Sid)]
+}
+
+create_supplier(s:Supplier) => do {
+    Supplier := union s
+}
+
+delete_supplier(sid:text) => do {
+    Supplier := [?(Sid = sid)]
+}
+
+update_supplier(sid:text, s:Supplier) => do {
+    Supplier := [?(Sid = sid)]
+    Supplier := union s
+}
+
+findall_part() => Part
+
+findsome_part(query:Tquery) => do {
+    pattern := query [?(Key = 'PNAME') { (Value) }]
+    Part [?(PNAME =~ pattern)]
+}
+
+findall_supplies => Supplies
+
+Supplier
+Part
+Supplies
+findsome_part({{ Key := 'PNAME', Value := 'S.*' }})
+
+//andl_catalog
+andl_variable
+andl_operator
+andl_member
+#stop

@@ -1,0 +1,114 @@
+﻿// Test Suite 1 -- basic testing of language features
+
+#include SuiteLib.andl
+
+start($filename$)
+
+// Literals
+assert($lineno$, '"' "Hel""lo" h'20' 'World' '!' h'0022' = '"Hello World!"')
+assert($lineno$, "Hello" & d'32' & "World" = 'Hello World')
+assert($lineno$, "Number: " & (17+22) & " Date: " & t'31/12/2015' & " Bool: " & (6=6) = "Number: 39 Date: 31/12/2015 Bool: true")
+assert($lineno$, "01/01/2015" < "31/12/2014")
+assert($lineno$, t'01/01/2015' > t'31/12/2014')
+i':=' "''" d'32' := b'2a2b2cd1e2f3'
+assert($lineno$, i':=' h'27 0027 20'  = b'2A2B2CD1E2F3')
+
+assert($lineno$, {{}} = {{}})
+assert($lineno$, {{:}} = {{:}})
+assert($lineno$, {{:}()} = {{:}()})
+assert($lineno$, {{:}()} = {{}})
+assert($lineno$, {{}} <> {{:}})
+
+assert($lineno$, count({{:}}) = 0)
+assert($lineno$, count({{:}()}) = 1)
+assert($lineno$, count({{}}) = 1)
+assert($lineno$, {{}} .count = 1)
+
+assert($lineno$, false = (true and false))
+assert($lineno$, true = (true or false))
+assert($lineno$, true = (true xor false))
+
+assert($lineno$, 3 = (7 and 11))
+assert($lineno$, 15 = (7 or 11))
+assert($lineno$, 12 = (7 xor 11))
+
+assert($lineno$, if(true,"yes",'no') = 'yes')
+assert($lineno$, if(false,0,1+2) = 3)
+
+a1 := 22
+assert($lineno$, a1 = 22)
+a2 := a1*2
+assert($lineno$, a2 = 44)
+
+d1 => 22
+assert($lineno$, d1 = 22)
+d2 => a1*2 + d1*2
+assert($lineno$, d2 = 88)
+
+f1(x:0) => x*10
+assert($lineno$, f1(3) = 30)
+
+f3(x:0) => seq(x)
+assert($lineno$, f3(4) = seq(4))
+
+fact:0(n:0) => if(n<=1,1,n*fact(n-1))
+assert($lineno$, fact(6) = 720)
+
+pot:0(n:0) => if(n<=0,1,10*pot(n-1))
+assert($lineno$, pot(6) = 1000000)
+
+dfact:0(n:0) => do {
+  nn => n*dfact(n-1)
+  if(n<=1,1,nn)
+}
+assert($lineno$, dfact(6) = 720)
+assert($lineno$, dfact(20) = 2432902008176640000)
+
+assert($lineno$, seq(3) = {{N:=0},{N:=1},{N:=2}})
+assert($lineno$, seq(3) [{nnn:=N}] = {{nnn:=0},{nnn:=1},{nnn:=2}})
+
+tim1 := t'2015/02/26'
+//dat1 := date(tim1)
+//dat2 := dateymd(2015,2,27)
+//dat1 = date(tim1)
+//dat1 < dat2
+//dat1.year = 2015
+//dat1.month = 2
+//dat1.day = 26
+//dat2.dow = 5 // Friday
+//daysdiff(dat2,dat1) = 1
+
+ss1 := 'abcdefg'
+ss2 := 'XYZ   '
+assert($lineno$, ss2.trim = 'XYZ')
+assert($lineno$, left(ss1,10) = 'abcdefg   ')
+assert($lineno$, left(ss1,3) = 'abc')
+assert($lineno$, left(ss1,0) = '')
+assert($lineno$, right(ss1,3) = 'efg')
+assert($lineno$, right(ss1,10) = '   abcdefg')
+assert($lineno$, before(ss1,'cd') = 'ab')
+assert($lineno$, after(ss1,'cd') = 'efg')
+assert($lineno$, ss1.toupper = 'ABCDEFG')
+assert($lineno$, ss2.tolower = 'xyz   ')
+assert($lineno$, fill('abc', 20) = 'abcabcabcabcabcabcab')
+assert($lineno$, fill('abc', 0) = '')
+assert($lineno$, fill('abc', -20) = '')
+assert($lineno$, ss1.length = 7)
+
+// user type defs
+def :utype1(age:0, name:'')
+uvar1 := utype1(17, 'smith')
+assert($lineno$, uvar1 = utype1(17, 'smith'))
+assert($lineno$, uvar1.age = 17)
+assert($lineno$, uvar1.name = 'smith')
+uvar11 := utype1(18, 'jones')
+assert($lineno$, uvar11 > uvar1)
+
+def :utype2(age:0, name:'', given:'')
+uvar2 := utype2(63, 'jones', 'mary')
+assert($lineno$, uvar2 = utype2(63, 'jones', 'mary'))
+assert($lineno$, uvar2.age = 63)
+assert($lineno$, uvar2.name = 'jones')
+assert($lineno$, uvar2.given = 'mary')
+
+finish($filename$)

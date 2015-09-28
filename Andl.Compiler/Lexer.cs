@@ -20,7 +20,7 @@ using Andl.Runtime;
 
 namespace Andl.Compiler {
   public enum TokenTypes {
-    Nul, White, LINE, Directive,
+    Nul, White, LINE, Directive, Bad,
     Number, HexNumber, Identifier, Operator, Punctuation, Binary, Time,
     // note order used in testing for groups -- nothing after these
     IdLit, CharDouble, CharSingle, CharHex, CharDec,
@@ -44,6 +44,13 @@ namespace Andl.Compiler {
         return TokenType == TokenTypes.Identifier || TokenType == TokenTypes.IdLit || TokenType == TokenTypes.Operator || TokenType == TokenTypes.Punctuation; 
       }
     }
+
+    public static Token Create(string name, TokenTypes type, int lineno) {
+      var ret = new Token { Value = name, TokenType = type, LineNumber = lineno };
+      if (!ret.IsValid) ret.TokenType = TokenTypes.Bad;
+      return ret;
+    }
+
     public Decimal? GetNumber() {
       decimal dret;
       if (TokenType == TokenTypes.Number && Decimal.TryParse(Value, out dret))
@@ -72,6 +79,7 @@ namespace Andl.Compiler {
 
     public bool IsValid {
       get {
+        if (TokenType == TokenTypes.Bad) return false;
         if (TokenType == TokenTypes.Number) return GetNumber() != null;
         if (TokenType == TokenTypes.Time) return GetTime() != null;
         if (TokenType == TokenTypes.Binary) return GetBinary() != null;
@@ -227,11 +235,9 @@ namespace Andl.Compiler {
         _lasttoken.Value += name;
         _tokenlist[_tokenlist.Count - 1] = _lasttoken;
       } else {
-        var token = new Token { Value = name, TokenType = type, LineNumber = lineno };
-        if (token.IsValid) {
-          _tokenlist.Add(token);
-          _lasttoken = token;
-        } else ErrLexer(lineno, "bad token '{0}'", name);
+        var token = Token.Create(name, type, lineno);
+        _tokenlist.Add(token);
+        _lasttoken = token;
       }
     }
 
@@ -242,10 +248,13 @@ namespace Andl.Compiler {
         ++_current;
         var token = _tokenlist[_current];
         if (token.TokenType == TokenTypes.LINE) {
+          _symbols.Find("$lineno$").Value = NumberValue.Create(token.LineNumber);
           if (Logger.Level > 0)
             Console.WriteLine("{0,3}: {1}", token.LineNumber, token.Value);
         } else if (token.TokenType == TokenTypes.Directive) {
           Directive(token);
+        } else if (token.TokenType == TokenTypes.Bad) {
+          ErrLexer(token.LineNumber, "bad token '{0}'", token.Value);
         } else break;
       }
       Logger.WriteLine(6, "Token=<{0}> <{1}>", _tokenlist[_current], Current);

@@ -85,7 +85,8 @@ namespace Andl.Runtime {
       Ordinal = DataType.Create("ordinal", typeof(IOrdinalValue));
       CodeArray = DataType.Create("code[]", typeof(CodeValue[]));
       ValueArray = DataType.Create("value[]", typeof(TypedValue[]));
-      Void = DataType.Create("void", typeof(VoidValue));
+      Void = DataType.Create("void", typeof(VoidValue), null,
+        null, () => VoidValue.Default);
       Code = DataType.Create("code", typeof(CodeValue), null, 
         v => CodeValue.Create((ExpressionBlock)v), () => CodeValue.Default);
       Bool = DataType.Create("bool", typeof(BoolValue), typeof(bool),

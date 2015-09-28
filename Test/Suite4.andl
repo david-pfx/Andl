@@ -1,0 +1,17 @@
+// Test Suite 4 -- testing of RA
+
+#include SuiteLib.andl
+#include SupplierData.andl
+
+start($filename$)
+
+PX := P[{ * W1:=WEIGHT, W2:=WEIGHT*2-10 }]
+
+R1 := PX [{COLOR, SW1:=fold(+,W1), SW2 := fold(+,W2), SSW1:=fold(+,W1*W1), SSW2 := fold(+,W2*W2), AW1 := fold(+,W1)/fold(+,1), AW2 := fold(+,W2)/fold(+,1)} ]
+sum(n:0) => fold(+,n)
+sumsq(n:0) => fold(+,n*n)
+avg(n:0) => fold(+,n)/fold(+,1)
+R2 := PX [{COLOR, SW1:=sum(W1), SW2 := sum(W2), SSW1:=sumsq(W1), SSW2 := sumsq(W2), AW1 := avg(W1), AW2 := avg(W2) } ]
+assert($lineno$, R1 = R2)
+
+finish($filename$)

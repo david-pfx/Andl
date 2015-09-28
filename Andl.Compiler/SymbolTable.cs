@@ -407,6 +407,8 @@ namespace Andl.Compiler {
 
       AddLiteral("true", BoolValue.True, DataTypes.Bool);
       AddLiteral("false", BoolValue.False, DataTypes.Bool);
+      AddLiteral("$lineno$", NumberValue.Zero, DataTypes.Number);
+      AddLiteral("$filename$", TextValue.Empty, DataTypes.Text);
       AddIdent("csv", SymKinds.SOURCE, TextValue.Create("csv"), DataTypes.Text);
       AddIdent("txt", SymKinds.SOURCE, TextValue.Create("txt"), DataTypes.Text);
       AddIdent("sql", SymKinds.SOURCE, TextValue.Create("sql"), DataTypes.Text);

@@ -75,6 +75,7 @@ namespace Andl.Runtime {
       addins.Add(AddinInfo.Create("read", 1, DataTypes.Text, "Read"));
       addins.Add(AddinInfo.Create("write", 1, DataTypes.Void, "Write"));
       addins.Add(AddinInfo.Create("pause", 1, DataTypes.Void, "Pause"));
+      addins.Add(AddinInfo.Create("fatal", 2, DataTypes.Void, "Fatal"));
 
       addins.Add(AddinInfo.Create("type", 1, DataTypes.Text, "Type"));
 
@@ -822,6 +823,12 @@ namespace Andl.Runtime {
           Console.WriteLine(value.Value);
         Console.ReadLine();
       }
+      return VoidValue.Default;
+    }
+
+    // fatal error
+    public VoidValue Fatal(TextValue errorcode, TextValue message) {
+      RuntimeError.Fatal(errorcode.Value, message.Value);
       return VoidValue.Default;
     }
 
