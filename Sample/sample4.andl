@@ -49,8 +49,6 @@ typedemo => do {
     addval(st5.type, st5.text, st5.format, st5.pp)
     ti5 := t'2015/12/31 23:59:59'
     addval(ti5.type, ti5.text, ti5.format, ti5.pp)
-    dt5 := dateymd(2015,12,31)
-    addval(dt5.type, dt5.text, dt5.format, dt5.pp)
     bi5 := b'0102030405aaBBcCDdEEf'
     addval(bi5.type, bi5.text, bi5.format, bi5.pp)
     tu5 := { name:='Smith', age := 99}

@@ -865,8 +865,8 @@ namespace Andl.Compiler {
     private bool ParseTableWithHeading(out DataType datatype) {
       datatype = DataTypes.Unknown;
 
-      if (!((Look().Atom == Atoms.LC && Look(1).IsIdent && Look(2).Atom == Atoms.COLON)
-         || (Look().Atom == Atoms.LC && Look(1).Atom == Atoms.COLON))) return false;
+      if (!((Look().Atom == Atoms.LC && LookOverEol(1).IsIdent && LookOverEol(2).Atom == Atoms.COLON)
+         || (Look().Atom == Atoms.LC && LookOverEol(1).Atom == Atoms.COLON))) return false;
 
       // take LC, but if not a heading then untake and return false
       Match(Atoms.LC);
@@ -1348,9 +1348,11 @@ namespace Andl.Compiler {
       return _lexer.LookAhead(n);
     }
 
+    // Look ahead by N excluding any EOL
     Symbol LookOverEol(int n = 0) {
-      while (_lexer.LookAhead(n).Atom == Atoms.EOL)
-        ++n;
+      for (var i = 0; i <= n; ++i)
+        if (_lexer.LookAhead(i).Atom == Atoms.EOL)
+          ++n;
       return _lexer.LookAhead(n);
     }
 

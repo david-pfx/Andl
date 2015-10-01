@@ -856,6 +856,10 @@ namespace Andl.Runtime {
       public bool IsSubtype(IDataType other) {
         return false;
       }
+
+      public static DateValue Create(TimeValue time) {
+        return new DateValue { Value = time.Value };
+      }
     }
 
     public DateValue FromTime(TimeValue time) {

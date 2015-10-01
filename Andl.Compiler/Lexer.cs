@@ -20,9 +20,11 @@ using Andl.Runtime;
 
 namespace Andl.Compiler {
   public enum TokenTypes {
-    Nul, White, LINE, Directive, Bad,
+    // first group all count as white space (White must be last)
+    Nul, LINE, Directive, Bad, White, 
+    // these are ungrouped
     Number, HexNumber, Identifier, Operator, Punctuation, Binary, Time,
-    // note order used in testing for groups -- nothing after these
+    // this group is in order for aggregation of tokens -- nothing after here
     IdLit, CharDouble, CharSingle, CharHex, CharDec,
   }
 
@@ -44,6 +46,8 @@ namespace Andl.Compiler {
         return TokenType == TokenTypes.Identifier || TokenType == TokenTypes.IdLit || TokenType == TokenTypes.Operator || TokenType == TokenTypes.Punctuation; 
       }
     }
+    // Real white space is discarded, but some other things left in still count as white
+    public bool IsWhite { get { return TokenType <= TokenTypes.White; } }
 
     public static Token Create(string name, TokenTypes type, int lineno) {
       var ret = new Token { Value = name, TokenType = type, LineNumber = lineno };
@@ -96,11 +100,11 @@ namespace Andl.Compiler {
     Catalog _catalog;
     bool _stop = false;
     List<Token> _tokenlist = new List<Token>();
+    int _tokenindex = -1;  // must call GetNext() first
     Token _lasttoken = new Token();
-    int _current = -1;  // must call GetNext() first
     Symbol _currentsymbol = Symbol.None;
     
-    public int LineNumber { get { return _tokenlist[_current].LineNumber;  } }
+    public int LineNumber { get { return _tokenlist[_tokenindex].LineNumber;  } }
 
     // Create new lexer on given reader
     public static Lexer Create(TextReader reader, SymbolTable symbols, Catalog catalog) {
@@ -128,9 +132,9 @@ namespace Andl.Compiler {
       var svtl = _tokenlist;
       _tokenlist = new List<Token>();
       PrepareTokens(reader, true);
-      svtl.InsertRange(_current + 1, _tokenlist);
+      svtl.InsertRange(_tokenindex + 1, _tokenlist);
       _tokenlist = svtl;
-      GetNext();
+      MoveNext();
     }
 
     public Symbol Current {
@@ -138,23 +142,26 @@ namespace Andl.Compiler {
     }
 
     public Symbol LookAhead(int n) {
-      var pos = Math.Min(_tokenlist.Count-1, _current + n);
-      return (pos < 0) ? Symbol.None
-        : (pos == 0) ? _currentsymbol
+      var pos = LookNext(n);
+      return (pos == 0) ? _currentsymbol 
         : _symbols.GetSymbol(_tokenlist[pos]);
+      //var pos = Math.Min(_tokenlist.Count-1, _tokenindex + n);
+      //return (pos < 0) ? Symbol.None
+      //  : (pos == 0) ? _currentsymbol
+      //  : _symbols.GetSymbol(_tokenlist[pos]);
     }
 
     public void Next() {
-      GetNext();
-      _currentsymbol = _symbols.GetSymbol(_tokenlist[_current]);
-      Logger.WriteLine(4, "Token=<{0}> Sym=<{1}>", _tokenlist[_current], _currentsymbol);
+      MoveNext();
+      _currentsymbol = _symbols.GetSymbol(_tokenlist[_tokenindex]);
+      Logger.WriteLine(4, "Token=<{0}> Sym=<{1}>", _tokenlist[_tokenindex], _currentsymbol);
     }
 
     public void Back() {
-      Logger.Assert(_current > 0);
+      Logger.Assert(_tokenindex > 0);
       Logger.WriteLine(4, "Token -- back");
-      _current--;
-      _currentsymbol = _symbols.GetSymbol(_tokenlist[_current]);
+      _tokenindex--;
+      _currentsymbol = _symbols.GetSymbol(_tokenlist[_tokenindex]);
     }
 
     ///=================================================================
@@ -241,12 +248,12 @@ namespace Andl.Compiler {
       }
     }
 
-    // Step to next token
-    void GetNext() {
-      if (_stop) _current = _tokenlist.Count - 1;
-      while (_current < _tokenlist.Count - 1) {
-        ++_current;
-        var token = _tokenlist[_current];
+    // Step to next token, taking action as we go
+    void MoveNext() {
+      if (_stop) _tokenindex = _tokenlist.Count - 1;
+      while (_tokenindex < _tokenlist.Count - 1) {
+        ++_tokenindex;
+        var token = _tokenlist[_tokenindex];
         if (token.TokenType == TokenTypes.LINE) {
           _symbols.Find("$lineno$").Value = NumberValue.Create(token.LineNumber);
           if (Logger.Level > 0)
@@ -257,8 +264,19 @@ namespace Andl.Compiler {
           ErrLexer(token.LineNumber, "bad token '{0}'", token.Value);
         } else break;
       }
-      Logger.WriteLine(6, "Token=<{0}> <{1}>", _tokenlist[_current], Current);
+      Logger.Assert(!_tokenlist[_tokenindex].IsWhite);
+      Logger.WriteLine(6, "Token=<{0}> <{1}>", _tokenlist[_tokenindex], Current);
     }
+
+    // Lookahead N tokens with no action, return pos
+    public int LookNext(int n) {
+      var pos = _tokenindex + n;
+      Logger.Assert(pos >= 0);
+      while (pos < _tokenlist.Count && _tokenlist[pos].IsWhite)
+        pos++;
+      return pos < _tokenlist.Count ? pos : _tokenlist.Count - 1;
+    }
+
 
     // Process line as directive, return true if so
     private bool Directive(Token token) {

@@ -557,6 +557,9 @@ namespace Andl.Runtime {
       var numacc = exprs.Where(e => e.HasFold).Sum(e => e.AccumCount);
       var newtable = DataTableLocal.Create(newheading);
       var ordidx = OrderedIndex.Create(orderexps, Heading);
+      // list of indexes of not-folded columns
+      var notfold = exprs.Where(e => !e.HasFold)
+        .Select(e => newheading.FindIndex(e.Name)).ToArray();
 
       // Build index
       for (var ord = 0; ord < Cardinality; ++ord) { //TODO:Enumerable
@@ -565,17 +568,24 @@ namespace Andl.Runtime {
       AccumulatorBlock accblk = null;
 
       // Read in index order, with access to ordering info
+      DataRow lastrow = null;
       foreach (var ord in ordidx.RowOrdinals) {
         var oldrow = _rows[ord];
         oldrow.OrderedIndex = ordidx;     // so row functions can access it
-        //FIX: find a nicer way to test if this is the start of a new group
-        //var prevord = ordidx.Offset(oldrow, 1, OffsetModes.Lag);
-        //if (prevord == -1)
+        // if there is a group break, reset the accumulators
         if (ordidx.IsBreak)
           accblk = AccumulatorBlock.Create(numacc);
         DataRow newrow = oldrow.TransformAggregate(newheading, accblk, exprs); // TODO: normalise heading
-        newtable.AddRaw(newrow);
+
+        // save the current row, output it on group break or when any non-fold column has changed
+        // any rows not output will have identical non-fold cols so only running sums are lost
+        var nfchg = (lastrow != null && !notfold.All(x => newrow.Values[x].Equals(lastrow.Values[x])));
+        if (nfchg || (lastrow != null && ordidx.IsBreak))
+          newtable.AddRaw(lastrow);
+        lastrow = newrow; // guaranteed to be different!
       }
+      if (lastrow != null)
+        newtable.AddRaw(lastrow);
       Logger.WriteLine(4, "[{0}]", newtable);
       return newtable;
     }

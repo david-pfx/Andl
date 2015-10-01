@@ -135,14 +135,19 @@ namespace Andl.Runtime {
 
     // --- create ------------------------------------------------------
 
-    // from existing columns
+    // from an existing heading, with normalisation
+    public static DataHeading Create(DataHeading heading) {
+      return DataTypeTuple.Get(heading).Heading;
+    }
+
+    // from existing columns, with normalisation
     public static DataHeading Create(IEnumerable<DataColumn> columns) {
       var dh = new DataHeading() {
         _columns = columns.ToArray()
       };
       dh._coldict = Enumerable.Range(0, dh._columns.Length)
         .ToDictionary(x => dh._columns[x].Name, x => x);
-      return dh;
+      return Create(dh);
     }
 
     // from name:types
@@ -157,6 +162,7 @@ namespace Andl.Runtime {
 
     // from existing with renames applied
     // existing heading order must be preserved, so use direct lookup
+    // TODO: newheading requires normalisation???
     public DataHeading Rename(IEnumerable<ExpressionBlock> exprs) {
       var dict = exprs.ToDictionary(e => e.OldName);
       return Create(this._columns

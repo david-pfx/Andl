@@ -75,12 +75,6 @@ length('world')
 // The & operator converts its arguments to strings and concatenates them
 "Date: " & t'2015/12/31' & " number:" & 12345 & " logical:" & (2=2)
 
-// Date: system defined
-d1 := dateymd(2015,1,31)
-"Date: " & d1 & " Year:" & d1.year & " month:" & d1.month & " day:" & d1.day & " dow:" & d1.dow
-date(t'1/1/2015')
-time(date(time(d1)))
-
 // Special: if(), only evaluates one of its arguments
 if(true,'Hello World!', "goodbye!")
 if(2>2,1/0, 7*6)
@@ -128,17 +122,18 @@ v4(a) => do {
 }
 v4(v1)
 
-// Arguments can be specified with literal types
-v5(a:'',b:0,c:false,d:d1) => do {
+// Arguments can be specified with literal types or with other objects
+tt := t'01/01/2001'
+v5(a:'',b:0,c:false,d:tt) => do {
   a & b & c & d
 }
-v5(v1,42,true,dateymd(2015,1,1))
+v5(v1,42,true,t'31/12/2015')
 
 // Arguments can be specified with named types
-v6(a:text,b:number,c:bool,d:date) => do {
+v6(a:text,b:number,c:bool,d:time) => do {
   a & b & c & d
 }
-v6(v1,42,true,dateymd(2015,1,1))
+v6(v1,42,true,t'2015/01/01')
 
 // Usually the function type is determined by type inference. However for 
 // recursion, the function name must be typed explicitly
@@ -159,10 +154,12 @@ u0.t
 'The value ' & u0 & ' and its component ' & u0.t
 
 // multiple components
-def :ut1(n:number, t:text, d:date)
-u1 := ut1(42, v1, d1)
+def :ut1(n:number, t:text, d:time)
+v2 := 'Hello World!'
+t2 := t'2015/01/31'
+u1 := ut1(42, v2, t2)
 "n:" & u1.n & " t:" & u1.t & " d:" & u1.d
-u2 := ut1(41, "!"&v1, dateymd(d1.year+1,d1.month,d1.day))
+u2 := ut1(41, "!"&v2, t'2000/01/01')
 "n:" & u2.n & " t:" & u2.t & " d:" & u2.d
 
 // Comparison left-to-right

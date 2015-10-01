@@ -1,0 +1,12 @@
+// Andl samples 6 -- subtypes
+// *** Currently not working correctly ***
+
+// Depends on catalog created by setup.andl
+#catalog
+
+// Date: system defined
+d1 := dateymd(2015,1,31)
+"Date: " & d1 & " Year:" & d1.year & " month:" & d1.month & " day:" & d1.day & " dow:" & d1.dow
+date(t'1/1/2015')
+time(date(time(d1)))
+

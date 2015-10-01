@@ -168,3 +168,9 @@ $RECYCLE.BIN/
 /Thrift/gen-csharp
 /Thrift/gen-java/thriftsupplierpart
 /Thrift/gen-py
+/andl-v1.15f18
+/packages
+*.vandl
+*.zip
+*.btm
+*.sqlite

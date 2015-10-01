@@ -55,38 +55,40 @@ namespace Andl.Runtime {
 
     // any -- dispatch
     public static object ToNativeValue(TypedValue value) {
-      if (!_fillerdict.ContainsKey(value.DataType.BaseType)) return null;
-      return _fillerdict[value.DataType.BaseType](value);
+      if (!_fillerdict.ContainsKey(value.DataType.BaseName)) return null;
+      return _fillerdict[value.DataType.BaseName](value);
     }
 
     // any -- dispatch
     public static TypedValue FromNativeValue(object value, DataType datatype) {
-      if (!_getterdict.ContainsKey(datatype.BaseType)) return null;
-      return _getterdict[datatype.BaseType](value, datatype);
+      if (!_getterdict.ContainsKey(datatype.BaseName)) return null;
+      return _getterdict[datatype.BaseName](value, datatype);
     }
 
     // --- impl
 
-    static Dictionary<DataType, Func<TypedValue, object>> _fillerdict = new Dictionary<DataType, Func<TypedValue, object>> {
-      { DataTypes.Binary, (v) => ((BinaryValue)v).Value },
-      { DataTypes.Bool,   (v) => ((BoolValue)v).Value },
-      { DataTypes.Number, (v) => ((NumberValue)v).Value },
-      { DataTypes.Row,    (v) => GetNativeValue(v.DataType, ((TupleValue)v).Value) },
-      { DataTypes.Table,  (v) => GetNativeValue(v.DataType as DataTypeRelation, ((RelationValue)v).Value.GetRows()) },
-      { DataTypes.Text,   (v) => ((TextValue)v).Value },
-      { DataTypes.Time,   (v) => ((TimeValue)v).Value },
-      { DataTypes.User,   (v) => GetNativeValue(v.DataType, ((UserValue)v).Value) },
+    static Dictionary<string, Func<TypedValue, object>> _fillerdict = new Dictionary<string, Func<TypedValue, object>> {
+      { "binary",   (v) => ((BinaryValue)v).Value },
+      { "bool",     (v) => ((BoolValue)v).Value },
+      { "number",   (v) => ((NumberValue)v).Value },
+      { "tuple",    (v) => GetNativeValue(v.DataType, ((TupleValue)v).Value) },
+      { "relation", (v) => GetNativeValue(v.DataType as DataTypeRelation, ((RelationValue)v).Value.GetRows()) },
+      { "text",     (v) => ((TextValue)v).Value },
+      { "time",     (v) => ((TimeValue)v).Value },
+      { "date",     (v) => ((TimeValue)v).Value },  // FIX: temp
+      { "user",     (v) => GetNativeValue(v.DataType, ((UserValue)v).Value) },
     };
 
-    static Dictionary<DataType, Func<object, DataType, TypedValue>> _getterdict = new Dictionary<DataType, Func<object, DataType, TypedValue>> {
-      { DataTypes.Binary, (v, dt) => BinaryValue.Create(v as byte[]) },
-      { DataTypes.Bool, (v, dt) =>   BoolValue.Create((bool)v) },
-      { DataTypes.Number, (v, dt) => NumberValue.Create((decimal)v) },
-      { DataTypes.Row, (v, dt) =>    TupleValue.Create(DataRow.Create(dt.Heading, GetValues(v, dt.Heading.Columns))) },
-      { DataTypes.Table, (v, dt) =>  RelationValue.Create(DataTableLocal.Create(dt.Heading, GetRows(v, dt.Heading.Columns))) },
-      { DataTypes.Text, (v, dt) =>   TextValue.Create(v as string) },
-      { DataTypes.Time, (v, dt) =>   TimeValue.Create((DateTime)v) },
-      { DataTypes.User, (v, dt) =>   UserValue.Create(GetValues(v, dt.Heading.Columns), dt as DataTypeUser) },    };
+    static Dictionary<string, Func<object, DataType, TypedValue>> _getterdict = new Dictionary<string, Func<object, DataType, TypedValue>> {
+      { "binary",   (v, dt) => BinaryValue.Create(v as byte[]) },
+      { "bool",     (v, dt) => BoolValue.Create((bool)v) },
+      { "number",   (v, dt) => NumberValue.Create((decimal)v) },
+      { "tuple",    (v, dt) => TupleValue.Create(DataRow.Create(dt.Heading, GetValues(v, dt.Heading.Columns))) },
+      { "relation", (v, dt) => RelationValue.Create(DataTableLocal.Create(dt.Heading, GetRows(v, dt.Heading.Columns))) },
+      { "text",     (v, dt) => TextValue.Create(v as string) },
+      { "time",     (v, dt) => TimeValue.Create((DateTime)v) },
+      { "date",     (v, dt) => Builtin.DateValue.Create((DateTime)v) },   // FIX: temp
+      { "user",     (v, dt) => UserValue.Create(GetValues(v, dt.Heading.Columns), dt as DataTypeUser) },    };
 
     // tuple -- with ordered heading
     static object GetNativeValue(DataType datatype, DataRow row) {

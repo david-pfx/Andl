@@ -198,6 +198,7 @@ namespace Andl.Runtime {
         case "bool": _output.SetBool(i, _input.GetBool(i)); break;
         case "binary": _output.SetBinary(i, _input.GetBinary(i)); break;
         case "number": _output.SetNumber(i, _input.GetNumber(i)); break;
+        case "date": // FIX: special handling until it's a subclass
         case "time": _output.SetTime(i, _input.GetTime(i)); break;
         case "text": _output.SetText(i, _input.GetText(i)); break;
         case "tuple": 
@@ -220,6 +221,9 @@ namespace Andl.Runtime {
           }
           _input.GetListEnd();
           _output.SetListEnd();
+          break;
+        default:
+          Logger.Assert(false, _input.DataTypes[i].BaseName);
           break;
         }
       }
