@@ -270,10 +270,12 @@ namespace Andl.Compiler {
 
     // Lookahead N tokens with no action, return pos
     public int LookNext(int n) {
-      var pos = _tokenindex + n;
-      Logger.Assert(pos >= 0);
-      while (pos < _tokenlist.Count && _tokenlist[pos].IsWhite)
+      var pos = _tokenindex;
+      while (n-- > 0) {
         pos++;
+        while (pos < _tokenlist.Count && _tokenlist[pos].IsWhite)
+          pos++;
+      }
       return pos < _tokenlist.Count ? pos : _tokenlist.Count - 1;
     }
 

@@ -1,0 +1,56 @@
+// Borg model - tasklog
+
+tasklog := {{ 
+    id:0, logtime:time, description, task :0
+}}
+
+// Find next key
+tasklogs_next_key() => do {
+    tasklog [ { fold(max,id) } ] +1
+}
+
+// tasklog CRUD
+
+// Add a set of tasklogs
+tasklog_add(cl:tasklog) => do {
+    tasklog := union cl [ { *
+        id := tasklogs_next_key(),
+    }]
+}
+
+// Add a tasklog
+tasklog_add_one(taskid:0, desc) => do {
+    tasklog := union {{
+        id := tasklogs_next_key(),
+        logtime := now(),
+        description := desc,
+        task := taskid
+    }}
+}
+
+// Replace a set of tasklogs
+tasklog_update(cl:tasklog) => do {
+    tasklog := minus (tasklog join cl [{ id }])
+    tasklog := union cl
+}
+
+// Delete tasklog by key
+tasklog_delete(key) => do {
+    tasklog := [ ?(id = key) ]
+}
+
+// Find tasklog by key
+tasklog_find(key) => do {
+    tasklog[ ?(id = key) ]
+}
+
+// Find all tasklogs
+tasklogs_all() => do {
+    tasklog
+}
+
+// Find tasklogs for a task
+tasklogs_by_task(taskid:0) => do {
+    tasklog [ ?(id = taskid) ]
+}
+

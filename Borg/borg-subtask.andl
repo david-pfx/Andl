@@ -1,0 +1,50 @@
+// Borg model - subtask
+
+subtask := {{ 
+    id:0, create_date:time, due_date:time, close_date:time, description, task:0, create_time:time, lastmod:time, uid, url
+}}
+
+// Find next key
+subtasks_next_key() => do {
+    subtask [ { fold(max,id) } ] +1
+}
+
+// subtask CRUD
+
+// Add a set of subtasks
+subtask_add(cl:subtask) => do {
+    subtask := union cl [ { *
+        id := subtasks_next_key(),
+        create_time := now(), 
+        lastmod := now() 
+    }]
+}
+
+// Replace a set of subtasks
+subtask_update(cl:subtask) => do {
+    subtask := minus (subtask join cl [{ id }])
+    subtask := union cl [ { *
+        lastmod := now() 
+    } ]
+}
+
+// Delete subtask by key
+subtask_delete(key) => do {
+    subtask := [ ?(id = key) ]
+}
+
+// Find subtask by key
+subtask_find(key) => do {
+    subtask[ ?(id = key) ]
+}
+
+// Find all subtasks
+subtasks_all() => do {
+    subtask
+}
+
+// Find subtasks for a task
+subtasks_by_task(taskid:0) => do {
+    subtask [ ?(task = taskid) ]
+}
+

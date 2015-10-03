@@ -1,0 +1,20 @@
+// Borg model - option
+
+option := {{ name:'', value }}
+
+// set option
+option_set(cl:option) => do {
+    option := minus (option join cl [{ name }])
+    option := union cl [ ?(name <> '' and value <> '') ]
+}
+
+// Find option by key
+option_get(key) => do {
+    option[ ?(name = key) ]
+}
+
+// Find all options
+options_all() => do {
+    option
+}
+

@@ -1,0 +1,57 @@
+// Borg model - task
+
+task := {{ 
+    tasknum:0, start_date:time, due_date:time, person_assigned, priority:0, state, type, 
+    description, resolution, category, close_date:time, project:0, summary, 
+    create_time:time, lastmod:time, uid, url 
+}}
+
+// Find next key
+tasks_next_key() => do {
+    task [ { fold(max,tasknum) } ] +1
+}
+
+// task CRUD
+
+// Add a set of tasks
+task_add(cl:task) => do {
+    task := union cl [ { *
+        create_time := now(), 
+        lastmod := now() 
+    } ]
+}
+
+// Replace a set of tasks
+task_update(cl:task) => do {
+    task := minus (task join cl [{ tasknum }])
+    task := union cl [ { *
+        create_time := now(), 
+        lastmod := now() 
+    }]
+}
+
+// Delete task by key
+task_delete(key) => do {
+    task := [ ?(tasknum = key) ]
+}
+
+// Find task by key
+task_find(key) => do {
+    task[ ?(tasknum = key) ]
+}
+
+// Find all tasks
+tasks_all() => do {
+    task
+}
+
+// Find all keys
+tasks_keys() => do {
+    task [ { tasknum} ]
+}
+
+// Rename task type
+task_type_rename(old, new) => do {
+    task := [ ?(type = old) { * type := new } ]
+}
+

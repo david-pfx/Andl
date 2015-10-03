@@ -1,0 +1,38 @@
+// Borg model - memo
+
+memo := {{ memoname:'', memotext, encrypted:bool }}
+
+// memo CRUD
+
+// Add a set of memos
+memo_add(mm:memo) => do {
+    memo := union mm
+}
+
+// Replace a set of memos
+memo_update(mm:memo) => do {
+    memo := minus (memo join mm [{ memoname }])
+    memo := union mm
+}
+
+// Delete memo by key
+memo_delete(key) => do {
+    memo := [ ?(memoname = key) ]
+}
+
+// Find memo by key
+memo_find(key) => do {
+    memo[ ?(memoname = key) ]
+}
+
+// Find all memos
+memos_all() => do {
+    memo
+}
+
+// Find all memos
+memos_names() => do {
+    memo [ $(memoname) { memoname } ]
+}
+
+

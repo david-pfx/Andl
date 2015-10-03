@@ -1,0 +1,75 @@
+// Borg model - Appointment
+
+appointment := {{
+    appt_date:time, appt_num:0, duration:0, text, skip_list, next_todo:time, 
+    vacation:bool, holiday:bool, private:bool, times:0, frequency, todo:bool, color, rpt:bool, category, reminders, untimed:bool, 
+    encrypted:bool, repeat_until:time, priority:0, create_time:time, lastmod:time, uid, url
+}}
+
+// Appointment specials
+
+appointment_get_keys() => do {
+    appointment[ { appt_num } ]
+}
+
+appointment_get_todo_keys() => do {
+    appointment[ ?(todo) { appt_num } ]
+}
+
+appointment_get_rpt_keys() => do {
+    appointment[ ?(rpt) { appt_num } ]
+}
+
+appointment_next_key() => do {
+    appointment[ { fold(max,appt_num) }] +1
+}
+
+appointment_next_todo() => do {
+    appointment[ ?(todo and appt_date > now()) { fold(min,appt_date) }]
+}
+
+// Appointment CRUD
+
+// Add a set of appointments
+appointment_add(appt:appointment) => do {
+    appointment := union appt [ { * 
+        appt_num := appointment_next_key(),
+        next_todo := appointment_next_todo(), 
+        create_time := now(), 
+        lastmod := now()
+    } ]
+}
+
+// Replace a set of appointments
+appointment_update(appt:appointment) => do {
+    appointment := minus (appointment join appt [{ appt_num }])
+    appointment := union appt [ { *
+        lastmod := now()
+    }]
+}
+
+// Delete appointment by key
+appointment_delete(key:0) => do {
+    appointment := [ ?(appt_num = key) ]
+}
+
+// Find appointment by key
+appointment_find(key:0) => do {
+    appointment[ ?(appt_num = key) ]
+}
+
+// Find all appointments
+appointments_all() => do {
+    appointment
+}
+
+// Appointments finding
+appointments_by_text(t) => do {
+    appointment [ ?(text = t) ]
+}
+
+appointment_by_uid(u) => do {
+    appointment [ ?(uid = u) ]
+}
+
+

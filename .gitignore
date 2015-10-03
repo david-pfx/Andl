@@ -174,3 +174,4 @@ $RECYCLE.BIN/
 *.zip
 *.btm
 *.sqlite
+*.thrift

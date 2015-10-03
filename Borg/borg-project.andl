@@ -1,0 +1,51 @@
+// Borg model - project
+
+project := {{ 
+    id:0, start_date:time, due_date:time, description, category, status, parent:0
+}}
+
+// Find next key
+project_next_key() => do {
+    project [ { fold(max,id) } ] +1
+}
+
+// project CRUD
+
+// Add a set of projects
+project_add(cl:project) => do {
+    project := union cl [ { *
+        id := project_next_key(),
+    }]
+}
+
+// Replace a set of projects
+project_update(cl:project) => do {
+    project := minus (project join cl [{ id }])
+    project := union cl
+}
+
+// Delete project by key
+project_delete(key) => do {
+    project := [ ?(id = key) ]
+}
+
+// Find project by key
+project_find(key) => do {
+    project[ ?(id = key) ]
+}
+
+// Find all projects
+projects_all() => do {
+    project
+}
+
+// Find subprojects for a parent
+projects_by_parent(projectid:0) => do {
+    project [ ?(parent = projectid) $(start_date) ]
+}
+
+// Find projects for a task
+projects_by_task(taskid:0) => do {
+    project [ ?(id = taskid) ]
+}
+
