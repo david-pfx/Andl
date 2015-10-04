@@ -45,6 +45,8 @@ namespace Andl.API {
     public bool JsonReturnFlag { get; set; }
     public abstract string DatabaseName { get; }
 
+    //--- A gateway for accessing variables and functions by name
+
     // Get the value of a variable, or evaluate a function of no arguments.
     public abstract Result GetValue(string name);
     // Set the result of a variable, or call a command with one argument.
@@ -55,18 +57,27 @@ namespace Andl.API {
     public abstract Result Command(string name, params object[] arguments);
     // Evaluate a function with json arguments and return
 
+    //--- A gateway for making calls with arguments and return value in JSON
+
     public abstract Result JsonCall(string name, params string[] arguments);
     // Evaluate a function with id, query and json arguments and return
     public abstract Result JsonCall(string name, string id, KeyValuePair<string, string>[] query, string json);
+
+    //--- A gateway for making REST/JSON calls, using convention to generate function names
+
     // Evaluate a function with method, name, id, query and json arguments and return
     public abstract Result JsonCall(string method, string name, string id, KeyValuePair<string, string>[] query, string json);
 
-    public abstract bool Call(string name, byte[] arguments, out byte[] result);
+    //--- A gateway for making calls using native arguments
 
+    // Make the call using native arguments
+    public abstract bool Call(string name, byte[] arguments, out byte[] result);
     // Get the required type for a setter
     public abstract Type GetSetterType(string name);
     // Get the required type for function arguments
     public abstract Type[] GetArgumentTypes(string name);
+
+    //--- A gateway for making calls using a typed value builder (Thrift)
 
     // Get a TypedValueBuilder for the arguments to a function call
     public abstract TypedValueBuilder GetTypedValueBuilder(string name);

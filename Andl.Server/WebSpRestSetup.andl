@@ -1,0 +1,55 @@
+﻿// WebSpRestSetup.andl -- set up for access by REST API (WCF)
+// 
+#catalog new update
+
+'WebSpRestSetup.andl -- set up for access by REST API'
+
+// load initial data
+def S:db(csv), P:db(csv), SP:db(csv)
+
+supplier := S [{ *Sid:=S# }]
+part := P [{ *Pid := P# }]
+supplies := SP [{ *Sid := S#, Pid:= P# }]
+
+// CRUD interface for supplier table
+
+get_supplier_id(sid:text) => do {
+    supplier [?(Sid = sid)]
+}
+
+get_supplier() => do {
+    supplier [$(Sid)]
+}
+
+add_supplier(s:supplier) => do {
+    supplier := union s
+}
+
+delete_supplier_id(sid:text) => do {
+    supplier := [?(Sid = sid)]
+}
+
+put_supplier_id(sid:text, s:supplier) => do {
+    supplier := [?(Sid = sid)]
+    supplier := union s
+}
+
+get_part() => part
+
+get_part_q(query:{{ Key:text,Value:text }}) => do {
+    pattern := query [?(Key = 'PNAME') { (Value) }]
+    part [?(PNAME =~ pattern)]
+}
+
+get_supplies => supplies
+
+get_supplier
+get_part
+get_supplies
+get_part_q({{ Key := 'PNAME', Value := 'S.*' }})
+
+//andl_catalog
+//andl_variable
+andl_operator
+//andl_member
+#stop

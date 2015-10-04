@@ -22,11 +22,13 @@ namespace Andl.Server {
       AppStartup();
     }
 
-    Dictionary<string, string> _settingsdict = new Dictionary<string, string> {
-      { "DatabasePath", "DatabasePath" },
-      { "DatabasePathSqlFlag", "DatabaseSqlFlag" },
-      { "DatabaseName", "DatabaseName" },
-      { "Noisy", "Noisy" },
+    enum SettingOptions { Ignore, Andl, Other }
+
+    Dictionary<string, SettingOptions> _settingsdict = new Dictionary<string,SettingOptions> {
+      { "DatabasePath", SettingOptions.Andl },
+      { "DatabasePathSqlFlag", SettingOptions.Andl },
+      { "DatabaseName", SettingOptions.Andl },
+      { "Noisy", SettingOptions.Andl },
     };
 
     // Access the required catalog
@@ -39,8 +41,8 @@ namespace Andl.Server {
     void AppStartup() {
       var appsettings = ConfigurationManager.AppSettings;
       var settings = appsettings.AllKeys
-        .Where(k => _settingsdict.ContainsKey(k))
-        .ToDictionary(k => _settingsdict[k], k => appsettings[k]);
+        .Where(k => _settingsdict.ContainsKey(k) && _settingsdict[k] == SettingOptions.Andl)
+        .ToDictionary(k => k, v => appsettings[v]);
       _gateway = Andl.API.Gateway.StartUp(settings);
     }
   }

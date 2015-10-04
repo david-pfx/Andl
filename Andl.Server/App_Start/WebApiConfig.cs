@@ -13,12 +13,12 @@ namespace Andl.Server {
 
       config.Routes.MapHttpRoute(
           name: "RestApi",
-          routeTemplate: "api/{catalog}/{name}/{id}",
+          routeTemplate: "rest/{database}/{name}/{id}",
           defaults: new { controller = "rest", id = RouteParameter.Optional }
       );
       config.Routes.MapHttpRoute(
-          name: "OriginalApi",
-          routeTemplate: "andl/{catalog}/{name}",
+          name: "NativeApi",
+          routeTemplate: "andl/{database}/{name}",
           defaults: new { controller = "andl" }
       );
     }

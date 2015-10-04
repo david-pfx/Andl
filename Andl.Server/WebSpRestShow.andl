@@ -1,0 +1,19 @@
+﻿// WebSpRestShow.andl -- test for access by REST API
+// 
+#catalog
+
+'WebSpRestShow.andl -- show access by Web REST API'
+
+get_supplier()
+get_part()
+get_supplies()
+get_part_q({{ Key := 'PNAME', Value := 'S.*' }})
+
+'Catalog'
+andl_catalog
+'Variable'
+andl_variable
+'Operator'
+andl_operator
+'Member'
+andl_member

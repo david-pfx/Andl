@@ -11,7 +11,7 @@ var ViewModel = function () {
     self.editmode = ko.observable();
     self.error = ko.observable();
 
-    var baseUri = '/api/default';
+    var baseUri = '/rest/sprest';
     var supplierUri = baseUri + '/supplier';
     var partUri = baseUri + '/part';
     var suppliesUri = baseUri + '/supplies';
