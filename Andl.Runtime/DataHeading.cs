@@ -169,20 +169,20 @@ namespace Andl.Runtime {
         .Select(c => dict.ContainsKey(c.Name) ? c.Rename(dict[c.Name].Name) : c));
     }
 
-    // from existing with extends applied
-    public DataHeading Extend(IEnumerable<DataColumn> newcols) {
-      return Create(this._columns.Concat(newcols));
-    }
+    //// from existing with extends applied
+    //public DataHeading Extend(IEnumerable<DataColumn> newcols) {
+    //  return Create(this._columns.Concat(newcols));
+    //}
 
-    // from existing with some removed applied
-    public DataHeading Minus(IEnumerable<DataColumn> notcols) {
-      return Create(this._columns.Except(notcols));
-    }
+    //// from existing with some removed applied
+    //public DataHeading Minus(IEnumerable<DataColumn> notcols) {
+    //  return Create(this._columns.Except(notcols));
+    //}
 
-    // from existing with some in common
-    public DataHeading Union(IEnumerable<DataColumn> notcols) {
-      return Create(this._columns.Union(notcols));
-    }
+    //// from existing with some in common
+    //public DataHeading Union(IEnumerable<DataColumn> notcols) {
+    //  return Create(this._columns.Union(notcols));
+    //}
 
     public static DataHeading Merge(MergeOps op, DataHeading left, DataHeading right) {
       return Create(DataColumn.Merge(op, left.Columns, right.Columns));
@@ -198,39 +198,39 @@ namespace Andl.Runtime {
       return Create(this._columns.Intersect(other.Columns).ToArray());
     }
 
-    // form difference of two headings.
-    public DataHeading Minus(DataHeading other) {
-      return Create(this._columns.Except(other.Columns).ToArray());
-    }
+    //// form difference of two headings.
+    //public DataHeading Minus(DataHeading other) {
+    //  return Create(this._columns.Except(other.Columns).ToArray());
+    //}
 
     // form bi-difference of two headings.
-    public DataHeading BiDifference(DataHeading other) {
-      var u = this._columns.Union(other.Columns);
-      var i = this._columns.Intersect(other.Columns);
-      return Create(u.Except(i).ToArray());
-    }
+    //public DataHeading BiDifference(DataHeading other) {
+    //  var u = this._columns.Union(other.Columns);
+    //  var i = this._columns.Intersect(other.Columns);
+    //  return Create(u.Except(i).ToArray());
+    //}
 
     // return a new heading with only those columns with names passed in
-    public DataHeading Only(params string[] names) {
-      var newcols = Columns
-        .Where(c => names.Contains(c.Name)).ToArray();
-      Logger.Assert(newcols.Length == names.Length, "length");    // misspelling will trigger this
-      return DataHeading.Create(newcols);
-    }
+    //public DataHeading Only(params string[] names) {
+    //  var newcols = Columns
+    //    .Where(c => names.Contains(c.Name)).ToArray();
+    //  Logger.Assert(newcols.Length == names.Length, "length");    // misspelling will trigger this
+    //  return DataHeading.Create(newcols);
+    //}
 
     // return a new heading omitting those columns with names passed in
-    public DataHeading AllBut(params string[] names) {
-      var newcols = Columns
-        .Where(c => !names.Contains(c.Name)).ToArray();
-      Logger.Assert(newcols.Length == Columns.Length - names.Length, "length");    // misspelling will trigger this
-      return DataHeading.Create(newcols);
-    }
+    //public DataHeading AllBut(params string[] names) {
+    //  var newcols = Columns
+    //    .Where(c => !names.Contains(c.Name)).ToArray();
+    //  Logger.Assert(newcols.Length == Columns.Length - names.Length, "length");    // misspelling will trigger this
+    //  return DataHeading.Create(newcols);
+    //}
 
-    // return a new heading with additonal columns from those passed in
-    public DataHeading Add(DataColumn[] newcols) {
-      return DataHeading.Create(Columns.Union(newcols).ToArray());
+    //// return a new heading with additonal columns from those passed in
+    //public DataHeading Add(DataColumn[] newcols) {
+    //  return DataHeading.Create(Columns.Union(newcols).ToArray());
 
-    }
+    //}
 
   }
 }

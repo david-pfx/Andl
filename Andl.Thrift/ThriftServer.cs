@@ -37,7 +37,7 @@ namespace Andl.Thrift {
     }
 
     static HashSet<string> _settingshash = new HashSet<string> {
-      "DatabasePath", "DatabaseSqlFlag", "CatalogName", "Noisy"
+      "DatabasePath", "DatabaseSqlFlag", "DatabaseName", "Noisy"
     };
 
     static Gateway AppStartup() {

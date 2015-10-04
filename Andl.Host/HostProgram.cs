@@ -150,7 +150,7 @@ namespace Andl.Host {
 
     // return gateway for this catalog
     public static Gateway GetGateway(string catalog) {
-      return catalog == _gateway.CatalogName ? _gateway : null;
+      return catalog == _gateway.DatabaseName ? _gateway : null;
     }
     static Gateway _gateway;
 
@@ -181,7 +181,7 @@ namespace Andl.Host {
     static readonly Dictionary<string, string> _settingsdict = new Dictionary<string, string> {
       { "DatabasePath", "DatabasePath" },
       { "DatabaseSqlFlag", "DatabaseSqlFlag" },
-      { "CatalogName", "CatalogName" },
+      { "DatabaseName", "DatabaseName" },
       { "Noisy", "Noisy" },
     };
 

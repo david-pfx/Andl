@@ -38,7 +38,7 @@ namespace Andl.Main {
     static List<string> _paths = new List<string>();
     static string _help = "Andl [<input path> [<catalog name> [<database path>]]] options\n"
       + "\t\tDefault is compile only with new catalog and local database\n"
-      + "\t\tDefault catalog is 'default', default database is 'andl.sandl' or 'andl.sqlite'\n"
+      + "\t\tDefault catalog is 'data', default database is 'data.sandl' or 'data.sqlite'\n"
       + "\t/c[nu]\tUse existing catalog, n for new, u for update\n"
       + "\t/i\tInteractive, execute one line at a time\n"
       + "\t/t\tOutput Thrift IDL file\n"
@@ -122,7 +122,7 @@ namespace Andl.Main {
       _catalog.DatabaseSqlFlag = _ssw;
       _catalog.BaseName = Path.GetFileNameWithoutExtension(_paths[0]);
       if (_paths.Count > 1)
-        _catalog.CatalogName = _paths[1];
+        _catalog.DatabaseName = _paths[1];
       if (_paths.Count > 2)
         _catalog.DatabasePath = _paths[2];
       _catalog.SourcePath = ".";

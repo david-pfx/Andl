@@ -45,9 +45,9 @@ namespace Andl.Runtime {
     static string _persistpattern = @"^[@A-Za-z].*$";
     static string _databasepattern = @"^[A-Za-z].*$";
 
-    static readonly string _localdatabasepath = "andl.sandl";
-    static readonly string _sqldatabasepath = "andl.sqlite";
-    static readonly string _catalogname = "default";
+    static readonly string _localdatabaseext = ".sandl";
+    static readonly string _sqldatabaseext = ".sqlite";
+    static readonly string _catalogname = "data";
     static readonly string _sysprefix = "andl_";
 
     // internally visible tables
@@ -56,19 +56,19 @@ namespace Andl.Runtime {
     static readonly string _operatortablename = "andl_operator";
     static readonly string _membertablename = "andl_member";
 
-    static readonly DataHeading CatalogHeading = DataHeading.Create("Name:text", "Kind:text", "Type:text", "Value:binary");
-    static readonly DataHeading VariableHeading = DataHeading.Create("Name:text", "Type:text", "Members:text");
-    static readonly DataHeading OperatorHeading = DataHeading.Create("Name:text", "Members:text", "Arguments:text");
-    static readonly DataHeading MemberHeading = DataHeading.Create("MemberOf:text", "Index:number", "Name:text", "Type:text", "Members:text");
-    static readonly DataHeading CatalogKey = DataHeading.Create("Name:text");
+    static readonly DataHeading _catalogheading = DataHeading.Create("Name:text", "Kind:text", "Type:text", "Value:binary");
+    static readonly DataHeading _variableheading = DataHeading.Create("Name:text", "Type:text", "Members:text");
+    static readonly DataHeading _operatorheading = DataHeading.Create("Name:text", "Members:text", "Arguments:text");
+    static readonly DataHeading _memberheading = DataHeading.Create("MemberOf:text", "Index:number", "Name:text", "Type:text", "Members:text");
+    static readonly DataHeading _catalogkey = DataHeading.Create("Name:text");
 
     //static Dictionary<string, DataHeading> _protectedheadings;
 
     static Dictionary<string, DataHeading> _protectedheadings = new Dictionary<string, DataHeading> {
-      { _catalogtablename, CatalogHeading },
-      { _variabletablename, VariableHeading },
-      { _operatortablename, OperatorHeading },
-      { _membertablename, MemberHeading },
+      { _catalogtablename, _catalogheading },
+      { _variabletablename, _variableheading },
+      { _operatortablename, _operatorheading },
+      { _membertablename, _memberheading },
     };
 
     static Dictionary<string, Func<CatalogTableMaker, IEnumerable<CatalogEntry>, CatalogTableMaker>> _protectedtablemaker = 
@@ -82,7 +82,7 @@ namespace Andl.Runtime {
     static Dictionary<string, Action<Catalog, string>> _settings = new Dictionary<string, Action<Catalog, string>> {
       { "DatabasePath", (c,s) => c.DatabasePath = s },
       { "DatabaseSqlFlag", (c,s) => c.DatabaseSqlFlag = (s.ToLower() == "true") },
-      { "CatalogName", (c,s) => c.CatalogName = s },
+      { "DatabaseName", (c,s) => c.DatabaseName = s },
       { "Noisy", (c,s) => Logger.Level = Int32.Parse(s) },
     };
 
@@ -99,8 +99,7 @@ namespace Andl.Runtime {
     public string DatabasePattern { get; set; } // relvars kept in the (SQL) database
 
     public string BaseName { get; set; }        // base name for application
-    public string CatalogName { get; set; }     // public name for the catalog
-    public string CatalogFullName { get { return _sysprefix + CatalogName; } } // storage name
+    public string DatabaseName { get; set; }    // name of the database (defaults to same as filename)
     public string DatabasePath { get; set; }    // path to the database (either kind)
     public string SourcePath { get; set; }      // base path for reading a source
 
@@ -125,7 +124,7 @@ namespace Andl.Runtime {
     Catalog() { }
     public static Catalog Create() {
       var cat = new Catalog {
-        CatalogName = _catalogname,
+        DatabaseName = _catalogname,
         SystemPattern = _systempattern,
         PersistPattern = _persistpattern,
         DatabasePattern = _databasepattern,
@@ -146,31 +145,28 @@ namespace Andl.Runtime {
     // create catalog table here, local until the end
     public void Start() {
       if (DatabasePath == null)
-        DatabasePath = (DatabaseSqlFlag) ? _sqldatabasepath : _localdatabasepath;
+        DatabasePath = (DatabaseSqlFlag) ? DatabaseName + _sqldatabaseext : DatabaseName + _localdatabaseext;
       if (DatabaseSqlFlag) {
         var sqleval = SqlEvaluator.Create();
         var database = Sqlite.SqliteDatabase.Create(DatabasePath, sqleval);
         SqlTarget.Configure(database);
       }
 
+      // TODO: make these functions instead
       // Add alternate catalog name as alias
-      _protectedheadings.Add(CatalogFullName, _protectedheadings[_catalogtablename]);
-      _protectedtablemaker.Add(CatalogFullName, _protectedtablemaker[_catalogtablename]);
-      //if (CatalogName != _catalogtablename) {
-      //  _protectedheadings.Add(CatalogName, _protectedheadings[_catalogtablename]);
-      //  _protectedtablemaker.Add(CatalogName, _protectedtablemaker[_catalogtablename]);
-      //}
+      //_protectedheadings.Add(CatalogFullName, _protectedheadings[_catalogtablename]);
+      //_protectedtablemaker.Add(CatalogFullName, _protectedtablemaker[_catalogtablename]);
 
       foreach (var name in _protectedheadings.Keys) {
         var table = DataTableLocal.Create(_protectedheadings[name]);
         GlobalVars.Add(name, table.DataType, EntryKinds.Value, EntryFlags.Public | EntryFlags.System, TypedValue.Create(table));
       }
-      GlobalVars.FindEntry(CatalogFullName).Flags |= EntryFlags.Database;
+      GlobalVars.FindEntry(_catalogtablename).Flags |= EntryFlags.Database;
       if (LoadFlag) {
-        if (!LinkRelvar(CatalogFullName))
-          RuntimeError.Fatal("Catalog", "cannot load catalog");
+        if (!LinkRelvar(_catalogtablename))
+          RuntimeError.Fatal("Catalog", "cannot load catalog for '{0}'", DatabaseName);
         LoadFromTable();
-        Logger.WriteLine(1, "Loaded catalog '{0}'", CatalogName);
+        Logger.WriteLine(1, "Loaded catalog for '{0}'", DatabaseName);
       }
     }
 
@@ -178,7 +174,7 @@ namespace Andl.Runtime {
     public void Finish() {
       if (SaveFlag) {
         StoreToTable();
-        Logger.WriteLine(1, "Updated catalog '{0}'", CatalogName);
+        Logger.WriteLine(1, "Updated catalog for '{0}'", DatabaseName);
       }
     }
 
@@ -264,9 +260,9 @@ namespace Andl.Runtime {
 
     // Store the persistent catalog with current values
     public void StoreToTable() {
-      var table = DataTableLocal.Create(CatalogHeading);
+      var table = DataTableLocal.Create(_catalogheading);
       foreach (var entry in PersistentVars.GetEntries()) {
-        var addrow = DataRow.Create(CatalogHeading, new TypedValue[] 
+        var addrow = DataRow.Create(_catalogheading, new TypedValue[] 
           { TextValue.Create(entry.Name), 
             TextValue.Create(entry.Kind.ToString()), 
             TextValue.Create(entry.DataType.BaseType.Name), 
@@ -274,12 +270,12 @@ namespace Andl.Runtime {
         table.AddRow(addrow);
       }
       if (DatabaseSqlFlag)
-        DataTableSql.Create(CatalogFullName, table);
-      else Persist.Create(DatabasePath, true).Store(CatalogFullName, RelationValue.Create(table));
+        DataTableSql.Create(_catalogtablename, table);
+      else Persist.Create(DatabasePath, true).Store(_catalogtablename, RelationValue.Create(table));
     }
 
     public void LoadFromTable() {
-      var table = GlobalVars.GetValue(CatalogFullName).AsTable();
+      var table = GlobalVars.GetValue(_catalogtablename).AsTable();
       //var level = FindLevel(ScopeLevels.Persistent);
       foreach (var row in table.GetRows()) {
         var blob = (row.Values[3] as BinaryValue).Value;

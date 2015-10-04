@@ -25,14 +25,14 @@ namespace Andl.Server {
     Dictionary<string, string> _settingsdict = new Dictionary<string, string> {
       { "DatabasePath", "DatabasePath" },
       { "DatabasePathSqlFlag", "DatabaseSqlFlag" },
-      { "CatalogName", "CatalogName" },
+      { "DatabaseName", "DatabaseName" },
       { "Noisy", "Noisy" },
     };
 
     // Access the required catalog
     // TODO: support non-default catalog
     public static Gateway GetGateway(string catalog = null) {
-      return (catalog == null || catalog == _gateway.CatalogName) ? _gateway : null;
+      return (catalog == null || catalog == _gateway.DatabaseName) ? _gateway : null;
     }
     static Gateway _gateway;
 

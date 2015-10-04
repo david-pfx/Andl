@@ -43,7 +43,7 @@ namespace Andl.API {
     }
 
     public bool JsonReturnFlag { get; set; }
-    public abstract string CatalogName { get; }
+    public abstract string DatabaseName { get; }
 
     // Get the value of a variable, or evaluate a function of no arguments.
     public abstract Result GetValue(string name);
@@ -97,8 +97,8 @@ namespace Andl.API {
       _catalog.Start();
     }
 
-    public override string CatalogName {
-      get { return _catalog.CatalogName; }
+    public override string DatabaseName {
+      get { return _catalog.DatabaseName; }
     }
 
     // Support implementation functions at catalog level
