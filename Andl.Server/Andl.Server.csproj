@@ -164,8 +164,8 @@
     <Content Include="favicon.ico" />
     <Content Include="fonts\glyphicons-halflings-regular.svg" />
     <Content Include="Global.asax" />
-    <Content Include="Scripts\appsample1.js" />
-    <Content Include="Scripts\appwebsp.js" />
+    <Content Include="Scripts\appspapi.js" />
+    <Content Include="Scripts\appsprest.js" />
     <Content Include="Scripts\bootstrap.js" />
     <Content Include="Scripts\bootstrap.min.js" />
     <Content Include="Areas\HelpPage\Views\Web.config" />
@@ -188,7 +188,7 @@
     <Content Include="Areas\HelpPage\Views\Help\DisplayTemplates\ApiGroup.cshtml" />
     <Content Include="Areas\HelpPage\Views\Help\Api.cshtml" />
     <None Include="Scripts\jquery-1.10.2.intellisense.js" />
-    <Content Include="Scripts\employeeinfo.js" />
+    <Content Include="Scripts\appemprest.js" />
     <Content Include="Scripts\jquery-1.10.2.js" />
     <Content Include="Scripts\jquery-1.10.2.min.js" />
     <Content Include="Scripts\knockout-3.3.0.debug.js" />
@@ -214,7 +214,14 @@
     <Content Include="Views\Shared\Error.cshtml" />
     <Content Include="Views\Shared\_Layout.cshtml" />
     <Content Include="Scripts\jquery-1.10.2.min.map" />
-    <Content Include="Views\Home\employeeinfo.cshtml" />
+    <Content Include="Views\Home\appemprest.cshtml" />
+    <Content Include="Views\Home\appsprest.cshtml" />
+    <Content Include="Views\Home\appspapi.cshtml" />
+    <Content Include="WebEmpRestSetup.andl" />
+    <Content Include="WebSpApiSetup.andl" />
+    <Content Include="WebSpApiShow.andl" />
+    <Content Include="WebSpRestSetup.andl" />
+    <Content Include="WebSpRestShow.andl" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Andl.API\Andl.API.csproj">

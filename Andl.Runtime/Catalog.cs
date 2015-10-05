@@ -48,7 +48,6 @@ namespace Andl.Runtime {
     static readonly string _localdatabaseext = ".sandl";
     static readonly string _sqldatabaseext = ".sqlite";
     static readonly string _catalogname = "data";
-    static readonly string _sysprefix = "andl_";
 
     // internally visible tables
     static readonly string _catalogtablename = "andl_catalog";
@@ -81,7 +80,7 @@ namespace Andl.Runtime {
 
     static Dictionary<string, Action<Catalog, string>> _settings = new Dictionary<string, Action<Catalog, string>> {
       { "DatabasePath", (c,s) => c.DatabasePath = s },
-      { "DatabaseSqlFlag", (c,s) => c.DatabaseSqlFlag = (s.ToLower() == "true") },
+      { "DatabaseSqlFlag", (c,s) => c.DatabaseSqlFlag = (s != null && s.ToLower() == "true") },
       { "DatabaseName", (c,s) => c.DatabaseName = s },
       { "Noisy", (c,s) => Logger.Level = Int32.Parse(s) },
     };

@@ -1,4 +1,5 @@
-﻿// view model for application sample 1
+﻿// view model for Andl Web application sample 2
+// REST API using data model created by WebSpRestSetup.andl
 
 var ViewModel = function () {
     var self = this;

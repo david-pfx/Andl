@@ -21,15 +21,15 @@ namespace Andl.Server {
                 "~/Content/bootstrap.css",
                 "~/Content/site.css"));
       // New code:
-      bundles.Add(new ScriptBundle("~/bundles/app").Include(
+      bundles.Add(new ScriptBundle("~/bundles/spapi").Include(
                 "~/Scripts/knockout-{version}.js",
-                "~/Scripts/appsample1.js"));
-      bundles.Add(new ScriptBundle("~/bundles/appsp").Include(
+                "~/Scripts/appspapi.js"));
+      bundles.Add(new ScriptBundle("~/bundles/sprest").Include(
                 "~/Scripts/knockout-{version}.js",
-                "~/Scripts/appwebsp.js"));
-      bundles.Add(new ScriptBundle("~/bundles/employee").Include(
+                "~/Scripts/appsprest.js"));
+      bundles.Add(new ScriptBundle("~/bundles/emprest").Include(
                 "~/Scripts/knockout-{version}.js",
-                "~/Scripts/employeeinfo.js"));
+                "~/Scripts/appemprest.js"));
     }
   }
 }

@@ -18,7 +18,7 @@ namespace Andl.Server {
       );
       config.Routes.MapHttpRoute(
           name: "NativeApi",
-          routeTemplate: "andl/{database}/{name}",
+          routeTemplate: "api/{database}/{name}",
           defaults: new { controller = "andl" }
       );
     }

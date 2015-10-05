@@ -10,34 +10,37 @@ using Newtonsoft.Json;
 
 namespace Andl.Server.Controllers {
   public class AndlController : ApiController {
-    Gateway Runtime { get { return WebApiApplication.GetGateway(); } }
+    Gateway Runtime(string database) {
+      return WebApiApplication.GetGateway(database);
+    }
+    //Gateway Runtime { get { return WebApiApplication.GetGateway(); } }
 
     // GET api/<catalog>/<name>
 
     // get value of variable/function, no arguments
-    public async Task<IHttpActionResult> GetValue(string catalog, string name) {
+    public async Task<IHttpActionResult> GetValue(string database, string name) {
       string body = await Request.Content.ReadAsStringAsync();
-      var ret = Runtime.GetValue(name);
+      var ret = Runtime(database).GetValue(name);
       if (ret.Ok) return Ok(ret.Value);
       return BadRequest(ret.Message);
     }
 
     // set value of variable or call function with one argument
-    public async Task<IHttpActionResult> PutValue(string catalog, string name) {
+    public async Task<IHttpActionResult> PutValue(string database, string name) {
       string body = await Request.Content.ReadAsStringAsync();
-      Type type = Runtime.GetSetterType(name);
+      Type type = Runtime(database).GetSetterType(name);
       if (type == null) return BadRequest("unknown name");
       var value = JsonConvert.DeserializeObject(body, type);
       if (value == null) return BadRequest("bad argument");
-      var ret = Runtime.Evaluate(name, value);
+      var ret = Runtime(database).Evaluate(name, value);
       if (ret.Ok) return Ok(ret.Value);
       return BadRequest(ret.Message);
     }
 
     // call function or command with arguments, optional return value
-    public async Task<IHttpActionResult> PostEvaluate(string catalog, string name) {
+    public async Task<IHttpActionResult> PostEvaluate(string database, string name) {
       string body = await Request.Content.ReadAsStringAsync();
-      Type[] types = Runtime.GetArgumentTypes(name);
+      Type[] types = Runtime(database).GetArgumentTypes(name);
       if (types == null) return BadRequest("unknown name");
       string[] bodies;
       if (types.Length == 0) bodies = new string[0];
@@ -48,7 +51,7 @@ namespace Andl.Server.Controllers {
       }
       var values = types.Select((t, x) => JsonConvert.DeserializeObject(bodies[x], t)).ToArray();
       if (values.Any(v => v == null)) return BadRequest("bad arguments");
-      var ret = Runtime.Evaluate(name, values);
+      var ret = Runtime(database).Evaluate(name, values);
       if (ret.Ok) return Ok(ret.Value);
       return BadRequest(ret.Message);
     }

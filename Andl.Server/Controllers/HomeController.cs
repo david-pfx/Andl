@@ -5,6 +5,14 @@ using System.Web;
 using System.Web.Mvc;
 
 namespace Andl.Server.Controllers {
+  /// <summary>
+  /// Implement web page controller for sample application.
+  /// 
+  /// This is the only controller for loading web pages for all the samples. Incoming
+  /// API calls are routed separately to an ApiController.
+  /// 
+  /// Note: each action is named after its CSHTML page, so each action returns a default view.
+  /// </summary>
   public class HomeController : Controller {
     public ActionResult Index() {
       ViewBag.Title = "Home Page";
@@ -12,10 +20,22 @@ namespace Andl.Server.Controllers {
       return View();
     }
 
-    public ActionResult EmployeeInfo() {
-      ViewBag.Title = "Employee Info";
+    public ActionResult AppSpRest() {
+      ViewBag.Title = "Supplier Parts REST Sample";
 
-      return View("employeeinfo");
+      return View();
+    }
+
+    public ActionResult AppSpApi() {
+      ViewBag.Title = "Supplier Parts API Sample";
+
+      return View();
+    }
+
+    public ActionResult AppEmpRest() {
+      ViewBag.Title = "Employee Info REST Sample";
+
+      return View();
     }
   }
 }

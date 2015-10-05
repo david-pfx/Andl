@@ -10,10 +10,10 @@ var ViewModel = function () {
 
     self.error = ko.observable();
     
-    var supplierUri = '/api/main/suppliers';
-    var partUri = '/api/main/parts';
-    var suppliesUri = '/api/main/supplies';
-    var sbynameUri = '/api/main/sbyname';
+    var supplierUri = '/api/spapi/suppliers';
+    var partUri = '/api/spapi/parts';
+    var suppliesUri = '/api/spapi/supplies';
+    var sbynameUri = '/api/spapi/sbyname';
 
     function ajaxHelper(uri, method, data) {
         self.error(''); // Clear error message
@@ -53,7 +53,7 @@ var ViewModel = function () {
         //var formData = JSON.stringify($("#nsuppid").serializeArray());
         var formData = ko.toJSON($("#nsuppid").serializeArray());
         var formData = ko.toJSON($("#nsuppid"));
-        ajaxHelper('api/main/addsuppliers', 'PUT', formData).done(
+        ajaxHelper('api/spapi/addsuppliers', 'PUT', formData).done(
           function (data) {
               self.newsuppliers.removeAll();
               self.getSuppliers();
@@ -77,8 +77,8 @@ self.delSupplier = function (supplier) {
         }
 
     getSuppliers();
-    getSupplies();
-    getParts();
+    //getSupplies();
+    //getParts();
         //getSbyname( 'a' );
 };
 

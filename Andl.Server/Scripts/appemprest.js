@@ -1,5 +1,7 @@
 ﻿// javascript broken out of original cshtml
 
+// this sample uses knockout and a jquery REST interface
+
     var self = this;
 //S1:Boolean to check wheather the operation is for Edit and New Record
 var IsNewRecord = false;
@@ -12,7 +14,7 @@ loadEmployees();
 function loadEmployees() {
     $.ajax({
         type: "GET",
-        url: "/rest/employee",
+        url: "/rest/emprest/employee",
         success: function (data) {
             //alert("Success");
             self.Employees(data);
@@ -69,7 +71,7 @@ EmpViewModel.saveEmployee = function (d) {
     if (IsNewRecord === false) {
         $.ajax({
             type: "PUT",
-            url: "/rest/employee/" + Emp.EmpNo,
+            url: "/rest/emprest/employee/" + Emp.EmpNo,
             dataType: 'json',
             contentType: 'application/json',
             data: JSON.stringify([Emp]),
@@ -90,7 +92,7 @@ EmpViewModel.saveEmployee = function (d) {
         IsNewRecord = false;
         $.ajax({
             type: "POST",
-            url: "/rest/employee",
+            url: "/rest/emprest/employee",
             dataType: 'json',
             contentType: 'application/json',
             data: ko.toJSON([Emp]),
@@ -114,7 +116,7 @@ EmpViewModel.deleteEmployee = function (d) {
 
     $.ajax({
         type: "DELETE",
-        url: "/rest/Employee/" + d.EmpNo,
+        url: "/rest/emprest/Employee/" + d.EmpNo,
         success: function (data) {
             alert("Record Deleted Successfully " + data.status);
             EmpViewModel.reset();

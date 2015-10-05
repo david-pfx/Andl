@@ -1,8 +1,8 @@
-﻿// WebSpApiSetup.andl -- set up for access by Web direct API
+﻿// WebSpApiSetup.andl
 // 
 #catalog new update
 
-'WebSpApiSetup.andl -- set up for access by Web direct API'
+'WebSpApiSetup.andl -- set up for Web API SP sample'
 
 // load initial data
 def S:db(csv), P:db(csv), SP:db(csv)
@@ -44,10 +44,10 @@ findsome_part(query:tquery) => do {
 
 findall_supplies => supplies
 
-supplier
-part
-supplies
-findsome_part({{ Key := 'PNAME', Value := 'S.*' }})
+//supplier
+//part
+//supplies
+//findsome_part({{ Key := 'PNAME', Value := 'S.*' }})
 
 //andl_catalog
 //andl_variable

@@ -1,8 +1,8 @@
-﻿// WebSpRestSetup.andl -- set up for access by REST API (WCF)
+﻿// WebSpRestSetup.andl
 // 
 #catalog new update
 
-'WebSpRestSetup.andl -- set up for access by REST API'
+'WebSpRestSetup.andl -- set up for Web REST SP sample'
 
 // load initial data
 def S:db(csv), P:db(csv), SP:db(csv)
@@ -43,10 +43,10 @@ get_part_q(query:{{ Key:text,Value:text }}) => do {
 
 get_supplies => supplies
 
-get_supplier
-get_part
-get_supplies
-get_part_q({{ Key := 'PNAME', Value := 'S.*' }})
+//get_supplier
+//get_part
+//get_supplies
+//get_part_q({{ Key := 'PNAME', Value := 'S.*' }})
 
 //andl_catalog
 //andl_variable
