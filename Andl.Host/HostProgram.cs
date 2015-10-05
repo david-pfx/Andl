@@ -115,9 +115,9 @@ namespace Andl.Host {
 
     // logging code for kvp
     string KvpToString(IEnumerable<KeyValuePair<string, string>> qparams) {
-      if (qparams == null) return "[]";
+      if (qparams == null) return "{}";
       var x = qparams.Select(p => String.Format("{0}={1}", p.Key, p.Value)).ToArray();
-      return "[" + string.Join(", ", x) + "]";
+      return "{" + string.Join(", ", x) + "}";
     }
 
     // emit string as response
@@ -196,25 +196,27 @@ namespace Andl.Host {
 
     //--- test only
 
+    // Note: some will trigger error response and raise an exception
+
     static void SendTests(string baseaddress) {
-      SendRequest(baseaddress + "/default/supplier", "GET");
-      SendRequest(baseaddress + "/default/supplier/S2", "GET");
+      SendRequest(baseaddress + "/data/supplier", "GET");
+      SendRequest(baseaddress + "/data/supplier/S2", "GET");
       var newsupp = "[{'Sid':'S9','SNAME':'Adolph','STATUS':99,'CITY':'Melbourne'}]".Replace('\'', '"');
-      SendRequest(baseaddress + "/default/supplier/x", "POST", "json", newsupp);
-      SendRequest(baseaddress + "/default/supplier/", "POST", "json", newsupp);
-      SendRequest(baseaddress + "/default/supplier", "POST", "json", newsupp);
-      SendRequest(baseaddress + "/default/supplier", "DELETE");
-      SendRequest(baseaddress + "/default/supplier/S9", "DELETE");
-      SendRequest(baseaddress + "/default/supplier/S9", "GET");
-      SendRequest(baseaddress + "/default/supplier", "PUT", "json", newsupp);
-      SendRequest(baseaddress + "/default/supplier/S9", "PUT", "json", newsupp);
-      SendRequest(baseaddress + "/default/supplier/S9", "GET");
-      SendRequest(baseaddress + "/default/part", "GET");
-      SendRequest(baseaddress + "/default/part?PNAME=S.*", "GET");
-      SendRequest(baseaddress + "/default/xsupplier", "DELETE");
+      SendRequest(baseaddress + "/data/supplier/x", "POST", "json", newsupp);
+      SendRequest(baseaddress + "/data/supplier/", "POST", "json", newsupp);
+      SendRequest(baseaddress + "/data/supplier", "POST", "json", newsupp);
+      SendRequest(baseaddress + "/data/supplier", "DELETE");
+      SendRequest(baseaddress + "/data/supplier/S9", "DELETE");
+      SendRequest(baseaddress + "/data/supplier/S9", "GET");
+      SendRequest(baseaddress + "/data/supplier", "PUT", "json", newsupp);
+      SendRequest(baseaddress + "/data/supplier/S9", "PUT", "json", newsupp);
+      SendRequest(baseaddress + "/data/supplier/S9", "GET");
+      SendRequest(baseaddress + "/data/part", "GET");
+      SendRequest(baseaddress + "/data/part?PNAME=S.*", "GET");
+      SendRequest(baseaddress + "/data/xsupplier", "DELETE");
 #if tests
-      SendRequest(baseaddress + "/default/badsupplier", "GET");
-      SendRequest(baseaddress + "/default/badsupplier", "POST", "json", "post 1");
+      SendRequest(baseaddress + "/data/badsupplier", "GET");
+      SendRequest(baseaddress + "/data/badsupplier", "POST", "json", "post 1");
 #endif
     }
 

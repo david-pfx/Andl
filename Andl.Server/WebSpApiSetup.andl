@@ -7,6 +7,7 @@
 // load initial data
 def S:db(csv), P:db(csv), SP:db(csv)
 
+// Assume these will be accessed directly
 supplier := S [{ *Sid:=S# }]
 part := P [{ *Pid := P# }]
 supplies := SP [{ *Sid := S#, Pid:= P# }]

@@ -9,11 +9,13 @@ var ViewModel = function () {
     self.sbyname = ko.observableArray();
 
     self.error = ko.observable();
-    
-    var supplierUri = '/api/spapi/suppliers';
-    var partUri = '/api/spapi/parts';
+    self.editmode = ko.observable();
+
+    var supplierUri = '/api/spapi/supplier';
+    var partUri = '/api/spapi/part';
     var suppliesUri = '/api/spapi/supplies';
     var sbynameUri = '/api/spapi/sbyname';
+    var addsuppUri = '/api/spapi/addsupplier';
 
     function ajaxHelper(uri, method, data) {
         self.error(''); // Clear error message
@@ -53,33 +55,33 @@ var ViewModel = function () {
         //var formData = JSON.stringify($("#nsuppid").serializeArray());
         var formData = ko.toJSON($("#nsuppid").serializeArray());
         var formData = ko.toJSON($("#nsuppid"));
-        ajaxHelper('api/spapi/addsuppliers', 'PUT', formData).done(
+        ajaxHelper(addsuppUri, 'PUT', formData).done(
           function (data) {
               self.newsuppliers.removeAll();
               self.getSuppliers();
           });
     };
 
-self.delSupplier = function (supplier) {
-    self.suppliers.remove(supplier);
+    self.delSupplier = function (supplier) {
+        self.suppliers.remove(supplier);
     };
 
     function getParts() {
         ajaxHelper(partUri, 'GET').done(function (data) {
             self.parts(data);
         });
-        }
+    }
 
-        function getSupplies() {
-            ajaxHelper(suppliesUri, 'GET').done(function (data) {
-                self.supplies(data);
+    function getSupplies() {
+        ajaxHelper(suppliesUri, 'GET').done(function (data) {
+            self.supplies(data);
         });
-        }
+    }
 
     getSuppliers();
-    //getSupplies();
-    //getParts();
-        //getSbyname( 'a' );
+    getParts();
+    getSupplies();
+    //getSbyname( 'a' );
 };
 
 ko.applyBindings(new ViewModel());
