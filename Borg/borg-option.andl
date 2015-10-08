@@ -3,7 +3,7 @@
 option := {{ name:'', value }}
 
 // set option
-put_option(id, opt:option) => do {
+put_option_id(id, opt:option) => do {
     option := [ ?(name = id) ]
     option := union opt [ ?(name <> '' and value <> '') ]
 }

@@ -10,27 +10,27 @@ add_checklist(cl:checklist) => do {
 }
 
 // Replace a set of checklists
-update_checklist(cl:checklist) => do {
-    checklist := minus (checklist join cl [{ name }])
+put_checklist_id(cid, cl:checklist) => do {
+    checklist := [ ?(name = cid) ]
     checklist := union cl
 }
 
 // Delete checklist by key
-delete_checklist(key) => do {
-    checklist := [ ?(name = key) ]
+delete_checklist_id(cid) => do {
+    checklist := [ ?(name = cid) ]
 }
 
 // Find checklist by key
-find_checklist(key) => do {
-    checklist[ ?(name = key) ]
+get_checklist_id(cid) => do {
+    checklist[ ?(name = cid) ]
 }
 
 // Find all checklists
-all_checklists() => do {
+get_checklists() => do {
     checklist
 }
 
 // Find all names
-names_checklists() => do {
+get_checklist_names() => do {
     checklist [ $(name) { name }]
 }

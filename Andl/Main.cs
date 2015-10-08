@@ -154,7 +154,7 @@ namespace Andl.Main {
       }
       if (_catalog.SaveFlag) {
       //if (_catalog.SaveFlag && _catalog.ExecuteFlag) {
-        Logger.WriteLine("*** Updating: {0} ***", _paths[1]);
+        Logger.WriteLine("*** Updating: {0} ***", _catalog.DatabaseName);
         _catalog.Finish();
       }
     }

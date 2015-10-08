@@ -16,7 +16,7 @@ put_memo_id(id, mm:memo) => do {
 }
 
 // Delete memo by id
-delete_memo(id) => do {
+delete_memo_id(id) => do {
     memo := [ ?(memoname = id) ]
 }
 

@@ -47,35 +47,35 @@ namespace Andl.Runtime {
 
     static readonly string _localdatabaseext = ".sandl";
     static readonly string _sqldatabaseext = ".sqlite";
-    static readonly string _catalogname = "data";
-
-    // internally visible tables
+    static readonly string _databasename = "data";
     static readonly string _catalogtablename = "andl_catalog";
-    static readonly string _variabletablename = "andl_variable";
-    static readonly string _operatortablename = "andl_operator";
-    static readonly string _membertablename = "andl_member";
 
-    static readonly DataHeading _catalogheading = DataHeading.Create("Name:text", "Kind:text", "Type:text", "Value:binary");
-    static readonly DataHeading _variableheading = DataHeading.Create("Name:text", "Type:text", "Members:text");
-    static readonly DataHeading _operatorheading = DataHeading.Create("Name:text", "Members:text", "Arguments:text");
-    static readonly DataHeading _memberheading = DataHeading.Create("MemberOf:text", "Index:number", "Name:text", "Type:text", "Members:text");
+    public enum CatalogTables {
+      Catalog, Variable, Operator, Member
+    };
+
+    static readonly Dictionary<CatalogTables, DataHeading> _catalogtableheadings = new Dictionary<CatalogTables,DataHeading> {
+      { CatalogTables.Catalog,  DataHeading.Create("Name:text", "Kind:text", "Type:text", "Value:binary") },
+      { CatalogTables.Variable, DataHeading.Create("Name:text", "Type:text", "Members:text") },
+      { CatalogTables.Operator, DataHeading.Create("Name:text", "Type:text", "Members:text", "Arguments:text") },
+      { CatalogTables.Member,   DataHeading.Create("MemberOf:text", "Index:number", "Name:text", "Type:text", "Members:text") },
+    };
+
+    public static DataHeading CatalogTableHeading(CatalogTables table) {
+      return _catalogtableheadings[table];
+    }
+
     static readonly DataHeading _catalogkey = DataHeading.Create("Name:text");
+    static readonly DataHeading _catalogtableheading = _catalogtableheadings[CatalogTables.Catalog];
 
     //static Dictionary<string, DataHeading> _protectedheadings;
 
-    static Dictionary<string, DataHeading> _protectedheadings = new Dictionary<string, DataHeading> {
-      { _catalogtablename, _catalogheading },
-      { _variabletablename, _variableheading },
-      { _operatortablename, _operatorheading },
-      { _membertablename, _memberheading },
-    };
-
-    static Dictionary<string, Func<CatalogTableMaker, IEnumerable<CatalogEntry>, CatalogTableMaker>> _protectedtablemaker = 
-      new Dictionary<string,Func<CatalogTableMaker, IEnumerable<CatalogEntry>,CatalogTableMaker>> {
-      { _catalogtablename, (c, e) => c.AddEntries(e) },
-      { _variabletablename, (c, e) => c.AddVariables(e) },
-      { _operatortablename, (c, e) => c.AddOperators(e) },
-      { _membertablename, (c, e) => c.AddMembers(e) },
+    static Dictionary<CatalogTables, Func<CatalogTableMaker, IEnumerable<CatalogEntry>, CatalogTableMaker>> _protectedtablemaker =
+      new Dictionary<CatalogTables, Func<CatalogTableMaker, IEnumerable<CatalogEntry>, CatalogTableMaker>> {
+      { CatalogTables.Catalog, (c, e) => c.AddEntries(e) },
+      { CatalogTables.Variable, (c, e) => c.AddVariables(e) },
+      { CatalogTables.Operator, (c, e) => c.AddOperators(e) },
+      { CatalogTables.Member, (c, e) => c.AddMembers(e) },
     };
 
     static Dictionary<string, Action<Catalog, string>> _settings = new Dictionary<string, Action<Catalog, string>> {
@@ -104,7 +104,7 @@ namespace Andl.Runtime {
 
     // predefined scopes, accessed globally
     public CatalogScope PersistentVars { get; private set; }
-    public CatalogScope GlobalVars { get; private set; } 
+    public CatalogScope GlobalVars { get; private set; }
 
     public bool IsSystem(string name) {
       return Regex.IsMatch(name, SystemPattern);
@@ -123,7 +123,7 @@ namespace Andl.Runtime {
     Catalog() { }
     public static Catalog Create() {
       var cat = new Catalog {
-        DatabaseName = _catalogname,
+        DatabaseName = _databasename,
         SystemPattern = _systempattern,
         PersistPattern = _persistpattern,
         DatabasePattern = _databasepattern,
@@ -151,15 +151,8 @@ namespace Andl.Runtime {
         SqlTarget.Configure(database);
       }
 
-      // TODO: make these functions instead
-      // Add alternate catalog name as alias
-      //_protectedheadings.Add(CatalogFullName, _protectedheadings[_catalogtablename]);
-      //_protectedtablemaker.Add(CatalogFullName, _protectedtablemaker[_catalogtablename]);
-
-      foreach (var name in _protectedheadings.Keys) {
-        var table = DataTableLocal.Create(_protectedheadings[name]);
-        GlobalVars.Add(name, table.DataType, EntryKinds.Value, EntryFlags.Public | EntryFlags.System, TypedValue.Create(table));
-      }
+      var table = DataTableLocal.Create(_catalogtableheading);
+      GlobalVars.Add(_catalogtablename, table.DataType, EntryKinds.Value, EntryFlags.Public | EntryFlags.System, TypedValue.Create(table));
       GlobalVars.FindEntry(_catalogtablename).Flags |= EntryFlags.Database;
       if (LoadFlag) {
         if (!LinkRelvar(_catalogtablename))
@@ -177,20 +170,10 @@ namespace Andl.Runtime {
       }
     }
 
-    // handle special protected pseudo-tables
-    internal DataHeading GetProtectedHeading(string name) {
-      DataHeading heading;
-      if (_protectedheadings.TryGetValue(name, out heading)) return heading;
-      else return null;
-      //if (!_protectedheadings.ContainsKey(name)) return null;
-      //return _protectedheadings[name];
-    }
-
-    internal TypedValue GetProtectedValue(string name) {
-      var heading = GetProtectedHeading(name);
-      if (heading == null) return null;
-      var tablemaker = CatalogTableMaker.Create(heading);
-      _protectedtablemaker[name](tablemaker, PersistentVars.GetEntries());
+    // return value for system tables
+    public RelationValue GetCatalogTableValue(CatalogTables table) {
+      var tablemaker = CatalogTableMaker.Create(_catalogtableheadings[table]);
+      _protectedtablemaker[table](tablemaker, PersistentVars.GetEntries());
       return RelationValue.Create(tablemaker.Table);
     }
 
@@ -259,9 +242,9 @@ namespace Andl.Runtime {
 
     // Store the persistent catalog with current values
     public void StoreToTable() {
-      var table = DataTableLocal.Create(_catalogheading);
+      var table = DataTableLocal.Create(_catalogtableheading);
       foreach (var entry in PersistentVars.GetEntries()) {
-        var addrow = DataRow.Create(_catalogheading, new TypedValue[] 
+        var addrow = DataRow.Create(_catalogtableheading, new TypedValue[] 
           { TextValue.Create(entry.Name), 
             TextValue.Create(entry.Kind.ToString()), 
             TextValue.Create(entry.DataType.BaseType.Name), 
@@ -462,8 +445,6 @@ namespace Andl.Runtime {
 
     // Return raw value of variable 
     public TypedValue GetValue(string name) {
-      var value = Catalog.GetProtectedValue(name);
-      if (value != null) return value;
       return Current.GetValue(name);
     }
 
@@ -596,6 +577,7 @@ namespace Andl.Runtime {
     void AddOperator(string name, DataType datatype, ExpressionBlock value) {
       var addrow = DataRow.Create(Table.Heading, new TypedValue[] 
           { TextValue.Create(name), 
+            TextValue.Create(value.DataType.BaseType.Name), 
             TextValue.Create(value.DataType.GenUniqueName ?? ""),
             TextValue.Create(value.SubtypeName) });
       Table.AddRow(addrow);

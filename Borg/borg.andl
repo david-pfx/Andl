@@ -13,5 +13,15 @@
 #include borg-tasklog.andl
 #include borg-project.andl
 
-andl_operator
+//andl_operator()//
 
+paste(s1, s2) => if(s1='',s2 , s1 & ', ' & s2)
+
+membert := andl_member() [{ 
+    Key := MemberOf, 
+    Value := fold(paste, Name & ':' & Type)
+}] union {{ Key := '', Value := '' }}
+
+(andl_operator() join  
+    membert[{ Members := Key, Attributes := Value }] join  
+    membert[{ Arguments := Key, Args := Value }]) [{ Name, Type, Attributes, Args }] [$(Name)]

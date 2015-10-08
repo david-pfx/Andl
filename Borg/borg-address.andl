@@ -23,19 +23,19 @@ add_address(addr:address) => do {
 }
 
 // Replace an address
-put_address_id(id:0, addr:address) => do {
-    address := [ ?(address_num = id) ]
-    address := union addr [ { * address_num := id } ]
+put_address_id(aid:0, addr:address) => do {
+    address := [ ?(address_num = aid) ]
+    address := union addr [ { * address_num := aid } ]
 }
 
 // Delete address by id
-delete_address(id:0) => do {
-    address := [ ?(address_num = id) ]
+delete_address_id(aid:0) => do {
+    address := [ ?(address_num = aid) ]
 }
 
 // Find address by id
-get_address_id(id:0) => do {
-    address[ ?(address_num = id) ]
+get_address_id(aid:0) => do {
+    address[ ?(address_num = aid) ]
 }
 
 // Find all addresses

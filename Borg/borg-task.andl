@@ -55,7 +55,7 @@ get_task_ids() => do {
 }
 
 // Rename task type
-put_task_type(old, new) => do {
-    task := [ ?(type = old) { * type := new } ]
+put_task_type(t1, t2) => do {
+    task := [ ?(type = t1) { * type := t2 } ]
 }
 

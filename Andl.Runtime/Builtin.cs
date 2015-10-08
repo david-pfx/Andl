@@ -116,6 +116,9 @@ namespace Andl.Runtime {
       addins.Add(AddinInfo.Create("degree", 1, DataTypes.Number, "Degree"));
       addins.Add(AddinInfo.Create("schema", 1, DataTypeRelation.Get(DataHeading.Create("Name", "Type")), "Schema"));
       addins.Add(AddinInfo.Create("seq", 1, DataTypeRelation.Get(DataHeading.Create("N:number")), "Sequence"));
+      addins.Add(AddinInfo.Create("andl_variable", 0, DataTypeRelation.Get(Catalog.CatalogTableHeading(Catalog.CatalogTables.Variable)), "Variables"));
+      addins.Add(AddinInfo.Create("andl_operator", 0, DataTypeRelation.Get(Catalog.CatalogTableHeading(Catalog.CatalogTables.Operator)), "Operators"));
+      addins.Add(AddinInfo.Create("andl_member", 0, DataTypeRelation.Get(Catalog.CatalogTableHeading(Catalog.CatalogTables.Member)), "Members"));
 
       return addins.ToArray();
     }
@@ -669,6 +672,21 @@ namespace Andl.Runtime {
         n += 1;
       }
       return RelationValue.Create(table);
+    }
+
+    //--- system tables
+
+    // variables
+    public RelationValue Variables() {
+      return _catalog.Catalog.GetCatalogTableValue(Catalog.CatalogTables.Variable);
+    }
+
+    public RelationValue Operators() {
+      return _catalog.Catalog.GetCatalogTableValue(Catalog.CatalogTables.Operator);
+    }
+
+    public RelationValue Members() {
+      return _catalog.Catalog.GetCatalogTableValue(Catalog.CatalogTables.Member);
     }
 
     ///=================================================================
