@@ -4,47 +4,50 @@ subtask := {{
     id:0, create_date:time, due_date:time, close_date:time, description, task:0, create_time:time, lastmod:time, uid, url
 }}
 
-// Find next key
-subtasks_next_key() => do {
+// Find next id
+getnext_subtask() => do {
     subtask [ { fold(max,id) } ] +1
 }
 
-// subtask CRUD
+// subtask REST CRUD
 
 // Add a set of subtasks
-subtask_add(cl:subtask) => do {
-    subtask := union cl [ { *
-        id := subtasks_next_key(),
+add_subtask(st:subtask) => do {
+    subtask := union st [ { *
+        id := getnext_subtask(),
         create_time := now(), 
         lastmod := now() 
     }]
 }
 
 // Replace a set of subtasks
-subtask_update(cl:subtask) => do {
-    subtask := minus (subtask join cl [{ id }])
-    subtask := union cl [ { *
+put_subtask(sid:0, st:subtask) => do {
+    subtask := [ ?(id = sid) ]
+    subtask := union st [ { *
+        id := sid,
         lastmod := now() 
     } ]
 }
 
-// Delete subtask by key
-subtask_delete(key) => do {
-    subtask := [ ?(id = key) ]
+// Delete subtask by id
+delete_subtask_id(sid) => do {
+    subtask := [ ?(id = sid) ]
 }
 
-// Find subtask by key
-subtask_find(key) => do {
-    subtask[ ?(id = key) ]
+// Find subtask by id
+get_subtask_id(id) => do {
+    subtask[ ?(id = id) ]
 }
 
 // Find all subtasks
-subtasks_all() => do {
+get_subtask() => do {
     subtask
 }
 
+//--- Subtask other queries
+
 // Find subtasks for a task
-subtasks_by_task(taskid:0) => do {
-    subtask [ ?(task = taskid) ]
+get_subtask_by_task(tid:0) => do {
+    subtask [ ?(task = tid) ]
 }
 

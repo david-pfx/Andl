@@ -166,10 +166,12 @@ namespace Andl.Runtime {
     }
 
     // Invoke a do block with its own scope level
-    public TypedValue DoBlock(CodeValue exprarg) {
+    // FIX: does not really need its own code segment?
+    public TypedValue DoBlock(CodeValue exprarg, PointerValue accblkarg) {
       Logger.WriteLine(3, "DoBlock {0}", exprarg);
       _catalog.PushScope();
-      var ret = _evaluator.Exec(exprarg.Value.Code);
+      var accblk = accblkarg.Value as AccumulatorBlock;
+      var ret = _evaluator.Exec(exprarg.Value.Code, null, null, accblk);
       _catalog.PopScope();
       Logger.WriteLine(3, "[Do {0}]", ret);
       return ret;

@@ -5,32 +5,32 @@ checklist := {{ name:'', text }}
 // checklist CRUD
 
 // Add a set of checklists
-checklist_add(cl:checklist) => do {
+add_checklist(cl:checklist) => do {
     checklist := union cl
 }
 
 // Replace a set of checklists
-checklist_update(cl:checklist) => do {
+update_checklist(cl:checklist) => do {
     checklist := minus (checklist join cl [{ name }])
     checklist := union cl
 }
 
 // Delete checklist by key
-checklist_delete(key) => do {
+delete_checklist(key) => do {
     checklist := [ ?(name = key) ]
 }
 
 // Find checklist by key
-checklist_find(key) => do {
+find_checklist(key) => do {
     checklist[ ?(name = key) ]
 }
 
 // Find all checklists
-checklists_all() => do {
+all_checklists() => do {
     checklist
 }
 
 // Find all names
-checklists_names() => do {
+names_checklists() => do {
     checklist [ $(name) { name }]
 }

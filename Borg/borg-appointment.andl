@@ -8,68 +8,69 @@ appointment := {{
 
 // Appointment specials
 
-appointment_get_keys() => do {
-    appointment[ { appt_num } ]
-}
-
-appointment_get_todo_keys() => do {
-    appointment[ ?(todo) { appt_num } ]
-}
-
-appointment_get_rpt_keys() => do {
-    appointment[ ?(rpt) { appt_num } ]
-}
-
-appointment_next_key() => do {
+getnext_appointment() => do {
     appointment[ { fold(max,appt_num) }] +1
 }
 
-appointment_next_todo() => do {
+getnext_appointment_todo() => do {
     appointment[ ?(todo and appt_date > now()) { fold(min,appt_date) }]
 }
 
 // Appointment CRUD
 
 // Add a set of appointments
-appointment_add(appt:appointment) => do {
+add_appointment(appt:appointment) => do {
     appointment := union appt [ { * 
-        appt_num := appointment_next_key(),
-        next_todo := appointment_next_todo(), 
+        appt_num := getnext_appointment(),
+        next_todo := getnext_appointment_todo(), 
         create_time := now(), 
         lastmod := now()
     } ]
 }
 
 // Replace a set of appointments
-appointment_update(appt:appointment) => do {
-    appointment := minus (appointment join appt [{ appt_num }])
+put_appointment_id(id:0, appt:appointment) => do {
+    appointment := [ ?(appt_num = id) ]
     appointment := union appt [ { *
-        lastmod := now()
+        appt_num := id,
+        lastmod := now(),
     }]
 }
 
-// Delete appointment by key
-appointment_delete(key:0) => do {
-    appointment := [ ?(appt_num = key) ]
+// Delete appointment by id
+delete_appointment_id(id:0) => do {
+    appointment := [ ?(appt_num = id) ]
 }
 
-// Find appointment by key
-appointment_find(key:0) => do {
-    appointment[ ?(appt_num = key) ]
+// Find appointment by id
+get_appointment_id(id:0) => do {
+    appointment[ ?(appt_num = id) ]
 }
 
 // Find all appointments
-appointments_all() => do {
+get_appointment() => do {
     appointment
 }
 
-// Appointments finding
-appointments_by_text(t) => do {
+//--- Appointment extra queries
+
+get_appointment_by_text(t) => do {
     appointment [ ?(text = t) ]
 }
 
-appointment_by_uid(u) => do {
+get_appointment_by_uid(u) => do {
     appointment [ ?(uid = u) ]
 }
 
+get_appointment_ids() => do {
+    appointment[ { appt_num } ]
+}
+
+get_appointment_todo_ids() => do {
+    appointment[ ?(todo) { appt_num } ]
+}
+
+get_appointment_rpt_ids() => do {
+    appointment[ ?(rpt) { appt_num } ]
+}
 

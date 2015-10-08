@@ -4,48 +4,50 @@ project := {{
     id:0, start_date:time, due_date:time, description, category, status, parent:0
 }}
 
-// Find next key
-project_next_key() => do {
+// Find next id
+getnext_project() => do {
     project [ { fold(max,id) } ] +1
 }
 
-// project CRUD
+// project REST CRUD
 
 // Add a set of projects
-project_add(cl:project) => do {
-    project := union cl [ { *
-        id := project_next_key(),
+add_project(pr:project) => do {
+    project := union pr [ { *
+        id := getnext_project(),
     }]
 }
 
 // Replace a set of projects
-project_update(cl:project) => do {
-    project := minus (project join cl [{ id }])
-    project := union cl
+put_project_id(pid:0, pr:project) => do {
+    project := [ ?(id = pid) ]
+    project := union pr [ { * id := pid} ]
 }
 
-// Delete project by key
-project_delete(key) => do {
-    project := [ ?(id = key) ]
+// Delete project by id
+delete_project_id(pid) => do {
+    project := [ ?(id = pid) ]
 }
 
-// Find project by key
-project_find(key) => do {
-    project[ ?(id = key) ]
+// Find project by id
+get_project_id(id) => do {
+    project[ ?(id = id) ]
 }
 
 // Find all projects
-projects_all() => do {
+get_project() => do {
     project
 }
 
+//--- Project other queries
+
 // Find subprojects for a parent
-projects_by_parent(projectid:0) => do {
-    project [ ?(parent = projectid) $(start_date) ]
+get_project_by_parent(pid:0) => do {
+    project [ ?(parent = pid) $(start_date) ]
 }
 
 // Find projects for a task
-projects_by_task(taskid:0) => do {
+get_project_by_task(taskid:0) => do {
     project [ ?(id = taskid) ]
 }
 

@@ -6,42 +6,46 @@ address := {{
     work_city, work_state, work_zip, work_country, webpage, notes, birthday:time, cell_phone
 }}
 
-//  Address special
-address_get_keys() => do {
-    address[ $(last_name, first_name) { address_num } ]
-}
+//--- Address special
 
-address_next_key() => do {
+// Get the next key
+getnext_address() => do {
     address[ { fold(max,address_num) }] +1
 }
 
-// Address CRUD
+//--- Address REST
 
 // Add a set of addresses
-address_add(addr:address) => do {
+add_address(addr:address) => do {
     address := union addr [ { * 
-        address_num := address_next_key() 
+        address_num := getnext_address() 
     } ]
 }
 
-// Replace a set of addresses
-address_update(addr:address) => do {
-    address := minus (address join addr [{ address_num }] ) 
-    address := union addr
+// Replace an address
+put_address_id(id:0, addr:address) => do {
+    address := [ ?(address_num = id) ]
+    address := union addr [ { * address_num := id } ]
 }
 
-// Delete address by key
-address_delete(key:0) => do {
-    address := [ ?(address_num = key) ]
+// Delete address by id
+delete_address(id:0) => do {
+    address := [ ?(address_num = id) ]
 }
 
-// Find address by key
-address_find(key:0) => do {
-    address[ ?(address_num = key) ]
+// Find address by id
+get_address_id(id:0) => do {
+    address[ ?(address_num = id) ]
 }
 
 // Find all addresses
-address_find_all() => do {
+get_address() => do {
     address
+}
+
+//--- Address other queries
+
+get_address_ids() => do {
+    address[ $(last_name, first_name) { address_num } ]
 }
 

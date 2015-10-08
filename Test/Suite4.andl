@@ -1,9 +1,65 @@
-// Test Suite 4 -- testing of RA
+// Test Suite 4 -- testing of aggregation
 
 #include SuiteLib.andl
 #include SupplierData.andl
 
 start($filename$)
+
+assert($lineno$, 30 = S [{ fold(max,STATUS) }])
+assert($lineno$, 10 = S [{ fold(min,STATUS) }])
+assert($lineno$, false = S [{ fold(and,STATUS = 10) }])
+assert($lineno$, true = S [{ fold(and,STATUS >= 10) }])
+assert($lineno$, true = S [{ fold(or,STATUS = 10) }])
+assert($lineno$, false = S [{ fold(or,STATUS < 10) }])
+
+assert($lineno$, 20+10+30+20+30 = S [{ fold(+,STATUS) }])
+assert($lineno$, 20*10*30*20*30 = S [{ fold(*,STATUS) }])
+
+// will not compile
+//assert($lineno$, true and 20 and 10 and 30 and 20 and 30 = S [{ fold(and,STATUS) }])
+//assert($lineno$, false or 20 or 10 or 30 or 20 or 30 = S [{ fold(or,STATUS) }])
+
+assert($lineno$, 1/20/10/30/20/30 = S [ $(S#) { fold(/,STATUS) }])
+assert($lineno$, 0-20-10-30-20-30 = S [ $(S#) { fold(-,STATUS) }])
+
+// will not compile
+//assert($lineno$, 20&10&30&20&30 = S [ $(S#) { fold(&,STATUS) }])
+assert($lineno$, 20&10&30&20&30 = S [ $(S#) { fold(&,STATUS.text) }])
+
+// above and below fold
+assert($lineno$, 110 = S [{ fold(+,STATUS) }])
+assert($lineno$, 115 = S [{ fold(+,STATUS+1) }])
+assert($lineno$, 111 = S [{ fold(+,STATUS)+1 }])
+assert($lineno$, 111 = S [{ fold(+,STATUS) }] +1)
+
+// folded bare function
+fmax(n:0) => fold(max,n)
+fcat(s) => fold(&,s)
+assert($lineno$, 30 = S [{ fmax(STATUS)  }])
+assert($lineno$, 20&10&30&20&30 = S [ $(S#) { fcat(STATUS.text)  }])
+
+// folded do function
+fdomax(n:0) => do { fold(max,n) }
+fdocat(s) => do { fold(&,s) }
+assert($lineno$, 30 = S [{ fdomax(STATUS) }])
+assert($lineno$, 20&10&30&20&30 = S [ $(S#) { fdocat(STATUS.text) }])
+
+// folded do multi-line function
+fdomax2(n:0) => do { 
+    x:=n*10
+    fold(max,x) 
+}
+fdocat2(s) => do { 
+    ss:=s & 'x'
+    fold(&, ss) 
+}
+assert($lineno$, 300 = S [{ fdomax2(STATUS) }])
+assert($lineno$, '20x10x30x20x30x' = S [ $(S#) { fdocat2(STATUS.text) }])
+
+feven:0(n1:0, n2:0) => if(n2 mod 20 = 0, n1+n2, n1-n2)
+fcomma(s1, s2) => if(s1='',s2, s1 & ', ' & s2)
+assert($lineno$, -30 = S [{ fold(feven,STATUS) }])
+assert($lineno$, '20, 10, 30, 20, 30' = S [ $(S#) { fold(fcomma,STATUS.text) }])
 
 PX := P[{ * W1:=WEIGHT, W2:=WEIGHT*2-10 }]
 

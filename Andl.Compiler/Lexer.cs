@@ -37,6 +37,7 @@ namespace Andl.Compiler {
 
     public string Value { get; set; }
     public TokenTypes TokenType { get; set; }
+    public string SourcePath { get; set; }
     public int LineNumber { get; set; }
     public override string ToString() {
       return String.Format("'{0}':{1}", Value, TokenType);
@@ -49,8 +50,13 @@ namespace Andl.Compiler {
     // Real white space is discarded, but some other things left in still count as white
     public bool IsWhite { get { return TokenType <= TokenTypes.White; } }
 
-    public static Token Create(string name, TokenTypes type, int lineno) {
-      var ret = new Token { Value = name, TokenType = type, LineNumber = lineno };
+    public static Token Create(string name, TokenTypes type, string sourcepath, int lineno) {
+      var ret = new Token { 
+        Value = name, 
+        TokenType = type, 
+        SourcePath = sourcepath,
+        LineNumber = lineno,
+      };
       if (!ret.IsValid) ret.TokenType = TokenTypes.Bad;
       return ret;
     }
@@ -103,27 +109,41 @@ namespace Andl.Compiler {
     int _tokenindex = -1;  // must call GetNext() first
     Token _lasttoken = new Token();
     Symbol _currentsymbol = Symbol.None;
-    
-    public int LineNumber { get { return _tokenlist[_tokenindex].LineNumber;  } }
+    Stack<string> _inputpaths = new Stack<string>();
+
+    public Token CurrentToken {  get { return _tokenlist[_tokenindex];  } }
+    public Symbol CurrentSymbol { get { return _currentsymbol; } }
 
     // Create new lexer on given reader
-    public static Lexer Create(TextReader reader, SymbolTable symbols, Catalog catalog) {
+    public static Lexer Create(string input, SymbolTable symbols, Catalog catalog) {
       var lexer = new Lexer() {
         _symbols = symbols,
         _catalog = catalog,
       };
-      lexer.InitRegexTable();
-      lexer.PrepareTokens(reader);
-      lexer.Next();
+      lexer.Start(input);
       return lexer;
     }
 
+    // Load up the first source file
+    void Start(string input) {
+      InitRegexTable();
+      using (StreamReader sr = File.OpenText(input)) {
+        _symbols.Find("$filename$").Value = TextValue.Create(input);
+        _inputpaths.Push(input);
+        PrepareTokens(sr);
+      }
+      Next();
+    }
+
     // Insert a file into this one
-    // Not a nice way to do it...
-    public bool Include(string path) {
-      if (!File.Exists(path)) return false;
-      using (StreamReader sr = File.OpenText(path)) {
+    public bool Include(string input) {
+      if (!File.Exists(input)) return false;
+      using (StreamReader sr = File.OpenText(input)) {
+        _symbols.Find("$filename$").Value = TextValue.Create(input);
+        _inputpaths.Push(input);
         Include(sr);
+        _inputpaths.Pop();
+        _symbols.Find("$filename$").Value = TextValue.Create(_inputpaths.Peek());
       }
       return true;
     }
@@ -137,18 +157,11 @@ namespace Andl.Compiler {
       MoveNext();
     }
 
-    public Symbol Current {
-      get { return _currentsymbol; }
-    }
-
+    // Look N tokens ahead, using smarts in lexer
     public Symbol LookAhead(int n) {
       var pos = LookNext(n);
       return (pos == 0) ? _currentsymbol 
         : _symbols.GetSymbol(_tokenlist[pos]);
-      //var pos = Math.Min(_tokenlist.Count-1, _tokenindex + n);
-      //return (pos < 0) ? Symbol.None
-      //  : (pos == 0) ? _currentsymbol
-      //  : _symbols.GetSymbol(_tokenlist[pos]);
     }
 
     public void Next() {
@@ -242,7 +255,7 @@ namespace Andl.Compiler {
         _lasttoken.Value += name;
         _tokenlist[_tokenlist.Count - 1] = _lasttoken;
       } else {
-        var token = Token.Create(name, type, lineno);
+        var token = Token.Create(name, type, _inputpaths.Peek(), lineno);
         _tokenlist.Add(token);
         _lasttoken = token;
       }
@@ -265,7 +278,7 @@ namespace Andl.Compiler {
         } else break;
       }
       Logger.Assert(!_tokenlist[_tokenindex].IsWhite);
-      Logger.WriteLine(6, "Token=<{0}> <{1}>", _tokenlist[_tokenindex], Current);
+      Logger.WriteLine(6, "Token=<{0}> <{1}>", _tokenlist[_tokenindex], CurrentSymbol);
     }
 
     // Lookahead N tokens with no action, return pos

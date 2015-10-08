@@ -138,13 +138,10 @@ namespace Andl.Main {
     static bool Compile() {
       Logger.WriteLine("*** Compiling: {0} ***", _paths[0]);
       var parser = Parser.Create(_catalog, _evaluator);
-      using (StreamReader sr = File.OpenText(_paths[0])) {
-        parser.SymbolTable.Find("$filename$").Value = TextValue.Create(_paths[0]);
-        var ret = parser.Compile(sr);
-        Logger.WriteLine("*** Compiled {0} {1} ***", _paths[0], ret ? "OK"
-          : "with error count = " + parser.ErrorCount.ToString());
-        return parser.ErrorCount == 0;
-      }
+      var ret = parser.Compile(_paths[0]);
+      Logger.WriteLine("*** Compiled {0} {1} ***", _paths[0], ret ? "OK"
+        : "with error count = " + parser.ErrorCount.ToString());
+      return parser.ErrorCount == 0;
     }
 
     static void Finish() {
@@ -155,9 +152,11 @@ namespace Andl.Main {
           (new CatalogInterfaceWriter()).WriteThrift(sw, _catalog.BaseName, _catalog.PersistentVars.GetEntries());
         }
       }
-      if (_catalog.SaveFlag && _catalog.ExecuteFlag)
+      if (_catalog.SaveFlag) {
+      //if (_catalog.SaveFlag && _catalog.ExecuteFlag) {
         Logger.WriteLine("*** Updating: {0} ***", _paths[1]);
-      _catalog.Finish();
+        _catalog.Finish();
+      }
     }
   }
 }

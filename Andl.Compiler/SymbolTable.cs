@@ -119,7 +119,7 @@ namespace Andl.Compiler {
 
   // Defines a fold function seed
   public enum FoldSeeds {
-    NUL, ZERO, ONE, MIN, MAX, FALSE
+    NUL, ZERO, ONE, MIN, MAX, FALSE, TRUE
   }
   
   /// <summary>
@@ -146,7 +146,6 @@ namespace Andl.Compiler {
     public CallKinds CallKind { get; set; }
     public FoldableFlags Foldable { get; set; }
     public Symbol Link { get; set; }
-    public Symbol[] ArgList { get; set; }
     public int Level { get; set; }
 
     public MergeOps MergeOp { get { return (MergeOps)(JoinOp & JoinOps.MERGEOPS); } }
@@ -201,7 +200,10 @@ namespace Andl.Compiler {
 
       switch (FoldSeed) {
       case FoldSeeds.NUL:
+        if (datatype == DataTypes.Bool) return BoolValue.False;
         if (datatype == DataTypes.Text) return TextValue.Default;
+        if (datatype == DataTypes.Number) return NumberValue.Zero;
+        if (datatype == DataTypes.Time) return TimeValue.Minimum;
         break;
       case FoldSeeds.ZERO:
         if (datatype == DataTypes.Number) return NumberValue.Zero;
@@ -219,6 +221,9 @@ namespace Andl.Compiler {
         break;
       case FoldSeeds.FALSE:
         if (datatype == DataTypes.Bool) return BoolValue.False;
+        break;
+      case FoldSeeds.TRUE:
+        if (datatype == DataTypes.Bool) return BoolValue.True;
         break;
       default:
         break;
@@ -425,7 +430,7 @@ namespace Andl.Compiler {
       AddOperator("div", Atoms.IDENT, 2, 7, DataTypes.Number, "Div");
       AddOperator("mod", Atoms.IDENT, 2, 7, DataTypes.Number, "Mod");
       AddFoldableOp("+", Atoms.PLUS, 2, 6, DataTypes.Number, FoldableFlags.ANY, FoldSeeds.ZERO, "Add");
-      AddFoldableOp("-", Atoms.MINUS, 2, 6, DataTypes.Number, FoldableFlags.ORDER, FoldSeeds.ONE, "Subtract");
+      AddFoldableOp("-", Atoms.MINUS, 2, 6, DataTypes.Number, FoldableFlags.ORDER, FoldSeeds.ZERO, "Subtract");
       AddFoldableOp("&", Atoms.SYMBOL, 2, 5, DataTypes.Text, FoldableFlags.ORDER, FoldSeeds.NUL, "Concat");
 
       AddOperator("=", Atoms.SYMBOL, 2, 4, DataTypes.Bool, "Eq");
@@ -437,7 +442,7 @@ namespace Andl.Compiler {
       AddOperator("=~", Atoms.SYMBOL, 2, 4, DataTypes.Bool, "Match");
 
       // These are overloaded by bit operations on integers
-      AddFoldableOp("and", Atoms.IDENT, 2, 3, DataTypes.Unknown, FoldableFlags.ANY, FoldSeeds.FALSE, "And,BitAnd");
+      AddFoldableOp("and", Atoms.IDENT, 2, 3, DataTypes.Unknown, FoldableFlags.ANY, FoldSeeds.TRUE, "And,BitAnd");
       AddFoldableOp("or", Atoms.IDENT, 2, 2, DataTypes.Unknown, FoldableFlags.ANY, FoldSeeds.FALSE, "Or,BitOr");
       AddFoldableOp("xor", Atoms.IDENT, 2, 2, DataTypes.Unknown, FoldableFlags.ANY, FoldSeeds.FALSE, "Xor,BitXor");
 
@@ -448,7 +453,7 @@ namespace Andl.Compiler {
       AddFunction(Symbol.Assign, Atoms.NUL, 1, DataTypes.Void, CallKinds.FUNC, "Assign");
       AddFunction(Symbol.Defer, Atoms.NUL, 1, DataTypes.Void, CallKinds.FUNC, "Defer");
       AddFunction(Symbol.DoBlock, Atoms.NUL, 1, DataTypes.Any, CallKinds.FUNC, "DoBlock");
-      AddFunction(Symbol.Invoke, Atoms.NUL, 1, DataTypes.Any, CallKinds.VFUNCT, "Invoke");
+      AddFunction(Symbol.Invoke, Atoms.NUL, 2, DataTypes.Any, CallKinds.VFUNCT, "Invoke");
       AddFunction(Symbol.Lift, Atoms.NUL, 1, DataTypes.Void, CallKinds.FUNC, "Lift");
       AddFunction(Symbol.Project, Atoms.NUL, 2, DataTypes.Table, CallKinds.VFUNC, "Project");
       AddFunction(Symbol.Rename, Atoms.NUL, 2, DataTypes.Table, CallKinds.VFUNC, "Rename");

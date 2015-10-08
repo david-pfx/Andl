@@ -72,8 +72,8 @@ namespace Andl.Compiler {
 
     // Load a file from a reader
     // Compile and execute line by line
-    public bool Compile(TextReader reader, PersistWriter writer = null) {
-      _lexer = Lexer.Create(reader, SymbolTable, Catalog);
+    public bool Compile(string input) {
+      _lexer = Lexer.Create(input, SymbolTable, Catalog);
       _emitter = new Emitter();
       Error = false;
 
@@ -93,10 +93,10 @@ namespace Andl.Compiler {
       if (Logger.Level >= 3 && !Catalog.InteractiveFlag)
           Decoder.Create(code).Decode();
       // OBS: write code to persistent form
-      if (writer != null) {
-        var eb = ExpressionBlock.Create("main", ExpressionKinds.Closed, code, DataTypes.Void);
-        writer.Store(CodeValue.Create(eb)); //FIX: CodeValue may not work
-      }
+      //if (writer != null) {
+      //  var eb = ExpressionBlock.Create("main", ExpressionKinds.Closed, code, DataTypes.Void);
+      //  writer.Store(CodeValue.Create(eb)); //FIX: CodeValue may not work
+      //}
       // batch execution
       if (!Catalog.InteractiveFlag && _evaluator != null) {
         Logger.WriteLine(3, "Begin execution");
@@ -249,6 +249,9 @@ namespace Andl.Compiler {
       if (idsym.DataType == DataTypes.Unknown)
         idsym.DataType = expr.DataType;
       else if (!expr.DataType.IsTypeMatch(idsym.DataType)) return ErrExpect(idsym.DataType.ToString() + " expression");
+      // Allow functions to be foldable
+      if (idsym.NumArgs == 2 && args[0].DataType == idsym.DataType && args[1].DataType == idsym.DataType)
+        idsym.Foldable = FoldableFlags.ANY;
 
       // add to catalog now type is known
       SymbolTable.AddCatalog(idsym);
@@ -451,6 +454,7 @@ namespace Andl.Compiler {
       };
       var ebs = expr.Expression();
       _emitter.OutSeg(ebs);
+      _emitter.Out(Opcodes.LDACCBLK);   // make sure to pass through, if needed
       _emitter.OutCall(SymbolTable.Find(Symbol.DoBlock));
       return true;
     }
@@ -670,7 +674,7 @@ namespace Andl.Compiler {
         _emitter.OutName(Opcodes.LDCATR, funsym);
         CallInfo callinfo;
         CheckTypeError(funsym, out datatype, out callinfo, datatype);
-        _emitter.OutCall(SymbolTable.Find(Symbol.Invoke), 1, callinfo);
+        _emitter.OutCall(SymbolTable.Find(Symbol.Invoke), 1, callinfo); // BUG: does this work at all???
       } else if (funsym.IsFunction) {
         CallInfo callinfo;
         CheckTypeError(funsym, out datatype, out callinfo, datatype);
@@ -1253,17 +1257,25 @@ namespace Andl.Compiler {
 
     // Wrap an expression in an aggregation -- only used by Fold
     void WrapAgg(ref ExprInfo expr, Symbol opsym) {
-      var marker = _emitter.GetMarker();
-      // create a seed to match the expression type
-      var seed = opsym.GetSeed(expr.DataType);
-      if (seed == null)
-        ErrSyntax("aggregation not supported for {0}", expr.DataType);
-      else _emitter.Out(Opcodes.LDAGG, seed);
-      _emitter.Out(expr.Code);
       DataType datatype;
       CallInfo callinfo;
       CheckTypeError(opsym, out datatype, out callinfo, expr.DataType, expr.DataType); // as if there were two
-      _emitter.OutCall(opsym, 0, callinfo);
+      var marker = _emitter.GetMarker();
+      if (opsym.IsDefFunc) {
+        _emitter.OutName(Opcodes.LDCATR, opsym);
+        _emitter.Out(Opcodes.LDACCBLK);
+        _emitter.OutLoad(NumberValue.Create(-1));   // is this ever needed?
+      }
+      // create a seed to match the expression type
+      var seed = opsym.GetSeed(expr.DataType);
+      if (seed == null)
+        ErrSyntax("aggregation not supported for '{0}' and '{1}'", opsym.Name, expr.DataType);
+      else _emitter.Out(Opcodes.LDAGG, seed);
+      _emitter.Out(expr.Code);
+      if (opsym.IsDefFunc)
+        _emitter.OutCall(SymbolTable.Find(Symbol.Invoke), callinfo.NumArgs);
+      else
+        _emitter.OutCall(opsym, 0, callinfo);
       expr.DataType = datatype;
       expr.Code = _emitter.GetSeg(marker);
     }
@@ -1401,7 +1413,8 @@ namespace Andl.Compiler {
     //--- error functions return true if error
 
     bool ErrSyntax(string message, params object[] args) {
-      Logger.WriteLine("Error line {0}: {1}", _lexer.LineNumber, String.Format(message, args));
+      Logger.WriteLine("{0} ({1}): error : {2}", _lexer.CurrentToken.SourcePath, 
+        _lexer.CurrentToken.LineNumber, String.Format(message, args));
       Error = true;
       return true;
     }

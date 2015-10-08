@@ -3,42 +3,42 @@
 link := {{ id:0, linktype, ownerkey:0, ownertype, path }}
 
 // Find next key
-links_next_key() => do {
+next_links_key() => do {
     link [ { fold(max,id) }] +1
 }
 
 // link CRUD
 
 // Add a set of links
-link_add(cl:link) => do {
+add_link(cl:link) => do {
     link := union cl [ { *
-        id := links_next_key() 
+        id := next_links_key() 
     } ]
 }
 
 // Replace a set of links
-link_update(cl:link) => do {
+update_link(cl:link) => do {
     link := minus (link join cl [{ id }])
     link := union cl
 }
 
 // Delete link by key
-link_delete(key) => do {
+delete_link(key) => do {
     link := [ ?(id = key) ]
 }
 
 // Find link by key
-link_find(key) => do {
+find_link(key) => do {
     link[ ?(id = key) ]
 }
 
 // Find all links
-links_all() => do {
+all_links() => do {
     link
 }
 
 // Find all links for an owner
-links_by_owner(key, type) => do {
+by_links_owner(key, type) => do {
     link [ ?(id = key and linktype = type)]
 }
 

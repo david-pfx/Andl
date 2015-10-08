@@ -3,18 +3,18 @@
 option := {{ name:'', value }}
 
 // set option
-option_set(cl:option) => do {
-    option := minus (option join cl [{ name }])
-    option := union cl [ ?(name <> '' and value <> '') ]
+put_option(id, opt:option) => do {
+    option := [ ?(name = id) ]
+    option := union opt [ ?(name <> '' and value <> '') ]
 }
 
-// Find option by key
-option_get(key) => do {
-    option[ ?(name = key) ]
+// Find option by id
+get_option_id(id) => do {
+    option[ ?(name = id) ]
 }
 
 // Find all options
-options_all() => do {
+get_option() => do {
     option
 }
 

@@ -2,36 +2,38 @@
 
 memo := {{ memoname:'', memotext, encrypted:bool }}
 
-// memo CRUD
+//--- memo REST CRUD
 
-// Add a set of memos
-memo_add(mm:memo) => do {
+// Add a memo
+add_memo(mm:memo) => do {
     memo := union mm
 }
 
-// Replace a set of memos
-memo_update(mm:memo) => do {
-    memo := minus (memo join mm [{ memoname }])
-    memo := union mm
+// Replace a memo
+put_memo_id(id, mm:memo) => do {
+    memo := [ ?(memoname = id) ]
+    memo := union mm[ { * memoname := id } ]
 }
 
-// Delete memo by key
-memo_delete(key) => do {
-    memo := [ ?(memoname = key) ]
+// Delete memo by id
+delete_memo(id) => do {
+    memo := [ ?(memoname = id) ]
 }
 
-// Find memo by key
-memo_find(key) => do {
-    memo[ ?(memoname = key) ]
+// Find memo by id
+get_memo_id(id) => do {
+    memo[ ?(memoname = id) ]
 }
 
 // Find all memos
-memos_all() => do {
+get_memo() => do {
     memo
 }
 
+//--- Memo other queries
+
 // Find all memos
-memos_names() => do {
+get_memo_ids() => do {
     memo [ $(memoname) { memoname } ]
 }
 
