@@ -1,7 +1,21 @@
-// Andl samples 5 -- not yet implemented on SQL
+// Andl samples 5 -- ordering and grouping
+// NOTE: -- not yet implemented on SQL
 
 // Depends on catalog created by setup.andl
 #catalog
+
+// Total and grouped subtotal
+S [{ SS := fold(+,STATUS) }]
+S [{ CITY, SS := fold(+,STATUS) }]
+
+// In city order
+// Since there is only one group, this produces running sum
+S [ $(CITY) { SS := fold(+,STATUS) }]
+S [ $(CITY) { CITY, SS := fold(+,STATUS) }]
+
+// Add grouping by CITY to get separate subtotals
+S [ $(%CITY) { SS := fold(+,STATUS) }]
+S [ $(%CITY) { CITY, SS := fold(+,STATUS) }]
 
 sum(n:0) => fold(+,n)
 hi(n:0) => fold(max,n)

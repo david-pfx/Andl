@@ -25,12 +25,12 @@ put_project_id(pid:0, pr:project) => do {
 }
 
 // Delete project by id
-delete_project_id(pid) => do {
+delete_project_id(pid:0) => do {
     project := [ ?(id = pid) ]
 }
 
 // Find project by id
-get_project_id(id) => do {
+get_project_id(pid:0) => do {
     project[ ?(id = id) ]
 }
 

@@ -19,29 +19,29 @@ add_tasklog(tl:tasklog) => do {
 }
 
 // Add a tasklog with desc and task
-add_tasklog_task_desc(t:0, desc) => do {
+add_tasklog_task_desc(tid:0, desc) => do {
     tasklog := union {{
         id := getid_tasklog(),
         logtime := now(),
         description := desc,
-        task := t,
+        task := tid,
     }}
 }
 
 // Replace a set of tasklogs
-put_tasklog_id(i:0, tl:tasklog) => do {
-    tasklog := [ ?(id = i) ]
+put_tasklog_id(tid:0, tl:tasklog) => do {
+    tasklog := [ ?(id = tid) ]
     tasklog := union tl
 }
 
 // Delete tasklog by id
-delete_tasklog_id(i) => do {
-    tasklog := [ ?(id = i) ]
+delete_tasklog_id(tid:0) => do {
+    tasklog := [ ?(id = tid) ]
 }
 
 // Find tasklog by id
-get_tasklog_id(i) => do {
-    tasklog[ ?(id = i) ]
+get_tasklog_id(tid:0) => do {
+    tasklog[ ?(id = tid) ]
 }
 
 // Find all tasklogs
@@ -50,7 +50,7 @@ get_tasklog() => do {
 }
 
 // Find tasklogs for a task
-get_tasklog_task(t:0) => do {
-    tasklog [ ?(task = t) ]
+get_tasklog_task(taskid:0) => do {
+    tasklog [ ?(task = taskid) ]
 }
 

@@ -207,7 +207,7 @@ namespace Andl.Compiler {
       AddRegex(TokenTypes.Number, @"\G([.]?[0-9]+[0-9.]*)");                // various kinds of number
       AddRegex(TokenTypes.HexNumber, @"\G[$]([0-9]+[0-9a-f]*)", RegexOptions.IgnoreCase);    // hex number
       AddRegex(TokenTypes.Operator, @"\G[-+=<>:*~][-+=<>:*~]?");            // operators, could be two char
-      AddRegex(TokenTypes.Identifier, @"\G[a-z_$@#^][a-z0-9_@#$^%&?!~`|]*", RegexOptions.IgnoreCase); // identifiers, must start with alpha etc
+      AddRegex(TokenTypes.Identifier, @"\G[a-z_$@|^][a-z0-9_@#$^%&?!~`|]*", RegexOptions.IgnoreCase); // identifiers, must start with alpha etc
       AddRegex(TokenTypes.Punctuation, @"\G[^\x00-\0x20]");                 // one single char not already matched, but not a space or CC    
     }
 

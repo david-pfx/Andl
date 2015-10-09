@@ -42,8 +42,8 @@ namespace Andl.Runtime {
   /// </summary>
   public class Catalog {
     static string _systempattern = "^andl.*$";
-    static string _persistpattern = @"^[@A-Za-z].*$";
-    static string _databasepattern = @"^[A-Za-z].*$";
+    static string _databasepattern = @"^[A-Za-z].*$";     // All with alpha first char
+    static string _persistpattern = @"^[$^A-Za-z].*$";    // First char alpha, dollar, caret
 
     static readonly string _localdatabaseext = ".sandl";
     static readonly string _sqldatabaseext = ".sqlite";
@@ -70,7 +70,7 @@ namespace Andl.Runtime {
 
     //static Dictionary<string, DataHeading> _protectedheadings;
 
-    static Dictionary<CatalogTables, Func<CatalogTableMaker, IEnumerable<CatalogEntry>, CatalogTableMaker>> _protectedtablemaker =
+    static Dictionary<CatalogTables, Func<CatalogTableMaker, IEnumerable<CatalogEntry>, CatalogTableMaker>> _catalogtablemaker =
       new Dictionary<CatalogTables, Func<CatalogTableMaker, IEnumerable<CatalogEntry>, CatalogTableMaker>> {
       { CatalogTables.Catalog, (c, e) => c.AddEntries(e) },
       { CatalogTables.Variable, (c, e) => c.AddVariables(e) },
@@ -173,7 +173,7 @@ namespace Andl.Runtime {
     // return value for system tables
     public RelationValue GetCatalogTableValue(CatalogTables table) {
       var tablemaker = CatalogTableMaker.Create(_catalogtableheadings[table]);
-      _protectedtablemaker[table](tablemaker, PersistentVars.GetEntries());
+      _catalogtablemaker[table](tablemaker, PersistentVars.GetEntries());
       return RelationValue.Create(tablemaker.Table);
     }
 
@@ -550,7 +550,7 @@ namespace Andl.Runtime {
       Table.AddRow(addrow);
     }
 
-    // Create a table of variables
+    // Fill a table of variables
     public CatalogTableMaker AddVariables(IEnumerable<CatalogEntry> entries) {
       foreach (var entry in entries.Where(e => !e.IsCode)) {
         AddVariable(entry.Name, entry.DataType);
@@ -566,7 +566,7 @@ namespace Andl.Runtime {
       Table.AddRow(addrow);
     }
 
-    // Create a table of operators
+    // Fill a table of operators
     public CatalogTableMaker AddOperators(IEnumerable<CatalogEntry> entries) {
       foreach (var entry in entries.Where(e => e.IsCode)) {
         AddOperator(entry.Name, entry.CodeValue.DataType, entry.CodeValue.Value);
@@ -579,11 +579,11 @@ namespace Andl.Runtime {
           { TextValue.Create(name), 
             TextValue.Create(value.DataType.BaseType.Name), 
             TextValue.Create(value.DataType.GenUniqueName ?? ""),
-            TextValue.Create(value.SubtypeName) });
+            TextValue.Create(value.NumArgs == 0 ? "" : value.SubtypeName) }); // suppress empty arg list
       Table.AddRow(addrow);
     }
 
-    // Create a table of variables
+    // Fill a table of members
     public CatalogTableMaker AddMembers(IEnumerable<CatalogEntry> entries) {
       foreach (var entry in entries.Where(e => e.DataType.GenUniqueName != null)) {
         AddMember(entry.DataType.GenUniqueName, entry.DataType.Heading);

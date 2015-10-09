@@ -30,22 +30,22 @@ add_appointment(appt:appointment) => do {
 }
 
 // Replace a set of appointments
-put_appointment_id(id:0, appt:appointment) => do {
-    appointment := [ ?(appt_num = id) ]
+put_appointment_id(aid:0, appt:appointment) => do {
+    appointment := [ ?(appt_num = aid) ]
     appointment := union appt [ { *
-        appt_num := id,
+        appt_num := aid,
         lastmod := now(),
     }]
 }
 
 // Delete appointment by id
-delete_appointment_id(id:0) => do {
-    appointment := [ ?(appt_num = id) ]
+delete_appointment_id(aid:0) => do {
+    appointment := [ ?(appt_num = aid) ]
 }
 
 // Find appointment by id
-get_appointment_id(id:0) => do {
-    appointment[ ?(appt_num = id) ]
+get_appointment_id(aid:0) => do {
+    appointment[ ?(appt_num = aid) ]
 }
 
 // Find all appointments

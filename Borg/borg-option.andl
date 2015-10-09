@@ -3,14 +3,14 @@
 option := {{ name:'', value }}
 
 // set option
-put_option_id(id, opt:option) => do {
-    option := [ ?(name = id) ]
+put_option_id(oid, opt:option) => do {
+    option := [ ?(name = oid) ]
     option := union opt [ ?(name <> '' and value <> '') ]
 }
 
 // Find option by id
-get_option_id(id) => do {
-    option[ ?(name = id) ]
+get_option_id(oid) => do {
+    option[ ?(name = oid) ]
 }
 
 // Find all options

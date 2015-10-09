@@ -10,35 +10,35 @@ getnext_link() => do {
 // link CRUD
 
 // Add a set of links
-add_link(cl:link) => do {
-    link := union cl [ { *
+add_link(lk:link) => do {
+    link := union lk [ { *
         id := getnext_link() 
     } ]
 }
 
 // Replace a set of links
-put_link_id(lid:0, cl:link) => do {
+put_link_id(lid:0, lk:link) => do {
     link := [ ?(id = lid) ]
-    link := union cl [{ * id := lid }]
+    link := union lk [{ * id := lid }]
 }
 
 // Delete link by key
-delete_link_id(lid) => do {
+delete_link_id(lid:0) => do {
     link := [ ?(id = lid) ]
 }
 
 // Find link by key
-get_link_id(lid) => do {
+get_link_id(lid:0) => do {
     link[ ?(id = lid) ]
 }
 
 // Find all links
-get_links() => do {
+get_link() => do {
     link
 }
 
 // Find all links for an owner
-get_links_for_owner(lid, type) => do {
+get_links_for_owner(lid:0, type) => do {
     link [ ?(id = lid and linktype = type)]
 }
 

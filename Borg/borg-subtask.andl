@@ -30,13 +30,13 @@ put_subtask_id(sid:0, st:subtask) => do {
 }
 
 // Delete subtask by id
-delete_subtask_id(sid) => do {
+delete_subtask_id(sid:0) => do {
     subtask := [ ?(id = sid) ]
 }
 
 // Find subtask by id
-get_subtask_id(id) => do {
-    subtask[ ?(id = id) ]
+get_subtask_id(sid:0) => do {
+    subtask[ ?(id = sid) ]
 }
 
 // Find all subtasks

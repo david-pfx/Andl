@@ -323,7 +323,7 @@ namespace Andl.Compiler {
       var symbol = Symbol.Mark;
       while (!Error) {
         // experimental: look past EOL to BINOP
-        if (LookOverEol(1).Kind == SymKinds.BINOP)
+        if (LookOverEol(0).Kind == SymKinds.BINOP)
           TakeEol();
         if (Look().Kind == SymKinds.BINOP && (symbol.Atom == Atoms.MARK || symbol.Precedence < Look().Precedence)) {
           _typestack.Push(datatype);

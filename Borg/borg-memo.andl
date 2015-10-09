@@ -10,19 +10,19 @@ add_memo(mm:memo) => do {
 }
 
 // Replace a memo
-put_memo_id(id, mm:memo) => do {
-    memo := [ ?(memoname = id) ]
-    memo := union mm[ { * memoname := id } ]
+put_memo_id(mid, mm:memo) => do {
+    memo := [ ?(memoname = mid) ]
+    memo := union mm[ { * memoname := mid } ]
 }
 
 // Delete memo by id
-delete_memo_id(id) => do {
-    memo := [ ?(memoname = id) ]
+delete_memo_id(mid) => do {
+    memo := [ ?(memoname = mid) ]
 }
 
 // Find memo by id
-get_memo_id(id) => do {
-    memo[ ?(memoname = id) ]
+get_memo_id(mid) => do {
+    memo[ ?(memoname = mid) ]
 }
 
 // Find all memos

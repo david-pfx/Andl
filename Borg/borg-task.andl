@@ -14,8 +14,8 @@ getnext_task() => do {
 //--- Task REST CRUD
 
 // Add a task
-add_task(cl:task) => do {
-    task := union cl [ { *
+add_task(tk:task) => do {
+    task := union tk [ { *
         tasknum := getnext_task(),
         create_time := now(), 
         lastmod := now() 
@@ -23,23 +23,23 @@ add_task(cl:task) => do {
 }
 
 // Replace a task
-put_task_id(id:0, cl:task) => do {
-    task[ ?(tasknum = id) ]
-    task := union cl [ { *
-        tasknum := id,
+put_task_id(tid:0, tk:task) => do {
+    task[ ?(tasknum = tid) ]
+    task := union tk [ { *
+        tasknum := tid,
         create_time := now(), 
         lastmod := now() 
     }]
 }
 
 // Delete task by id
-delete_task_id(id) => do {
-    task := [ ?(tasknum = id) ]
+delete_task_id(tid:0) => do {
+    task := [ ?(tasknum = tid) ]
 }
 
 // Find task by id
-get_task_id(id) => do {
-    task[ ?(tasknum = id) ]
+get_task_id(tid:0) => do {
+    task[ ?(tasknum = tid) ]
 }
 
 // Find all tasks
@@ -55,7 +55,7 @@ get_task_ids() => do {
 }
 
 // Rename task type
-put_task_type(t1, t2) => do {
-    task := [ ?(type = t1) { * type := t2 } ]
+put_task_type(told, tnew) => do {
+    task := [ ?(type = told) { * type := tnew } ]
 }
 

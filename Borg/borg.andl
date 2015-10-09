@@ -15,11 +15,11 @@
 
 //andl_operator()//
 
-paste(s1, s2) => if(s1='',s2 , s1 & ', ' & s2)
+@paste(s1, s2) => if(s1='',s2 , s1 & ', ' & s2)
 
 membert := andl_member() [{ 
     Key := MemberOf, 
-    Value := fold(paste, Name & ':' & Type)
+    Value := fold(@paste, Name & ':' & Type)
 }] union {{ Key := '', Value := '' }}
 
 (andl_operator() join  
