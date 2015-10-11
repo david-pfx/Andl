@@ -1,21 +1,18 @@
-// view model for application sample 1
+// view model for Andl Web REST application sample
+// Native API using data model created by WebSpApiSetup.andl
 
 var ViewModel = function () {
     var self = this;
     self.suppliers = ko.observableArray();
-    self.newsuppliers = ko.observableArray();
     self.parts = ko.observableArray();
     self.supplies = ko.observableArray();
-    self.sbyname = ko.observableArray();
 
-    self.error = ko.observable();
+    self.tempsupplier = ko.observable();
+    self.partspattern = ko.observable({ PNAME: "S.*" });
     self.editmode = ko.observable();
+    self.error = ko.observable();
 
-    var supplierUri = '/api/spapi/supplier';
-    var partUri = '/api/spapi/part';
-    var suppliesUri = '/api/spapi/supplies';
-    var sbynameUri = '/api/spapi/sbyname';
-    var addsuppUri = '/api/spapi/addsupplier';
+    var baseUri = '/api/spapi/';
 
     function ajaxHelper(uri, method, data) {
         self.error(''); // Clear error message
@@ -26,62 +23,88 @@ var ViewModel = function () {
             contentType: 'application/json',
             data: data ? JSON.stringify(data) : null
         }).fail(function (jqXHR, textStatus, errorThrown) {
-            self.error(errorThrown);
+            self.error(errorThrown + ' : ' + jqXHR.responseText);
         });
     }
 
-    function getSuppliers() {
-        ajaxHelper(supplierUri, 'GET').done(function (data) {
+    // data set specific API functions
+    self.getSuppliers = function() {
+        ajaxHelper(baseUri + 'findall_supplier', 'POST').done(function (data) {
             self.suppliers(data);
         });
     }
 
-    self.getSbyname = function (arg) {
-        ajaxHelper(sbynameUri, 'POST', arg).done(function (data) {
-            self.sbyname(data);
+    self.getSupplier = function(id) {
+        ajaxHelper(baseUri + 'find_supplier', 'POST', id).done(function (data) {
+            self.suppliers(data);
+        });
+    }
+
+    self.updateSupplier = function(id) {
+        ajaxHelper(baseUri + 'update_supplier', 'POST', id, [ko.toJS(self.tempsupplier)])
+            .done(function () {
+                //alert("OK");
+                self.cancelSupplier();
+                self.getSuppliers();
+            });
+    }
+
+    self.addSupplier = function() {
+        ajaxHelper(baseUri + 'add_supplier', 'POST', null, [ko.toJS(self.tempsupplier)])
+            .done(function () {
+                //alert("OK");
+                self.cancelSupplier();
+                self.getSuppliers();
+        });
+    }
+
+    self.deleteSupplier = function(rec) {
+        ajaxHelper(baseUri + 'delete_supplier', 'POST').done(function (data) {
+            //alert("OK");
+            self.getSuppliers();
         });
     };
 
-    self.newSupplier = function () {
-        self.newsuppliers.push({
-            Sid: "",
-            SNAME: "",
-            STATUS: "",
-            CITY: ""
-        })
-    };
-
-    self.addSuppliers = function () {
-        //var formData = JSON.stringify($("#nsuppid").serializeArray());
-        var formData = ko.toJSON($("#nsuppid").serializeArray());
-        var formData = ko.toJSON($("#nsuppid"));
-        ajaxHelper(addsuppUri, 'PUT', formData).done(
-          function (data) {
-              self.newsuppliers.removeAll();
-              self.getSuppliers();
-          });
-    };
-
-    self.delSupplier = function (supplier) {
-        self.suppliers.remove(supplier);
-    };
-
-    function getParts() {
-        ajaxHelper(partUri, 'GET').done(function (data) {
+    // other data sets
+    self.getParts = function() {
+        ajaxHelper(baseUri + 'findall_part', 'POST').done(function (data) {
             self.parts(data);
         });
     }
 
-    function getSupplies() {
-        ajaxHelper(suppliesUri, 'GET').done(function (data) {
+    self.getSupplies = function() {
+        ajaxHelper(baseUri + 'findall_supplies', 'POST').done(function (data) {
             self.supplies(data);
         });
     }
 
-    getSuppliers();
-    getParts();
-    getSupplies();
-    //getSbyname( 'a' );
+    self.findParts = function () {
+        var arg = ko.toJS(self.partspattern);
+        ajaxHelper(baseUri + 'find_part_by_name', 'POST', arg).done(function (data) {
+            self.parts(data);
+        });
+    }
+
+    // CRUD glue
+
+    self.newSupplier = function () {
+        self.editmode('new');
+    };
+
+    self.cancelSupplier = function () {
+        self.editmode(false);
+        self.tempsupplier({
+            Sid: "",
+            SNAME: "",
+            STATUS: 0,
+            CITY: ""
+        })
+    };
+
+    self.getSuppliers();
+    self.getSupplies();
+    self.getParts();
+    self.cancelSupplier();
 };
 
 ko.applyBindings(new ViewModel());

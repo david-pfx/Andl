@@ -35,7 +35,13 @@ update_supplier(sid:text, s:supplier) => do {
     supplier := union s
 }
 
+//--- part
+
 findall_part() => part
+
+find_part_by_name(name:text) => do {
+    part[?(PNAME =~ name)]
+}
 
 tquery := {{ Key:text,Value:text }}
 findsome_part(query:tquery) => do {
@@ -52,6 +58,6 @@ findall_supplies => supplies
 
 //andl_catalog
 //andl_variable
-andl_operator
+andl_operator()
 //andl_member
 #stop

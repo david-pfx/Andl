@@ -36,6 +36,6 @@ put_employee_id(empno:text, emp:WebEmp) => do {
 
 //andl_catalog
 //andl_variable
-andl_operator
+andl_operator()
 //andl_member
 #stop

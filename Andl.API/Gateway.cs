@@ -114,11 +114,15 @@ namespace Andl.API {
 
     // Support implementation functions at catalog level
     public override Type[] GetArgumentTypes(string name) {
-      return _catalog.GlobalVars.GetArgumentTypes(name).Select(t => t.NativeType).ToArray();
+      var types = _catalog.GlobalVars.GetArgumentTypes(name);
+      if (types == null) return null;
+      return types.Select(t => t.NativeType).ToArray();
     }
 
     public override Type GetSetterType(string name) {
-      return _catalog.GlobalVars.GetSetterType(name).NativeType;
+      var type = _catalog.GlobalVars.GetSetterType(name);
+      if (type == null) return null;
+      return type.NativeType;
     }
 
     // Support implementation functions at catalog level

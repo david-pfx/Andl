@@ -1,4 +1,4 @@
-﻿// view model for Andl Web application sample 2
+﻿// view model for Andl Web REST application sample
 // REST API using data model created by WebSpRestSetup.andl
 
 var ViewModel = function () {
@@ -31,7 +31,7 @@ var ViewModel = function () {
         });
     }
 
-    // data set specific REST functions
+    // data set specific REST functions		
     self.getSuppliers = function() {
         ajaxHelper(supplierUri, 'GET').done(function (data) {
             self.suppliers(data);

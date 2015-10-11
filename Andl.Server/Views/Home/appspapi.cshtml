@@ -5,10 +5,12 @@
 <div class="jumbotron">
     <h1>Andl is a New Data Language</h1>
     <p class="lead">
-        This is an Andl API sample using the classical Supplier Part database, courtesy of CJ Date.
+        This is an Andl API sample. 
+        Requests are sent as POST methods directly to Andl functions by name, with JSON data. 
     </p>
     <p>
-        This sample uses Knockout data binding. Ajax calls are sent directly to Andl functions, using JSON data.
+        This sample is a single page application using Knockout data binding, Bootstrap CSS and JQuery Ajax calls.
+        It uses the classical Supplier Part database, courtesy of CJ Date.
     </p>
 </div>
 <div class="row">
@@ -51,7 +53,7 @@
                 </table>
             </form>
             <button data-bind="visible: editmode() == false, click: newSupplier">Add supplier</button>
-            <button data-bind="visible: editmode, click: addSupplier" type="submit">Submit</button>
+            <button data-bind="visible: editmode() == false, click: addSupplier" type="submit">Submit</button>
         </div>
     </div>
     <div class="col-md-4">

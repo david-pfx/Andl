@@ -43,13 +43,13 @@ get_part_q(query:{{ Key:text,Value:text }}) => do {
 
 get_supplies => supplies
 
-//get_supplier
+//get_supplier()
 //get_part
 //get_supplies
 //get_part_q({{ Key := 'PNAME', Value := 'S.*' }})
 
 //andl_catalog
 //andl_variable
-andl_operator
+andl_operator()
 //andl_member
 #stop
