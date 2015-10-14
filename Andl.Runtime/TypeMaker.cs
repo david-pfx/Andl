@@ -32,7 +32,7 @@ namespace Andl.Runtime {
         return listtype.MakeGenericType((datatype as DataTypeRelation).ChildTupleType.NativeType);
       }
       var typemaker = new TypeMaker {
-        _typebuilder = _modulebuilder.DefineType(datatype.GenCleanName, TypeAttributes.Public),
+        _typebuilder = _modulebuilder.DefineType(datatype.GetNiceName, TypeAttributes.Public),
       };
       typemaker.DefineMembers(datatype.Heading.Columns);
       return typemaker._typebuilder.CreateType();

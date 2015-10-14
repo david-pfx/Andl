@@ -134,6 +134,10 @@ namespace Andl.Runtime {
   /// One created for each data type
   /// </summary>
   public class DataType : IDataType {
+    public const string TupleNiceNameTemplate = "__t_{0}";
+    public const string TupleUniqueNameTemplate = "{{{0}}}";
+    public const string RelationUniqueNameTemplate = "{{{{{0}}}}}";
+
     public string Name { get; protected set; }
     public TypeFlags Flags { get; protected set; }
     // return heading if it has one
@@ -209,9 +213,9 @@ namespace Andl.Runtime {
     // Base name from base type
     public string BaseName { get { return BaseType.Name; } }
     // Name guaranteed to be unique for generated types and null for others
-    public virtual string GenUniqueName { get { return null; } }
+    public virtual string GetUniqueName { get { return null; } }
     // Name for code generation, unique (enough) on its own, never null
-    public virtual string GenCleanName { get { return BaseName; } }
+    public virtual string GetNiceName { get { return BaseName; } }
 
     // Is other a type match where this is what is needed?
     public bool IsTypeMatch(DataType other) {
@@ -254,8 +258,8 @@ namespace Andl.Runtime {
   public class DataTypeTuple : DataType {
     public override DataHeading Heading { get; protected set; }
     public int Ordinal { get; private set; }
-    // Name (possibly) given to this type
-    public string AltName { get; set; }
+    // A nice name that can be used for code generated from this type
+    public string NiceName { get; set; }
 
     static Dictionary<DataHeading, DataTypeTuple> _headings = new Dictionary<DataHeading, DataTypeTuple>();
     TupleValue _default;
@@ -274,8 +278,8 @@ namespace Andl.Runtime {
 
     public override DataType BaseType { get { return DataTypes.Row; } }
 
-    public override string GenUniqueName { get { return "{" + Ordinal.ToString() + "}"; } }
-    public override string GenCleanName { get { return AltName ?? "__t__" + Ordinal.ToString(); } }
+    public override string GetUniqueName { get { return string.Format(TupleUniqueNameTemplate, Ordinal); } }
+    public override string GetNiceName { get { return NiceName ?? string.Format(TupleNiceNameTemplate, Ordinal); } }
 
     public override TypedValue DefaultValue() {
       if (_default == null)
@@ -313,8 +317,8 @@ namespace Andl.Runtime {
 
     // Give this type a possible clean name if it doesn't already have one
     public void ProposeCleanName(string name) {
-      if (AltName == null)
-        AltName = name;
+      if (NiceName == null)
+        NiceName = name;
     }
   }
 
@@ -347,8 +351,8 @@ namespace Andl.Runtime {
 
     public override DataType BaseType { get { return DataTypes.Table; } }
 
-    public override string GenUniqueName { get { return "{{" + Ordinal.ToString() + "}}"; } }
-    public override string GenCleanName { get { return ChildTupleType.GenCleanName; } }
+    public override string GetUniqueName { get { return string.Format(RelationUniqueNameTemplate, Ordinal); } }
+    public override string GetNiceName { get { return ChildTupleType.GetNiceName; } }
 
     public override TypedValue DefaultValue() {
       if (_default == null)
@@ -420,8 +424,8 @@ namespace Andl.Runtime {
     }
 
     public override DataType BaseType { get { return DataTypes.User; } }
-    public override string GenUniqueName { get { return Name; } }
-    public override string GenCleanName { get { return Name; } }
+    public override string GetUniqueName { get { return Name; } }
+    public override string GetNiceName { get { return Name; } }
 
     public override TypedValue DefaultValue() {
       if (_default == null)

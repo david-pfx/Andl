@@ -49,10 +49,10 @@ namespace Andl.Runtime {
       var gen = new ThriftGen();
       tw.Write(gen.Heading(basename));
       var names = new HashSet<string>();
-      foreach (var t in types.OrderBy(d => d.GenCleanName)) {
-        if (!names.Contains(t.GenCleanName))
-          tw.Write(gen.Struct(t.GenCleanName, t.Heading.Columns));
-        names.Add(t.GenCleanName);
+      foreach (var t in types.OrderBy(d => d.GetNiceName)) {
+        if (!names.Contains(t.GetNiceName))
+          tw.Write(gen.Struct(t.GetNiceName, t.Heading.Columns));
+        names.Add(t.GetNiceName);
       }
       tw.Write(gen.Service(basename, exprs.OrderBy(e => e.Name).ToArray()));
     }
@@ -103,8 +103,8 @@ namespace Andl.Runtime {
 
     string TypeName(DataType datatype) {
       var dtr = datatype as DataTypeRelation;
-      return (dtr == null) ? datatype.GenCleanName
-        : "list<" + datatype.GenCleanName + ">";
+      return (dtr == null) ? datatype.GetNiceName
+        : "list<" + datatype.GetNiceName + ">";
     }
 
   }

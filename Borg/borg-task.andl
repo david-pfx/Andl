@@ -51,7 +51,7 @@ get_task() => do {
 
 // Find all ids
 get_task_ids() => do {
-    task [ { tasknum} ]
+    task [ { num := tasknum} ]
 }
 
 // Rename task type

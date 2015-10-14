@@ -145,7 +145,7 @@ namespace Andl.Thrift {
         case TType.Struct:
         case TTUSER:
           _result.GetStructBegin(i);
-          oprot.WriteStructBegin(new TStruct { Name = datatype.GenCleanName });
+          oprot.WriteStructBegin(new TStruct { Name = datatype.GetNiceName });
           WriteFields(oprot);
           oprot.WriteStructEnd();
           _result.GetStructEnd();
@@ -158,7 +158,7 @@ namespace Andl.Thrift {
           while (!_result.Done) {
             _result.GetStructBegin(i);
             // this will be the name for relation type, but should be the tuple type
-            oprot.WriteStructBegin(new TStruct { Name = datatype.GenCleanName });
+            oprot.WriteStructBegin(new TStruct { Name = datatype.GetNiceName });
             WriteFields(oprot);
             oprot.WriteStructEnd();
             _result.GetStructEnd();

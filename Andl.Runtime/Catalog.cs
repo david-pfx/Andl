@@ -156,7 +156,7 @@ namespace Andl.Runtime {
       GlobalVars.FindEntry(_catalogtablename).Flags |= EntryFlags.Database;
       if (LoadFlag) {
         if (!LinkRelvar(_catalogtablename))
-          RuntimeError.Fatal("Catalog", "cannot load catalog for '{0}'", DatabaseName);
+          RuntimeError.Error("Catalog", "cannot load catalog for '{0}'", DatabaseName);
         LoadFromTable();
         Logger.WriteLine(1, "Loaded catalog for '{0}'", DatabaseName);
       }
@@ -208,13 +208,13 @@ namespace Andl.Runtime {
       if (DatabaseSqlFlag) {
         var sqlheading = SqlTarget.Create().GetTableHeading(name);
         if (sqlheading == null || !heading.Equals(sqlheading))
-          RuntimeError.Fatal("Catalog link relvar", "sql table not found: {0}", name);
+          RuntimeError.Error("Catalog", "sql table not found: '{0}'", name);
         var table = DataTableSql.Create(name, heading);
         entry.Value = RelationValue.Create(table);
       } else {
         var tablev = Persist.Create(DatabasePath, false).Load(name);
         if (tablev == null || !heading.Equals(tablev.Heading))
-          RuntimeError.Fatal("Catalog link relvar", "local table not found: {0}", name);
+          RuntimeError.Error("Catalog", "local table not found: '{0}'", name);
         entry.Value = RelationValue.Create(tablev.AsTable());
       }
       return true;
@@ -228,7 +228,7 @@ namespace Andl.Runtime {
       var heading = entry.DataType.Heading;
       var table = DataSourceStream.Create(source, SourcePath).Input(name, false);
       if (table == null || !heading.Equals(table.Heading))
-        RuntimeError.Fatal("Catalog link relvar", "{0} table not found: {1}", source, name);
+        RuntimeError.Error("Catalog", "{0} table not found: '{1}'", source, name);
       GlobalVars.SetValue(name, RelationValue.Create(table));
       return true;
     }
@@ -265,7 +265,7 @@ namespace Andl.Runtime {
         PersistentVars.Add(entry);
         if (entry.IsDatabase) {
           if (!LinkRelvar(entry.Name))
-            RuntimeError.Fatal("Load catalog", "adding relvar {0}", entry.Name);
+            RuntimeError.Error("Catalog", "cannot add '{0}'", entry.Name);
         }
       }
     }
@@ -320,10 +320,12 @@ namespace Andl.Runtime {
       if (kind == EntryKinds.Value && datatype is DataTypeRelation && Catalog.IsDatabase(name))
         flags |= EntryFlags.Database;
       Add(name, datatype, kind, flags, datatype.DefaultValue());   // make sure it has something, to avoid later errrors
-      if (datatype is DataTypeRelation)
-        (datatype as DataTypeRelation).ProposeCleanName(name);
-      if (datatype is DataTypeTuple)
-        (datatype as DataTypeTuple).ProposeCleanName(name);
+      if (kind == EntryKinds.Value) {
+        if (datatype is DataTypeRelation)
+          (datatype as DataTypeRelation).ProposeCleanName(name);
+        else if (datatype is DataTypeTuple)
+          (datatype as DataTypeTuple).ProposeCleanName(name);
+      }
     }
 
 
@@ -331,9 +333,6 @@ namespace Andl.Runtime {
     // NOTE: if level is global, needs concurrency control
     internal void Set(string name, TypedValue value) {
       _entries[name].Set(value);
-      //Logger.Assert(value.DataType == _entries[name].DataType);
-      //_entries[name].Value = value;
-      //_entries[name].NativeValue = TypeMaker.ToNativeValue(value);
     }
 
     // Return raw value from variable
@@ -359,7 +358,10 @@ namespace Andl.Runtime {
     // Value replaces existing, type should be compatible
     // Supports assignment. Handles linked tables.
     public void SetValue(string name, TypedValue value) {
-      if (Catalog.IsSystem(name)) RuntimeError.Fatal("Catalog Set", "protected name");
+      if (Catalog.IsSystem(name)) {
+        RuntimeError.Error("Catalog", "cannot set '{0}'", name);
+        return;
+      }
       var entry = FindEntry(name);
       if (entry == null && Level == ScopeLevels.Local) {
         Add(name, value.DataType, EntryKinds.Value);
@@ -562,7 +564,7 @@ namespace Andl.Runtime {
       var addrow = DataRow.Create(Table.Heading, new TypedValue[] 
           { TextValue.Create(name), 
             TextValue.Create(datatype.BaseType.Name), 
-            TextValue.Create(datatype.GenUniqueName ?? "") });
+            TextValue.Create(datatype.GetUniqueName ?? "") });
       Table.AddRow(addrow);
     }
 
@@ -578,15 +580,15 @@ namespace Andl.Runtime {
       var addrow = DataRow.Create(Table.Heading, new TypedValue[] 
           { TextValue.Create(name), 
             TextValue.Create(value.DataType.BaseType.Name), 
-            TextValue.Create(value.DataType.GenUniqueName ?? ""),
+            TextValue.Create(value.DataType.GetUniqueName ?? ""),
             TextValue.Create(value.NumArgs == 0 ? "" : value.SubtypeName) }); // suppress empty arg list
       Table.AddRow(addrow);
     }
 
     // Fill a table of members
     public CatalogTableMaker AddMembers(IEnumerable<CatalogEntry> entries) {
-      foreach (var entry in entries.Where(e => e.DataType.GenUniqueName != null)) {
-        AddMember(entry.DataType.GenUniqueName, entry.DataType.Heading);
+      foreach (var entry in entries.Where(e => e.DataType.GetUniqueName != null)) {
+        AddMember(entry.DataType.GetUniqueName, entry.DataType.Heading);
         // TODO: recursive call
       }
       foreach (var entry in entries.Where(e => e.IsCode)) {
@@ -603,11 +605,11 @@ namespace Andl.Runtime {
             NumberValue.Create(++index), 
             TextValue.Create(column.Name), 
             TextValue.Create(column.DataType.BaseType.Name),
-            TextValue.Create(column.DataType.GenUniqueName ?? "") });
+            TextValue.Create(column.DataType.GetUniqueName ?? "") });
         Table.AddRow(addrow);
         // Recursive call. note: may be duplicate, but no matter.
-        if (column.DataType.GenUniqueName != null)
-          AddMember(column.DataType.GenUniqueName, column.DataType.Heading);
+        if (column.DataType.GetUniqueName != null)
+          AddMember(column.DataType.GetUniqueName, column.DataType.Heading);
       }
     }
   }

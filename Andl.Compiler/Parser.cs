@@ -71,8 +71,8 @@ namespace Andl.Compiler {
     }
 
     // Load a file from a reader
-    // Compile and execute line by line
-    public bool Compile(string input) {
+    // Compile and execute line by line or in batch if required
+    public bool Process(string input) {
       _lexer = Lexer.Create(input, SymbolTable, Catalog);
       _emitter = new Emitter();
       Error = false;
@@ -82,23 +82,17 @@ namespace Andl.Compiler {
       Catalog.Start();
       SymbolTable.Add(Catalog.GlobalVars);
       SymbolTable.Add(Catalog.PersistentVars);
-      //SymbolTable.Add(Catalog, ScopeLevels.Global);
-      //SymbolTable.Add(Catalog, ScopeLevels.Persistent);
       
       // main parser
       if (!ParseMain() || ErrorCount > 0) return ErrorCount == 0;
 
       var code = _emitter.GetCode();
-      // decode/execute once at end?
+      // decode if didn't already
       if (Logger.Level >= 3 && !Catalog.InteractiveFlag)
           Decoder.Create(code).Decode();
-      // OBS: write code to persistent form
-      //if (writer != null) {
-      //  var eb = ExpressionBlock.Create("main", ExpressionKinds.Closed, code, DataTypes.Void);
-      //  writer.Store(CodeValue.Create(eb)); //FIX: CodeValue may not work
-      //}
+    
       // batch execution
-      if (!Catalog.InteractiveFlag && _evaluator != null) {
+      if (Catalog.ExecuteFlag) {
         Logger.WriteLine(3, "Begin execution");
         _evaluator.Exec(code);
       }
@@ -108,6 +102,7 @@ namespace Andl.Compiler {
     // Parse a sequence of statements
     bool ParseMain() {
       var ret = false;
+      var exec = Catalog.ExecuteFlag;
       while (!Check(Atoms.EOF)) {
         Error = false;
         var marker = _emitter.GetMarker();
@@ -131,8 +126,11 @@ namespace Andl.Compiler {
             Take();
         }
         // shall we execute?
-        if (Error) ErrorCount++;
-        else if (result && Catalog.InteractiveFlag && _evaluator != null)
+        if (Error) {
+          ErrorCount++;
+          exec = false;         // stop interactive execution -- possible bad code
+        }
+        if (result && exec)
           _evaluator.Exec(code);
         ret = true;
       }

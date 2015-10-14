@@ -89,8 +89,6 @@ namespace Andl.Runtime {
   /// </summary>
   public class Evaluator {
     public static Evaluator Current { get; private set; }
-    public int ErrorCount { get; private set; }
-    public bool Valid { get { return ErrorCount == 0; } }
 
     CatalogPrivate _catalog;
     Builtin _builtin;

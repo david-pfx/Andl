@@ -50,6 +50,6 @@ get_supplies => supplies
 
 //andl_catalog
 //andl_variable
-andl_operator
+andl_operator()
 //andl_member
 #stop

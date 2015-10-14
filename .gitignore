@@ -175,3 +175,9 @@ $RECYCLE.BIN/
 *.btm
 *.sqlite
 *.thrift
+/Borg/gen-java/borg
+/Borg/gen-json
+/Borg/gen-xsd
+/Thrift/gen-java/ThriftTest
+/Thrift/gen-java-nb
+/Thrift/gen-javabean/ThriftTest

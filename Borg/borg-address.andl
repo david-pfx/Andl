@@ -46,6 +46,6 @@ get_address() => do {
 //--- Address other queries
 
 get_address_ids() => do {
-    address[ $(last_name, first_name) { address_num } ]
+    address[ $(last_name, first_name) { num := address_num } ]
 }
 

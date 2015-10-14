@@ -34,7 +34,7 @@ get_memo() => do {
 
 // Find all memos
 get_memo_ids() => do {
-    memo [ $(memoname) { memoname } ]
+    memo [ $(memoname) { str := memoname } ]
 }
 
 

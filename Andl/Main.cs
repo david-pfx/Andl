@@ -24,7 +24,7 @@ namespace Andl.Main {
   /// Handles command line arguments.
   /// </summary>
   class Program {
-    static bool _xsw = false; // compile only
+    static bool _csw = false; // compile only
     static bool _isw = false; // interactive
     static bool _nsw = true;  // new catalog
     static bool _tsw = false; // Thrift IDL
@@ -37,12 +37,12 @@ namespace Andl.Main {
 
     static List<string> _paths = new List<string>();
     static string _help = "Andl [<input path> [<catalog name> [<database path>]]] options\n"
-      + "\t\tDefault is compile only with new catalog and local database\n"
-      + "\t\tDefault catalog is 'data', default database is 'data.sandl' or 'data.sqlite'\n"
+      + "\t\tDefault is compile and execute with new catalog and local database, no update.\n"
+      + "\t\tDefault catalog is 'data', default database is 'data.sandl' or 'data.sqlite'.\n"
       + "\t/c[nu]\tUse existing catalog, n for new, u for update\n"
       + "\t/i\tInteractive, execute one line at a time\n"
       + "\t/t\tOutput Thrift IDL file\n"
-      + "\t/x\tExecute after compilation\n"
+      + "\t/x[n]\tExecute after compilation, n for not\n"
       + "\t/s\tUse Sql to access the database\n"
       + "\t/1\tListing to console\n"
       + "\t/2\tShow generated SQL\n"
@@ -86,9 +86,9 @@ namespace Andl.Main {
       } else if (arg.StartsWith("c")) {
         _nsw = arg.Contains("n");
         _usw = arg.Contains("u");
-      } else if (arg == "x")
-        _xsw = true;
-      else if (arg == "i")
+      } else if (arg == "x") {
+        _csw = arg.Contains("n");
+      }  else if (arg == "i")
         _isw = true;
       else if (arg == "s")
         _ssw = true;
@@ -116,7 +116,7 @@ namespace Andl.Main {
       if (_isw && Logger.Level == 0) Logger.Level = 1;
       _catalog = Catalog.Create();
       _catalog.InteractiveFlag = _isw;
-      _catalog.ExecuteFlag = _xsw && !_isw;
+      _catalog.ExecuteFlag = !_csw && !_isw;
       _catalog.LoadFlag = !_nsw;
       _catalog.SaveFlag = _usw;
       _catalog.DatabaseSqlFlag = _ssw;
@@ -129,8 +129,8 @@ namespace Andl.Main {
 
       // Create private catalog with access to global level
       var catalogp = CatalogPrivate.Create(_catalog, true);
-      //var catalogp = CatalogPrivate.Create(_catalog, ScopeLevels.Global);
-      _evaluator = (!_xsw) ? Evaluator.Create(catalogp) : null;
+      // Create evaluator (may not get used)
+      _evaluator = Evaluator.Create(catalogp);
 
       return true;
     }
@@ -138,7 +138,7 @@ namespace Andl.Main {
     static bool Compile() {
       Logger.WriteLine("*** Compiling: {0} ***", _paths[0]);
       var parser = Parser.Create(_catalog, _evaluator);
-      var ret = parser.Compile(_paths[0]);
+      var ret = parser.Process(_paths[0]);
       Logger.WriteLine("*** Compiled {0} {1} ***", _paths[0], ret ? "OK"
         : "with error count = " + parser.ErrorCount.ToString());
       return parser.ErrorCount == 0;

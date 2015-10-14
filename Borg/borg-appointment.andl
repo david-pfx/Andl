@@ -64,14 +64,14 @@ get_appointment_by_uid(u) => do {
 }
 
 get_appointment_ids() => do {
-    appointment[ { appt_num } ]
+    appointment[ { num := appt_num } ]
 }
 
 get_appointment_todo_ids() => do {
-    appointment[ ?(todo) { appt_num } ]
+    appointment[ ?(todo) { num := appt_num } ]
 }
 
 get_appointment_rpt_ids() => do {
-    appointment[ ?(rpt) { appt_num } ]
+    appointment[ ?(rpt) { num := appt_num } ]
 }
 

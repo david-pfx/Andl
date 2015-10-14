@@ -2,6 +2,11 @@
 
 #catalog new update
 
+// generic structs
+
+number_value := { num := 0 }
+text_value := { str := '' }
+
 #include borg-address.andl
 #include borg-appointment.andl
 #include borg-checklist.andl

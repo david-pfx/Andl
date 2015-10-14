@@ -237,7 +237,7 @@ namespace Andl.Runtime {
     // Connect to a persisted or imported relvar
     public VoidValue Connect(TextValue namearg, TextValue sourcearg, HeadingValue heading) {
       if (!_catalog.Catalog.ImportRelvar(namearg.Value, sourcearg.Value))
-        RuntimeError.Fatal("cannot connect: {0}", namearg.Value);
+        RuntimeError.Error("Connect", "cannot import from '{0}'", namearg.Value);
       return VoidValue.Default;
     }
 
@@ -696,37 +696,37 @@ namespace Andl.Runtime {
     public BoolValue Bool(TextValue value) {
       if (String.Equals(value.Value, "true", StringComparison.InvariantCultureIgnoreCase)) return BoolValue.True;
       if (String.Equals(value.Value, "false", StringComparison.InvariantCultureIgnoreCase)) return BoolValue.False;
-      RuntimeError.Fatal("Bool", "bad string format");
+      RuntimeError.Error("Convert", "not a valid boolean");
       return BoolValue.Default;
     }
 
     public NumberValue Number(TextValue value) {
       decimal d;
       if (Decimal.TryParse(value.Value, out d)) return NumberValue.Create(d);
-      RuntimeError.Fatal("Number", "bad string format");
+      RuntimeError.Error("Convert", "not a valid number");
       return NumberValue.Default;
     }
 
     public TimeValue Time(TextValue value) {
       DateTime t;
       if (DateTime.TryParse(value.Value, out t)) return TimeValue.Create(t);
-      RuntimeError.Fatal("Time", "bad string format");
+      RuntimeError.Error("Convert", "not a valid time/date");
       return TimeValue.Default;
     }
 
     ///=================================================================
     ///
-    /// bianry operations
+    /// binary operations
     /// 
 
     public BinaryValue Binary(TypedValue value) {
       if (value.DataType == DataTypes.Text)
-        return BinaryValue.Default;
+        return BinaryValue.Default;   // TODO: conversion
       if (value.DataType == DataTypes.Number) {
         var size = (int)((NumberValue)value).Value;
         return BinaryValue.Create(new byte[size]);
       }
-      RuntimeError.Fatal("Binary", "invalid arg type");
+      RuntimeError.Error("Binary", "invalid arg type");
       return BinaryValue.Default;
     }
 
@@ -736,13 +736,13 @@ namespace Andl.Runtime {
     
     public NumberValue BinaryGet(BinaryValue value, NumberValue index) {
       if (index.Value < 0 || index.Value > value.Value.Length)
-        RuntimeError.Fatal("Binary get", "index out of range");
+        RuntimeError.Fatal("Binary", "get index out of range");
       return NumberValue.Create(value.Value[(int)index.Value]);
     }
 
     public BinaryValue BinarySet(BinaryValue value, NumberValue index, NumberValue newvalue) {
       if (index.Value < 0 || index.Value > value.Value.Length)
-        RuntimeError.Fatal("Binary set", "index out of range");
+        RuntimeError.Fatal("Binary", "set index out of range");
       var b = value.Value.Clone() as byte[];
       b[(int)index.Value] = (byte)newvalue.Value;
       return BinaryValue .Create(b);

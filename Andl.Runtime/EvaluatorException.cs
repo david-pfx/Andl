@@ -31,16 +31,60 @@ namespace Andl.Runtime {
     public RuntimeErrorException(string message) : base(message) { }
   }
 
+  public enum RteCodes {
+    CnvNvb,
+    CnvNvn,
+    CnvNvt,
+    BinGxoor,
+    BinSxoor,
+    CatLfis,
+    CatDbne,
+  }
+
+  public enum ErrorKind { 
+    Warn,     // never fatal
+    Error,    // fatal if not handled
+    Fatal,    // call handler but always fatal
+    Panic     // immediately fatal
+  };
+
   public class RuntimeError {
-    public static void Fatal(string code, string message) {
-      throw new RuntimeErrorException("Fatal error " + code + ": " + message) {
-        Fatal = true,
-        Code = code,
-      };
+    public delegate bool ErrorHandler(string code, string message);
+    public static ErrorHandler ErrorEvent;
+
+    public static void Raise(ErrorKind kind, string code, string message) {
+      bool handled = (kind != ErrorKind.Panic && ErrorEvent != null && ErrorEvent(code, message))
+        || kind == ErrorKind.Warn;
+      if (!handled) {
+        string msg = "Fatal error " + code + ": " + message;
+        if (kind == ErrorKind.Warn)
+          Console.WriteLine(msg);
+        else {
+          throw new RuntimeErrorException(msg) {
+            Fatal = true,
+            Code = code,
+          };
+        }
+      }
+    }
+//    public static void Error(string code, string message) {
+      //Raise(ErrorKind.Warn, code, message);
+    //}
+
+    public static void Warn(string code, string format, params object[] args) {
+      Raise(ErrorKind.Warn, code, args.Length == 0 ? format : String.Format(format, args));
+    }
+
+    public static void Error(string code, string format, params object[] args) {
+      Raise(ErrorKind.Error, code, args.Length == 0 ? format : String.Format(format, args));
     }
 
     public static void Fatal(string code, string format, params object[] args) {
-      Fatal(code, String.Format(format, args));
+      Raise(ErrorKind.Fatal, code, args.Length == 0 ? format : String.Format(format, args));
+    }
+
+    public static void Panic(string code, string format, params object[] args) {
+      Raise(ErrorKind.Fatal, code, args.Length == 0 ? format : String.Format(format, args));
     }
 
   }

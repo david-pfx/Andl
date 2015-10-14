@@ -28,7 +28,7 @@ namespace Andl.Thrift {
         //TServer server = new TThreadedServer(processor, serverTransport);
         //TServer server = new TSimpleServer(processor, serverTransport);
         server.setEventHandler(new ServerEventHandler());
-        Console.WriteLine("Starting the server...");
+        Console.WriteLine("Starting the server...default database");
         server.Serve();
       } catch (Exception ex) {
         Console.WriteLine(ex.StackTrace);

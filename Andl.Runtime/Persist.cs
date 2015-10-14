@@ -36,7 +36,7 @@ namespace Andl.Runtime {
     // Create a persister, in memory or to a path
     public static Persist Create(string basepath, bool cancreate) {
       if (!Directory.Exists(basepath)) 
-        if (!cancreate) RuntimeError.Fatal("Persist", "database does not exist: " + basepath);
+        if (!cancreate) RuntimeError.Fatal("Storage", "database does not exist: " + basepath);
       Directory.CreateDirectory(basepath);
       return new Persist { _basepath = basepath };
     }
@@ -68,7 +68,7 @@ namespace Andl.Runtime {
           w.Store(value);
         }
       } catch (Exception) {
-        RuntimeError.Fatal("Persist Store", "storing {0}", name);
+        RuntimeError.Error("Storage", "cannot store '{0}'", name);
       }
     }
 
@@ -358,9 +358,9 @@ namespace Andl.Runtime {
     // Load the value of a variable from the database
     // Complements Store
     public TypedValue Load() {
-      if (_reader.ReadString() != Persist.Signature) RuntimeError.Fatal("Load catalog", "invalid signature");
+      if (_reader.ReadString() != Persist.Signature) RuntimeError.Fatal("Catalog", "load found invalid signature");
       var value = ReadValue();
-      if (_reader.ReadString() != Persist.Signature) RuntimeError.Fatal("Load catalog", "invalid signature");
+      if (_reader.ReadString() != Persist.Signature) RuntimeError.Fatal("Catalog", "load found invalid signature");
       return value;
     }
 
