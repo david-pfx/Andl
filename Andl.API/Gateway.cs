@@ -183,14 +183,14 @@ namespace Andl.API {
       return newname;
     }
 
-    //-- serialised interface
+    //-- serialised native interface
     public override bool NativeCall(string name, byte[] arguments, out byte[] result) {
       return RequestSession.Create(this, _catalog).NativeCall(name, arguments, out result);
     }
 
     //-- builder interface
     public override Result BuilderCall(string name, TypedValueBuilder arguments) {
-      Logger.WriteLine(3, "BuilderCall {0} args={1}", name, arguments.Values.Length);
+      Logger.WriteLine(3, "BuilderCall {0} args={1}", name, arguments.StructSize);
       var result = RequestSession.Create(this, _catalog).BuilderCall(name, arguments);
       Logger.WriteLine(3, "[BC {0}]", result.Ok);
       return result;
@@ -386,11 +386,9 @@ namespace Andl.API {
       var kind = _catalogpriv.GetKind(name);
       Logger.Assert(kind == EntryKinds.Code);
       var expr = (_catalogpriv.GetValue(name) as CodeValue).Value;
-
-      var argvalue = DataRow.CreateUntyped(expr.Lookup, arguments.Values);
       TypedValue retvalue;
-
       try {
+        var argvalue = DataRow.CreateUntyped(expr.Lookup, arguments.FilledValues());
         retvalue = _evaluator.Exec(expr.Code, argvalue);
         return Result.Success(TypedValueBuilder.Create(new TypedValue[] { retvalue }));
       } catch (ProgramException ex) {

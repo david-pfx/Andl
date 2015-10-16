@@ -26,6 +26,7 @@ namespace Andl.Thrift {
     }
 
     public bool Process(TProtocol iprot, TProtocol oprot) {
+      var ok = false;
       try {
         TMessage msg = iprot.ReadMessageBegin();
         _arguments = _gateway.GetTypedValueBuilder(msg.Name);
@@ -39,30 +40,39 @@ namespace Andl.Thrift {
           oprot.Transport.Flush();
           return true;
         }
-        ProcessMessage(msg, iprot, oprot);
+        ok = ProcessMessage(msg, iprot, oprot);
       } catch (IOException) {
         return false;
       }
-      return true;
+      return ok;
     }
 
-    private void ProcessMessage(TMessage msg, TProtocol iprot, TProtocol oprot) {
+    private bool ProcessMessage(TMessage msg, TProtocol iprot, TProtocol oprot) {
       iprot.ReadStructBegin(); //???
       ReadFields(iprot);
       iprot.ReadStructEnd();
       iprot.ReadMessageEnd();
-      var result = _gateway.BuilderCall(msg.Name, _arguments);
-      if (result.Ok) {
-        oprot.WriteMessageBegin(new TMessage(msg.Name, TMessageType.Reply, msg.SeqID));
-        _result = (TypedValueBuilder)result.Value;
-        WriteResult(oprot, true, msg);
-      } else {
-        TApplicationException x = new TApplicationException(TApplicationException.ExceptionType.Unknown, result.Message);
+      var ok = true;
+      try {
+        var result = _gateway.BuilderCall(msg.Name, _arguments);
+        if (result.Ok) {
+          oprot.WriteMessageBegin(new TMessage(msg.Name, TMessageType.Reply, msg.SeqID));
+          _result = (TypedValueBuilder)result.Value;
+          WriteResult(oprot, true, msg);
+        } else {
+          TApplicationException x = new TApplicationException(TApplicationException.ExceptionType.Unknown, result.Message);
+          oprot.WriteMessageBegin(new TMessage(msg.Name, TMessageType.Exception, msg.SeqID));
+          x.Write(oprot);
+        }
+      } catch (Exception ex) {
+        TApplicationException x = new TApplicationException(TApplicationException.ExceptionType.InternalError, ex.ToString());
         oprot.WriteMessageBegin(new TMessage(msg.Name, TMessageType.Exception, msg.SeqID));
         x.Write(oprot);
+        ok = false;
       }
       oprot.WriteMessageEnd();
       oprot.Transport.Flush();
+      return ok;
     }
 
     // Read arguments according to field type and ID

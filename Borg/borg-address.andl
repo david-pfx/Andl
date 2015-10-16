@@ -17,6 +17,7 @@ getnext_address() => do {
 
 // Add a set of addresses
 add_address(addr:address) => do {
+    if(addr.count>0, fail("address", "cannot add multiple addresses"), do{}))
     address := union addr [ { * 
         address_num := getnext_address() 
     } ]

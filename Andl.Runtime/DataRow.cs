@@ -127,6 +127,7 @@ namespace Andl.Runtime {
     // Create a row that has no data type and can be used as an argument
     public static DataRow CreateUntyped(DataHeading newheading, TypedValue[] values) {
       if (values.Length != newheading.Degree) throw new ArgumentOutOfRangeException("values", "wrong degree");
+      if (values.Any(v => v == null)) ProgramError.Fatal("DataRow", "null value not allowed");
       var dr = new DataRow() {
         Heading = newheading,
         DataType = null,
@@ -139,6 +140,7 @@ namespace Andl.Runtime {
     // Create a row that belongs to a table. Reorder values to match.
     public static DataRow Create(DataHeading heading, TypedValue[] values) {
       if (values.Length != heading.Degree) throw new ArgumentOutOfRangeException("values", "wrong degree");
+      if (values.Any(v => v == null)) ProgramError.Fatal("DataRow", "null value not allowed");
       var newheading = DataTypeTuple.Get(heading).Heading;
       var dr = new DataRow() {
         DataType = DataTypeTuple.Get(heading),
@@ -150,6 +152,7 @@ namespace Andl.Runtime {
     }
 
     public static DataRow Create(DataHeading heading, params string[] values) {
+      if (values.Length != heading.Degree) throw new ArgumentOutOfRangeException("values", "wrong degree");
       var newvalues = values
         .Select((v, x) => TypedValue.Parse(heading.Columns[x].DataType, v))
         .ToArray();

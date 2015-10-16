@@ -35,8 +35,12 @@ namespace Andl.Runtime {
     }
     public int StructSize { get { return _valueholder._values.Length; } }
     public int ListSize { get { return _valueholder._list.Count; } }
-    public TypedValue[] Values { get { return _valueholder._values; } }
+    //public TypedValue[] Values { get { return _valueholder._values; } }
     public bool Done { get { return _valueholder._rowidx >= _valueholder._list.Count; } }
+
+    public TypedValue[] FilledValues() {
+      return _valueholder._values.Select((v, x) => v ?? DataTypes[x].DefaultValue()).ToArray();
+    }
 
     // Create a builder to receive values
     public static TypedValueBuilder Create(DataType[] types, string[] names = null) {
@@ -93,7 +97,7 @@ namespace Andl.Runtime {
     }
 
     public void SetStructEnd() {
-      var tuple = _valueholder._values;
+      var tuple = FilledValues();
       _valueholder = _valueholder._parent;
       var datatype = _valueholder.DataType;
       if (datatype is DataTypeUser)
@@ -188,8 +192,9 @@ namespace Andl.Runtime {
       var tvbt = new TypedValueBuilderTest { _input = TypedValueBuilder.Create(values) };
       tvbt._output = TypedValueBuilder.Create(tvbt._input.DataTypes);
       tvbt.MoveData();
+      var outvalues = tvbt._output.FilledValues();
       for (var i = 0; i < values.Length; ++i)
-        Logger.Assert(values[i].Equals(tvbt._output.Values[i]), "value test");
+        Logger.Assert(values[i].Equals(outvalues[i]), "value test");
     }
 
     void MoveData() {
