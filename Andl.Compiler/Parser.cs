@@ -94,7 +94,11 @@ namespace Andl.Compiler {
       // batch execution
       if (Catalog.ExecuteFlag) {
         Logger.WriteLine(3, "Begin execution");
-        _evaluator.Exec(code);
+        try {
+          _evaluator.Exec(code);
+        } catch (ProgramException ex) {
+          Logger.WriteLine(ex.ToString());
+        }
       }
       return true;
     }
@@ -102,7 +106,7 @@ namespace Andl.Compiler {
     // Parse a sequence of statements
     bool ParseMain() {
       var ret = false;
-      var exec = Catalog.ExecuteFlag;
+      var exec = Catalog.InteractiveFlag;
       while (!Check(Atoms.EOF)) {
         Error = false;
         var marker = _emitter.GetMarker();
@@ -131,7 +135,11 @@ namespace Andl.Compiler {
           exec = false;         // stop interactive execution -- possible bad code
         }
         if (result && exec)
-          _evaluator.Exec(code);
+          try {
+            _evaluator.Exec(code);
+          } catch (ProgramException ex) {
+            Console.WriteLine(ex.ToString());
+          }
         ret = true;
       }
       return ret;

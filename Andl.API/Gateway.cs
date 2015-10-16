@@ -71,7 +71,7 @@ namespace Andl.API {
     //--- A gateway for making calls using native arguments
 
     // Make the call using native arguments
-    public abstract bool Call(string name, byte[] arguments, out byte[] result);
+    public abstract bool NativeCall(string name, byte[] arguments, out byte[] result);
     // Get the required type for a setter
     public abstract Type GetSetterType(string name);
     // Get the required type for function arguments
@@ -82,7 +82,8 @@ namespace Andl.API {
     // Get a TypedValueBuilder for the arguments to a function call
     public abstract TypedValueBuilder GetTypedValueBuilder(string name);
     // Function call using builders
-    public abstract bool BuilderCall(string name, TypedValueBuilder arguments, out TypedValueBuilder result);
+    public abstract Result BuilderCall(string name, TypedValueBuilder arguments);
+    //public abstract Result BuilderCall(string name, TypedValueBuilder arguments, out TypedValueBuilder result);
 
   }
 
@@ -151,17 +152,26 @@ namespace Andl.API {
 
     //--- json calls
     public override Result JsonCall(string name, string[] arguments) {
-      return RequestSession.Create(this, _catalog).JsonCall(name, arguments);
+      Logger.WriteLine(3, "JsonCall {0} args {1}", name, arguments.Length);
+      var result = RequestSession.Create(this, _catalog).JsonCall(name, arguments);
+      Logger.WriteLine(3, "[JC {0}]", result.Ok);
+      return result;
     }
 
     public override Result JsonCall(string name, string id, KeyValuePair<string, string>[] query, string body) {
-      return RequestSession.Create(this, _catalog).JsonCall(name, id, query, body);
+      Logger.WriteLine(3, "JsonCall {0} id={1} q={2} body={3}", name, id, query != null, body);
+      var result = RequestSession.Create(this, _catalog).JsonCall(name, id, query, body);
+      Logger.WriteLine(3, "[JC {0}]", result.Ok);
+      return result;
     }
 
     // Implement REST-like interface, building function name according to HTTP method
     public override Result JsonCall(string method, string name, string id, KeyValuePair<string, string>[] query, string body) {
+      Logger.WriteLine(3, "JsonCall {0} method={1} id={2} q={3} body={4}", name, method, id, query != null, body);
       var newname = BuildName(method, name, id != null, query != null);
-      return RequestSession.Create(this, _catalog).JsonCall(newname, id, query, body);
+      var result = RequestSession.Create(this, _catalog).JsonCall(newname, id, query, body);
+      Logger.WriteLine(3, "[JC {0}]", result.Ok);
+      return result;
     }
 
     // Build function name
@@ -174,13 +184,16 @@ namespace Andl.API {
     }
 
     //-- serialised interface
-    public override bool Call(string name, byte[] arguments, out byte[] result) {
-      return RequestSession.Create(this, _catalog).Call(name, arguments, out result);
+    public override bool NativeCall(string name, byte[] arguments, out byte[] result) {
+      return RequestSession.Create(this, _catalog).NativeCall(name, arguments, out result);
     }
 
     //-- builder interface
-    public override bool BuilderCall(string name, TypedValueBuilder arguments, out TypedValueBuilder result) {
-      return RequestSession.Create(this, _catalog).BuilderCall(name, arguments, out result);
+    public override Result BuilderCall(string name, TypedValueBuilder arguments) {
+      Logger.WriteLine(3, "BuilderCall {0} args={1}", name, arguments.Values.Length);
+      var result = RequestSession.Create(this, _catalog).BuilderCall(name, arguments);
+      Logger.WriteLine(3, "[BC {0}]", result.Ok);
+      return result;
     }
   }
 
@@ -233,7 +246,12 @@ namespace Andl.API {
 
       var argvalues = arguments.Select((a, x) => TypeMaker.FromNativeValue(a, expr.Lookup.Columns[x].DataType)).ToArray();
       var args = DataRow.CreateUntyped(expr.Lookup, argvalues);
-      var value = _evaluator.Exec(expr.Code, args);
+      TypedValue value = null;
+      try {
+        value = _evaluator.Exec(expr.Code, args);
+      } catch (ProgramException ex) {
+        return Result.Failure(ex.ToString());
+      }
       var nvalue = (value == VoidValue.Void) ? null : TypeMaker.ToNativeValue(value);
       return Result.Success(nvalue);
     }
@@ -259,8 +277,8 @@ namespace Andl.API {
       }
       try {
         retvalue = _evaluator.Exec(expr.Code, argvalue);
-      } catch {
-        return Result.Failure("execution error");
+      } catch (ProgramException ex) {
+        return Result.Failure(ex.ToString());
       }
       if (retvalue != VoidValue.Void) {
         var nret = TypeMaker.ToNativeValue(retvalue);
@@ -310,8 +328,8 @@ namespace Andl.API {
       }
       try {
         retvalue = _evaluator.Exec(expr.Code, argvalue);
-      } catch {
-        return Result.Failure("evaluator error");
+      } catch (ProgramException ex) {
+        return Result.Failure(ex.ToString());
       }
       var nret = (retvalue == VoidValue.Void) ? null : TypeMaker.ToNativeValue(retvalue);
       if (_runtime.JsonReturnFlag) {
@@ -321,8 +339,8 @@ namespace Andl.API {
       return Result.Success(nret);
     }
 
-    // call using serialised arguments, return serialised result
-    internal bool Call(string name, byte[] arguments, out byte[] result) {
+    // call using serialised native arguments, return serialised native result
+    internal bool NativeCall(string name, byte[] arguments, out byte[] result) {
       var kind = _catalogpriv.GetKind(name);
       if (kind != EntryKinds.Code) return Fail("unknown or invalid name: " + name, out result);
       var expr = (_catalogpriv.GetValue(name) as CodeValue).Value;
@@ -341,8 +359,8 @@ namespace Andl.API {
 
       try {
         retvalue = _evaluator.Exec(expr.Code, argvalue);
-      } catch {
-        return Fail("evaluator error", out result);
+      } catch (ProgramException ex) {
+        return Fail(ex.ToString(), out result);
       }
       using (var pw = PersistWriter.Create()) {
         pw.Write(retvalue);
@@ -364,7 +382,7 @@ namespace Andl.API {
       return false;
     }
 
-    internal bool BuilderCall(string name, TypedValueBuilder arguments, out TypedValueBuilder result) {
+    internal Result BuilderCall(string name, TypedValueBuilder arguments) {
       var kind = _catalogpriv.GetKind(name);
       Logger.Assert(kind == EntryKinds.Code);
       var expr = (_catalogpriv.GetValue(name) as CodeValue).Value;
@@ -374,12 +392,10 @@ namespace Andl.API {
 
       try {
         retvalue = _evaluator.Exec(expr.Code, argvalue);
-      } catch {
-        result = null;
-        return false;
+        return Result.Success(TypedValueBuilder.Create(new TypedValue[] { retvalue }));
+      } catch (ProgramException ex) {
+        return Result.Failure(ex.ToString());
       }
-      result = TypedValueBuilder.Create(new TypedValue[] { retvalue });
-      return true;
     }
   }
 

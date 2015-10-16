@@ -50,7 +50,7 @@ Supplies
 findsome_part({{ Key := 'PNAME', Value := 'S.*' }})
 
 //andl_catalog
-andl_variable
-andl_operator
-andl_member
+//andl_variable()
+andl_operator()
+//andl_member()
 #stop

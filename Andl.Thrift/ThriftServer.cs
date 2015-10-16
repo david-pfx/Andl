@@ -28,10 +28,12 @@ namespace Andl.Thrift {
         //TServer server = new TThreadedServer(processor, serverTransport);
         //TServer server = new TSimpleServer(processor, serverTransport);
         server.setEventHandler(new ServerEventHandler());
-        Console.WriteLine("Starting the server...default database");
+        Console.WriteLine("Starting server...database '{0}'", gateway.DatabaseName);
         server.Serve();
+      } catch (ProgramException ex) {
+        Console.WriteLine(ex.ToString());
       } catch (Exception ex) {
-        Console.WriteLine(ex.StackTrace);
+        Console.WriteLine(ex.ToString());
       }
       Console.WriteLine("done.");
     }

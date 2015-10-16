@@ -123,7 +123,6 @@ namespace Andl.Runtime {
     Catalog() { }
     public static Catalog Create() {
       var cat = new Catalog {
-        DatabaseName = _databasename,
         SystemPattern = _systempattern,
         PersistPattern = _persistpattern,
         DatabasePattern = _databasepattern,
@@ -143,6 +142,8 @@ namespace Andl.Runtime {
     // open the catalog for use, after all flags set up (including from lexer)
     // create catalog table here, local until the end
     public void Start() {
+      if (DatabaseName == null)
+        DatabaseName = (DatabasePath == null) ? _databasename : Path.GetFileNameWithoutExtension(DatabasePath);
       if (DatabasePath == null)
         DatabasePath = (DatabaseSqlFlag) ? DatabaseName + _sqldatabaseext : DatabaseName + _localdatabaseext;
       if (DatabaseSqlFlag) {
@@ -156,7 +157,7 @@ namespace Andl.Runtime {
       GlobalVars.FindEntry(_catalogtablename).Flags |= EntryFlags.Database;
       if (LoadFlag) {
         if (!LinkRelvar(_catalogtablename))
-          RuntimeError.Error("Catalog", "cannot load catalog for '{0}'", DatabaseName);
+          ProgramError.Fatal("Catalog", "cannot load catalog for '{0}'", DatabaseName);
         LoadFromTable();
         Logger.WriteLine(1, "Loaded catalog for '{0}'", DatabaseName);
       }
@@ -208,13 +209,13 @@ namespace Andl.Runtime {
       if (DatabaseSqlFlag) {
         var sqlheading = SqlTarget.Create().GetTableHeading(name);
         if (sqlheading == null || !heading.Equals(sqlheading))
-          RuntimeError.Error("Catalog", "sql table not found: '{0}'", name);
+          ProgramError.Fatal("Catalog", "sql table not found: '{0}'", name);
         var table = DataTableSql.Create(name, heading);
         entry.Value = RelationValue.Create(table);
       } else {
         var tablev = Persist.Create(DatabasePath, false).Load(name);
         if (tablev == null || !heading.Equals(tablev.Heading))
-          RuntimeError.Error("Catalog", "local table not found: '{0}'", name);
+          ProgramError.Fatal("Catalog", "local table not found: '{0}'", name);
         entry.Value = RelationValue.Create(tablev.AsTable());
       }
       return true;
@@ -228,7 +229,7 @@ namespace Andl.Runtime {
       var heading = entry.DataType.Heading;
       var table = DataSourceStream.Create(source, SourcePath).Input(name, false);
       if (table == null || !heading.Equals(table.Heading))
-        RuntimeError.Error("Catalog", "{0} table not found: '{1}'", source, name);
+        ProgramError.Fatal("Catalog", "{0} table not found: '{1}'", source, name);
       GlobalVars.SetValue(name, RelationValue.Create(table));
       return true;
     }
@@ -265,7 +266,7 @@ namespace Andl.Runtime {
         PersistentVars.Add(entry);
         if (entry.IsDatabase) {
           if (!LinkRelvar(entry.Name))
-            RuntimeError.Error("Catalog", "cannot add '{0}'", entry.Name);
+            ProgramError.Fatal("Catalog", "cannot add '{0}'", entry.Name);
         }
       }
     }
@@ -359,7 +360,7 @@ namespace Andl.Runtime {
     // Supports assignment. Handles linked tables.
     public void SetValue(string name, TypedValue value) {
       if (Catalog.IsSystem(name)) {
-        RuntimeError.Error("Catalog", "cannot set '{0}'", name);
+        ProgramError.Error("Catalog", "cannot set '{0}'", name);
         return;
       }
       var entry = FindEntry(name);

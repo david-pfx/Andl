@@ -66,7 +66,7 @@ namespace Andl.Main {
           return;
         Finish();
       } catch (Exception ex) {
-        if (ex.GetBaseException() is RuntimeErrorException)
+        if (ex.GetBaseException() is ProgramException)
           Logger.WriteLine("*** {0}", ex.Message);
         else if (ex.GetBaseException() is UtilAssertException)
           Logger.WriteLine("*** Assert failure: {0}", ex.ToString());

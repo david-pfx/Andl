@@ -32,7 +32,7 @@ namespace Andl.Client {
       var api = Gateway.StartUp(_settingsdict);
       var args = ArgWriter.Create().Put("abcdef").Out();
       byte[] result;
-      var ret = api.Call("func", args, out result);
+      var ret = api.NativeCall("func", args, out result);
       var rr = ResultReader.Create(result);
       Console.WriteLine("Result={0}", rr.ReadText());
     }
@@ -40,7 +40,7 @@ namespace Andl.Client {
     static void ShowCatalog() {
       var api = Gateway.StartUp(_settingsdict);
       byte[] result;
-      var ret = api.Call("andl_catalog", new byte[0], out result);
+      var ret = api.NativeCall("andl_catalog", new byte[0], out result);
     }
 
     public class Supplier {
@@ -55,7 +55,7 @@ namespace Andl.Client {
       byte[] args = ArgWriter.Create().Put(id).Out();
       byte[] result;
       supplier = null;
-      if (!api.Call("find_supplier", args, out result)) return false;
+      if (!api.NativeCall("find_supplier", args, out result)) return false;
       int n;
       var r = ResultReader.Create(result).Get(out n);
       supplier = new Supplier[n];

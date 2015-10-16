@@ -14,32 +14,40 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Andl.Runtime {
+  // error in evaluator VM
   public class EvaluatorException : Exception {
     public EvaluatorException(string message, params object[] args) : base("Evaluator error: " + String.Format(message, args)) { }
   }
 
+  // error in runtime support libraries
   public class RuntimeException : Exception {
     public RuntimeException(string message, params object[] args) : base("Runtime error: " + String.Format(message, args)) { }
   }
+
+  // error in sql libraries
   public class SqlException : Exception {
     public SqlException(string message, params object[] args) : base("Sql error: " + String.Format(message, args)) { }
   }
 
-  public class RuntimeErrorException : Exception {
-    public bool Fatal = true;
-    public string Code = "Unspecified";
-    public RuntimeErrorException(string message) : base(message) { }
+  // error in application program code or data
+  public class ProgramException : Exception {
+    public ErrorKind Kind = ErrorKind.Error;
+    public override string ToString() {
+      return String.Format("Program error ({0}): {1}", Source, Message);
+    }
+
+    public ProgramException(string message) : base(message) { }
   }
 
-  public enum RteCodes {
-    CnvNvb,
-    CnvNvn,
-    CnvNvt,
-    BinGxoor,
-    BinSxoor,
-    CatLfis,
-    CatDbne,
-  }
+  //public enum RteCodes {
+  //  CnvNvb,
+  //  CnvNvn,
+  //  CnvNvt,
+  //  BinGxoor,
+  //  BinSxoor,
+  //  CatLfis,
+  //  CatDbne,
+  //}
 
   public enum ErrorKind { 
     Warn,     // never fatal
@@ -48,37 +56,37 @@ namespace Andl.Runtime {
     Panic     // immediately fatal
   };
 
-  public class RuntimeError {
+  public class ProgramError {
     public delegate bool ErrorHandler(string code, string message);
     public static ErrorHandler ErrorEvent;
 
-    public static void Raise(ErrorKind kind, string code, string message) {
-      bool handled = (kind != ErrorKind.Panic && ErrorEvent != null && ErrorEvent(code, message))
+    public static void Raise(ErrorKind kind, string source, string message) {
+      bool handled = (kind != ErrorKind.Panic && ErrorEvent != null && ErrorEvent(source, message))
         || kind == ErrorKind.Warn;
       if (!handled) {
-        string msg = "Fatal error " + code + ": " + message;
+        //string msg = "Fatal error " + source + ": " + message;
         if (kind == ErrorKind.Warn)
-          Console.WriteLine(msg);
+          Console.WriteLine("Program error ({0}): {1}", source, message);
         else {
-          throw new RuntimeErrorException(msg) {
-            Fatal = true,
-            Code = code,
+          throw new ProgramException(message) {
+            Kind = kind,
+            Source = source,
           };
         }
       }
     }
-//    public static void Error(string code, string message) {
-      //Raise(ErrorKind.Warn, code, message);
-    //}
 
+    // Will always return
     public static void Warn(string code, string format, params object[] args) {
       Raise(ErrorKind.Warn, code, args.Length == 0 ? format : String.Format(format, args));
     }
 
+    // Will return if handled
     public static void Error(string code, string format, params object[] args) {
       Raise(ErrorKind.Error, code, args.Length == 0 ? format : String.Format(format, args));
     }
 
+    // Will never return
     public static void Fatal(string code, string format, params object[] args) {
       Raise(ErrorKind.Fatal, code, args.Length == 0 ? format : String.Format(format, args));
     }

@@ -113,6 +113,7 @@ namespace Andl.Runtime {
     }
 
     // Convert using lookup as context. Used by Invoke.
+    // BUG: depends on static
     public static DataTableLocal Convert(DataTable other, ILookupValue lookup) {
       if (other is DataTableLocal)
         return other as DataTableLocal;

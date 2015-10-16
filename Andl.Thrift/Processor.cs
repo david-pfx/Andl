@@ -51,9 +51,16 @@ namespace Andl.Thrift {
       ReadFields(iprot);
       iprot.ReadStructEnd();
       iprot.ReadMessageEnd();
-      var result = _gateway.BuilderCall(msg.Name, _arguments, out _result);
-      oprot.WriteMessageBegin(new TMessage(msg.Name, TMessageType.Reply, msg.SeqID));
-      WriteResult(oprot, result, msg);
+      var result = _gateway.BuilderCall(msg.Name, _arguments);
+      if (result.Ok) {
+        oprot.WriteMessageBegin(new TMessage(msg.Name, TMessageType.Reply, msg.SeqID));
+        _result = (TypedValueBuilder)result.Value;
+        WriteResult(oprot, true, msg);
+      } else {
+        TApplicationException x = new TApplicationException(TApplicationException.ExceptionType.Unknown, result.Message);
+        oprot.WriteMessageBegin(new TMessage(msg.Name, TMessageType.Exception, msg.SeqID));
+        x.Write(oprot);
+      }
       oprot.WriteMessageEnd();
       oprot.Transport.Flush();
     }

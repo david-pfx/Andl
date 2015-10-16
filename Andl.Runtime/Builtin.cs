@@ -75,7 +75,7 @@ namespace Andl.Runtime {
       addins.Add(AddinInfo.Create("read", 1, DataTypes.Text, "Read"));
       addins.Add(AddinInfo.Create("write", 1, DataTypes.Void, "Write"));
       addins.Add(AddinInfo.Create("pause", 1, DataTypes.Void, "Pause"));
-      addins.Add(AddinInfo.Create("fatal", 2, DataTypes.Void, "Fatal"));
+      addins.Add(AddinInfo.Create("fail", 2, DataTypes.Void, "Fail"));
 
       addins.Add(AddinInfo.Create("type", 1, DataTypes.Text, "Type"));
 
@@ -237,7 +237,7 @@ namespace Andl.Runtime {
     // Connect to a persisted or imported relvar
     public VoidValue Connect(TextValue namearg, TextValue sourcearg, HeadingValue heading) {
       if (!_catalog.Catalog.ImportRelvar(namearg.Value, sourcearg.Value))
-        RuntimeError.Error("Connect", "cannot import from '{0}'", namearg.Value);
+        ProgramError.Error("Connect", "cannot import from '{0}'", namearg.Value);
       return VoidValue.Default;
     }
 
@@ -696,21 +696,21 @@ namespace Andl.Runtime {
     public BoolValue Bool(TextValue value) {
       if (String.Equals(value.Value, "true", StringComparison.InvariantCultureIgnoreCase)) return BoolValue.True;
       if (String.Equals(value.Value, "false", StringComparison.InvariantCultureIgnoreCase)) return BoolValue.False;
-      RuntimeError.Error("Convert", "not a valid boolean");
+      ProgramError.Error("Convert", "not a valid boolean");
       return BoolValue.Default;
     }
 
     public NumberValue Number(TextValue value) {
       decimal d;
       if (Decimal.TryParse(value.Value, out d)) return NumberValue.Create(d);
-      RuntimeError.Error("Convert", "not a valid number");
+      ProgramError.Error("Convert", "not a valid number");
       return NumberValue.Default;
     }
 
     public TimeValue Time(TextValue value) {
       DateTime t;
       if (DateTime.TryParse(value.Value, out t)) return TimeValue.Create(t);
-      RuntimeError.Error("Convert", "not a valid time/date");
+      ProgramError.Error("Convert", "not a valid time/date");
       return TimeValue.Default;
     }
 
@@ -726,7 +726,7 @@ namespace Andl.Runtime {
         var size = (int)((NumberValue)value).Value;
         return BinaryValue.Create(new byte[size]);
       }
-      RuntimeError.Error("Binary", "invalid arg type");
+      ProgramError.Error("Binary", "invalid arg type");
       return BinaryValue.Default;
     }
 
@@ -736,13 +736,13 @@ namespace Andl.Runtime {
     
     public NumberValue BinaryGet(BinaryValue value, NumberValue index) {
       if (index.Value < 0 || index.Value > value.Value.Length)
-        RuntimeError.Fatal("Binary", "get index out of range");
+        ProgramError.Fatal("Binary", "get index out of range");
       return NumberValue.Create(value.Value[(int)index.Value]);
     }
 
     public BinaryValue BinarySet(BinaryValue value, NumberValue index, NumberValue newvalue) {
       if (index.Value < 0 || index.Value > value.Value.Length)
-        RuntimeError.Fatal("Binary", "set index out of range");
+        ProgramError.Fatal("Binary", "set index out of range");
       var b = value.Value.Clone() as byte[];
       b[(int)index.Value] = (byte)newvalue.Value;
       return BinaryValue .Create(b);
@@ -846,9 +846,9 @@ namespace Andl.Runtime {
       return VoidValue.Default;
     }
 
-    // fatal error
-    public VoidValue Fatal(TextValue errorcode, TextValue message) {
-      RuntimeError.Fatal(errorcode.Value, message.Value);
+    // trigger an error
+    public VoidValue Fail(TextValue source, TextValue message) {
+      ProgramError.Error(source.Value, message.Value);
       return VoidValue.Default;
     }
 

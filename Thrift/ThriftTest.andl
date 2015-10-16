@@ -2,6 +2,10 @@
 
 // Test routines for Thrift interface
 
+// 1. Compile this with -t
+// 2. Compile with Thrift --gen csharp ThriftTest.thrift
+// 3. Client is VS C# AndlClient.ThriftTest (links to generated code)
+
 #catalog new update
 
 def :ut2(AN:number,AS:text)
@@ -65,6 +69,9 @@ GetFT2(v:VT2) => v
 GetFR2(v:VR2) => v 
 GetFConcat(v1:VB,v2:VD,v3:VI,v4:VN,v5:VS) => v1 & v2 & v3 & v4 & v5
 
+DoErrorA => '123ab'.number
+DoErrorB => fail('test', 'this is a fail')
+
 // now we call them
 
 GetVB 
@@ -101,6 +108,8 @@ GetFT2( { AN := 185, AU := ut2(1830, "ut2 string x") } )
 GetFR2({ { AN := 186, AU := ut2(1830, "ut2 string y") }, { AN := 187, AU := ut2(1830, "ut2 string z") } })
 GetFConcat(true, t'31/01/2015', 554435, 123.45011, "An argument string 14")
 
+//DoErrorA
+
 //andl_catalog
-andl_operator
+andl_operator()
 
