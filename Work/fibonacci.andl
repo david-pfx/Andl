@@ -1,0 +1,7 @@
+// fibonacci
+
+fib:0(n:0) => if(n<=1,1,fib(n-2)+fib(n-1))
+fib(7)
+
+seq(12) [{ N, f:=fib(N) }]
+

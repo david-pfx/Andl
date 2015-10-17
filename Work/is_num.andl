@@ -1,0 +1,74 @@
+// Some Rel code: see http://reldb.org/forum/viewtopic.php?f=9&t=102
+
+// define an operator to test whether a string is numeric
+
+// operator is_num (s CHAR ) returns BOOLEAN ;
+// begin ;
+// var i integer init(0);
+// var b BOOLEAN INIT(TRUE);
+// if s = '' then return false; end if;
+// while i < LENGTH(s);
+// begin;
+// if IS_EMPTY ( RELATION{ TUPLE { c SUBSTRING(s,i,i+1) } } JOIN
+// RELATION{
+// TUPLE { c '1' },
+// TUPLE { c '2' },
+// TUPLE { c '3' },
+// TUPLE { c '4' },
+// TUPLE { c '5' },
+// TUPLE { c '6' },
+// TUPLE { c '7' },
+// TUPLE { c '8' },
+// TUPLE { c '9' }
+// } )
+// then b := FALSE ;
+// END IF ;
+// i := i + 1 ;
+// END ;
+// END WHILE;
+// RETURN b ;
+// END;
+// END OPERATOR ;
+
+// Original, testing characters one at a time
+nchars := {{ch:''} ('0'), ('1'), ('2'), ('3'), ('4'), ('5'), ('6'), ('7'), ('8'), ('9')}
+is_num1:bool(s:text) => do {
+    ch := left(s,1)
+    ok := ({{ch:=ch}} join nchars).count = 1
+    if (not ok, false,
+      if (s.length = 1, true, 
+        is_num1(after(s,ch))))
+}
+
+// converts string to relation, tests all together
+is_num2(s:text) => do {
+    chars := seq(s.length) [{ ch := left(right(s, s.length-N),1)}]
+    (chars minus nchars).count = 0
+}
+
+// define an unpack function for convenience
+unpack(s:text) => do {
+    seq(s.length) [{ CH := left(right(s, s.length-N),1)}]
+}
+nchars2 := unpack('0123456789')
+is_num(s:text) => if(s.length=0, false, (unpack(s) minus nchars2).count = 0)
+test(s:text) => do {
+  output := '>>> ' & "'" & s & "'" & " is " & if(is_num(s),"","not ") & "numeric"
+}
+
+test('12345')
+ts100 := fill('12345', 100)
+ts100
+test(ts100)
+test('12345a')
+test('1234a')
+test('')
+ts100 := fill('12345', 100)
+ts100
+test(ts100 & 'x')
+test('x' & ts100)
+seq(2) [{ xx := is_num(ts100) }]
+multi(n:0) => do { seq(n) [{ xx := is_num(ts100) }] }
+multi(100).count
+
+// takes about 6 seconds for 5000 tests

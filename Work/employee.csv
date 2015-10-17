@@ -1,0 +1,12 @@
+id:number,emp_name,dep_name,salary:number,age:number
+ 3,  Grace,   Management,  4000, 42
+ 2,  Olivia,  Management,  4400, 61
+ 4,  Jim,     Production,  3700, 35
+ 5,  Alice,   Production,  3500, 24
+ 6,  Michael, Production,  3600, 28
+ 1,  Matthew, Management,  4500, 55
+ 8,  Kevin,   Production,  4000, 52
+ 9,  Elvis,   Service,     4100, 40
+10,  Sophia,  Sales,       4300, 36
+11,  Samantha,Sales,       4100, 38
+ 7,  Tom,     Production,  3800, 35

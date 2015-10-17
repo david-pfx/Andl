@@ -1,0 +1,3 @@
+// sudoku solver -- see http://norvig.com/sudoku.html
+
+rows := {{row:text}('1')}

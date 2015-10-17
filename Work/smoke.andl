@@ -1,0 +1,162 @@
+﻿################################################################################################################
+
+// Basic smoke test
+
+'hello world!'
+out := 'hello world!'
+
+enrolment      := source('csv:', 'enrolment')
+is_called      := source('csv:', 'is_called')
+is_enrolled_on := source('csv:', 'is_enrolled_on')
+course         := source('csv:', 'course')
+exam_mark      := source('csv:', 'exam_mark')
+
+S := source('csv:', 'S')
+P := source('csv:', 'P')
+SP := source('csv:', 'SP')
+
+output := S
+output := S[{CITY}]
+
+//#stop
+'"' "Hel""lo" h'20' 'World' '!' h'0022' = '"Hello World!"'
+"Hello" & d'32' & "World" = 'Hello World'
+"Number: " & (17+22) & " Date: " & '31/12/2015' & " Bool: " & (6=6) = "Number: 39 Date: 31/12/2015 Bool: true"
+"01/01/2015" < "31/12/2014"
+t'01/01/2015' > t'31/12/2014'
+i':=' "''" d'32' := b'2a2b2cd1e2f3'
+i':=' h'27 0027 20'  = b'2A2B2CD1E2F3'
+
+{{}}
+{{}} [?(false)]
+{name := 'Smith', age := 17}
+{{name := 'Smith', age := 17}}
+{{name := 'Smith', age := 17},{name := 'Jones', age := 35},{age :=199,name:='Frankenstein' }}
+
+{{:}}
+{{:}{}}
+{{name:'',age:0}{'Smith', 17}}
+{{name:text,age:number}{'Smith', 17}}
+{{name:,age:0}{'Smith', 17}{'Jones', 35}{'Frankenstein',199 }}
+
+SP .schema
+SP.count
+
+s := 'abcdef'
+s.length
+
+if(true,"yes",'no')
+if(false,0,1+2)
+
+v1 := 2+3
+v1
+dd => 1+2
+dd
+d2 => seq(2)
+d2
+d3(fred:0) => seq(fred)
+d3(4)
+fact:0(n:0) => if(n<=1,1,n*fact(n-1))
+fact(20)
+pot:0(n:0) => if(n<=0,1,10*pot(n-1))
+pot(20)
+
+// relational functions
+seq(5) [{nnn := 17 + N * 0.3}]
+schema(is_called)
+
+// dyadics
+course[{CID := CourseId }]
+exam_mark [{CourseId}]
+exam_mark [{*CourseId}]
+
+exam_mark [?(StudentId = 'S1')]
+exam_mark [{StudentId, CourseId, Mark, double :=Mark*2,treble:=Mark*3,square:=Mark*Mark}]
+exam_mark [ { StudentId, totalmark := fold(+,Mark) } ]
+exam_mark [ { Mark, CourseId, marks := {{ Mark }} } ]
+
+course join exam_mark
+course joinlr exam_mark
+course joinl exam_mark
+course joinlc exam_mark
+course joincr exam_mark
+
+course ajoin exam_mark
+course ajoinl exam_mark
+course rajoin exam_mark
+course rajoinr exam_mark
+
+course union exam_mark
+course intersect exam_mark
+course symdiff exam_mark
+course minus exam_mark
+course rminus exam_mark
+
+exam_mark sub exam_mark
+not(exam_mark sub exam_mark[?(StudentId='S1')])
+not(exam_mark sub exam_mark[?(StudentId <>'S1')])
+exam_mark sup exam_mark
+exam_mark sup exam_mark[?(StudentId='S1')]
+exam_mark sup exam_mark[?(StudentId <>'S1')]
+not(exam_mark sep exam_mark)
+exam_mark[?(StudentId='S1')] sep exam_mark[?(StudentId <>'S1')]
+
+course join exam_mark [{CourseId}]
+course join exam_mark [{*CourseId}]
+(course join exam_mark) [{CourseId}]
+(course join exam_mark) [{*CourseId}]
+
+#exam_mark [ { StudentId, CourseId, marks := {{ Mark := Mark }} } ]
+#exam_mark [ { StudentId, totalmark := sum(Mark) } ]
+exam_mark [ { StudentId, totalmark := fold(+,Mark) } ]
+exam_mark [ { StudentId, totalmark := fold(+,Mark), avgmark := fold(+,Mark)/fold(+,1) } ]
+exam_mark [ { StudentId, marks := fold(union,{{ Mark := Mark }}) } ]
+exam_mark [ { StudentId, marks := fold(union,{{ CourseId := CourseId, Mark := Mark }}) } ]
+exam_mark [ { StudentId, highmark := fold(max,Mark), lowmark := fold(min,Mark), ratio := fold(max,Mark)/fold(min,Mark) } ]
+
+exam_mark [ ?({{ x := Mark }} = exam_mark [{ x := fold(min,Mark) }]) ]
+
+xx := course [{ CourseId, ExamResult := {{ CourseId }} joinlr exam_mark}]
+xx
+xx [{ExamResult}]
+xx [{ exres := fold(union,ExamResult) }]
+xx [{ fold(union,ExamResult) }]
+
+course [{ CourseId, ExamResult := {{ * }} joinr exam_mark}]
+
+// updates
+up1 => exam_mark := union {{StudentId:='fred', CourseId:='pub', Mark:=99}}
+up2 => exam_mark := [ ?(StudentId = 'S1')]
+up3 => exam_mark := [ ?(StudentId = 'fred') {* Mark := 100 }]
+exam_mark
+up1
+exam_mark
+up2
+exam_mark
+up3
+exam_mark
+
+// Ordered
+P[$(WEIGHT)]
+P[$(COLOR,-WEIGHT)]
+emp := source('csv:', 'employee')
+
+emp [ $(%dep_name,-age) { *
+    ord:=ord(),
+    ordg:=ordg(),
+    lagsal:=lag(salary,1), 
+    leadsal:=lead(salary,1), 
+    nthsal:=nth(salary,1), 
+    salsum:=fold(+,salary),
+    count:=fold(+,1)
+}]
+
+// Transitive closure
+MM := source('csv:','MM')
+MM
+XYT := {{X:='',Y:=''}}
+TRANCLO:XYT(XY:XYT) => do {
+        TTT := XY[{*Z := Y}] compose XY[{*Z := X}] union XY
+        if(TTT = XY, TTT, TRANCLO(TTT))
+    }
+TRANCLO(MM[ {X:=MAJOR_P#, Y:= MINOR_P# } ]) [{MAJOR_P#:=X, MINOR_P#:=Y }]

@@ -78,7 +78,7 @@ namespace Andl.Runtime {
   public interface ILookupValue {
     bool LookupValue(string name, ref TypedValue value);
   }
-  
+
   /// <summary>
   /// Implements the runtime for expression evaluation.
   /// Stack based scode.
@@ -259,8 +259,8 @@ namespace Andl.Runtime {
       }
     }
 
+#if SCODE_ENABLED
     // Evaluation engine for SCode (objects)
-    // OBS:
     void Run(IReadOnlyList<object> scode, TypedValue aggregate, AccumulatorBlock accblock) {
       for (var pc = 0; pc < scode.Count; ) {
         var opcode = (Opcodes)scode[pc++];
@@ -358,5 +358,6 @@ namespace Andl.Runtime {
         }
       }
     }
+#endif
   }
-    }
+}

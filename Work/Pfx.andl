@@ -1,0 +1,15 @@
+﻿// test data from PFX samples
+
+def member:db(csv), council:db(csv), teams:db(csv), country:db(csv)
+
+// Schemas
+member[?(false)]
+council[?(false)]
+teams[?(false)]
+country[?(false)]
+
+member [ ?(Joined < t'01/01/1970') $(Surname) {* No} ]
+(council join member[{*Member:=No}]) [{*No,Member, Mailcode,Sex}]
+teams join member[{*Member:=No}]
+member [ { Sex, First := fold(min,Joined), Last := fold(max,Joined) } ]
+(member join country[{*Country := Name}]) [{*No,Sex}]

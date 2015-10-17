@@ -1,0 +1,29 @@
+﻿// data for the ITDRT exercises
+
+enrolment :=       {{ StudentId:='S1', Name:='Anne', CourseId:='C1' },
+                    { StudentId:='S1', Name:='Anne', CourseId:='C2' },
+                    { StudentId:='S2', Name:='Boris', CourseId:='C1' },
+                    { StudentId:='S3', Name:='Cindy', CourseId:='C3' },
+                    { StudentId:='S4', Name:='Devinder', CourseId:='C1' }}
+is_called :=        {{StudentId:='S1', Name:='Anne' },
+                    {StudentId:='S2', Name:='Boris' },
+                    {StudentId:='S3', Name:='Cindy' },
+                    {StudentId:='S4', Name:='Devinder' },
+                    {StudentId:='S5', Name:='Boris' }}
+
+is_enrolled_on :=  {{ StudentId:='S1', CourseId:='C1' },
+                    { StudentId:='S1', CourseId:='C2' },
+                    { StudentId:='S2', CourseId:='C1' },
+                    { StudentId:='S3', CourseId:='C3' },
+                    { StudentId:='S4', CourseId:='C1' }}
+
+course:=           {{ CourseId:='C1', Title:='Database' },
+                    { CourseId:='C2', Title:='HCI' },
+                    { CourseId:='C3', Title:='Op Systems' },
+                    { CourseId:='C4', Title:='Programming' }}
+
+exam_mark:=        {{ StudentId:='S1', CourseId:='C1', Mark:=85 },
+                    { StudentId:='S1', CourseId:='C2', Mark:=49 },
+                    { StudentId:='S2', CourseId:='C1', Mark:=49 },
+                    { StudentId:='S3', CourseId:='C3', Mark:=66 },
+                    { StudentId:='S4', CourseId:='C1', Mark:=93 }}
