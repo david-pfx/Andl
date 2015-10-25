@@ -344,7 +344,7 @@ namespace Andl.Runtime {
 
     // Transform does Rename and/or Project and/or Extend combo
     public RelationValue Transform(RelationValue relarg, params CodeValue[] exprargs) {
-      Logger.WriteLine(3, "Transform {0} {1}", relarg, exprargs.Select(e => e.AsEval.Kind.ToString()));
+      Logger.WriteLine(3, "Transform {0} {1}", relarg, exprargs.Select(e => e.AsEval.Kind.ToString()).ToArray());
       var rel = relarg.Value;
       var exprs = exprargs.Select(e => (e as CodeValue).AsEval).ToArray();
       var heading = DataHeading.Create(exprs);

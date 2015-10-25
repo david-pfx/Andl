@@ -1,4 +1,32 @@
-﻿def S:db(csv), P:db(csv), SP:db(csv)
+﻿// avoiding nulls
+def S:db(csv), P:db(csv), SP:db(csv)
+
+S [ { partition := {{*}} join SP } ]
+S [ { S#, SNAME, SUMQTY := ( {{*}} join SP ) [ { fold(+,QTY) } ] } ]
+
+(S join SP) [ { S#, SNAME, SUMQTY := fold(+,QTY) } ] union (S ajoin SP) [ { S#, SNAME, SUMQTY := 0 } ]
+(S join SP) [ { S#, SNAME, SUMQTY := fold(+,QTY).text } ] union (S ajoin SP) [ { S#, SNAME, SUMQTY := '--' } ]
+
+SP400 := SP [ ?(QTY>=400) ]
+(S join SP400) [ { S#, P# } ] union (S ajoin SP400) [ { S#, P# := 'none' } ]
+
+#stop
+
+artist  := {{ artistid:0, name:'' }}
+cd      := {{ cdid:0, artistid:0, title:'', year:0 }}
+track   := {{ trackid:0, cdid:0, title:'' }}
+
+// some data in temporary relvars, with auto-generated ordinals
+$artist_data := {{name:''}
+  ( 'Michael Jackson' ), 
+  ( 'Eminem' ),
+} [{ *artistid := ord() }]
+#stop
+def S:db(csv), P:db(csv), SP:db(csv)
+
+S [ { partition := {{*}} join SP } ]
+S [ { S#, SNAME, SUMQTY := ( {{*}} join SP ) [ { fold(+,QTY) } ] } ]
+#stop
 
 //#noisy 4
 

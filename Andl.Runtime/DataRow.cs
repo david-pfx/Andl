@@ -81,12 +81,11 @@ namespace Andl.Runtime {
     }
 
     // internal calculate hash code
-    // note: must be independent of column order and not use the heading
-    // NOTE: special treatment of null, to allow null values, to allow aggregation
+    // note: must be independent of column order and not use the heading; no null values
     int CalcHashCode() {
       var hash = 0;
       for (var i = 0; i < Degree; ++i) {
-        var code = (_values[i] == null) ? 0 : _values[i].GetHashCode();
+        var code = _values[i].GetHashCode();
         hash ^= code;
       }
       return hash;
@@ -151,6 +150,7 @@ namespace Andl.Runtime {
       return dr;
     }
 
+    // Create a row from a set of string values
     public static DataRow Create(DataHeading heading, params string[] values) {
       if (values.Length != heading.Degree) throw new ArgumentOutOfRangeException("values", "wrong degree");
       var newvalues = values
@@ -169,22 +169,21 @@ namespace Andl.Runtime {
     }
 
     // Create new row from this one using a new set of values
-    public DataRow Create(TypedValue[] values) {
-      return DataRow.Create(Heading, values);
-    }
+    //public DataRow Create(TypedValue[] values) {
+    //  return DataRow.Create(Heading, values);
+    //}
 
     // Update existing row to match parent table
     // Note: does not affect hash code
     public DataRow Update(DataTable table, int ord) {
       Logger.Assert(table.Heading.Degree == Degree, "length");
       Parent = table;
-      //Heading = table.Heading;
       Order = ord;
       return this;
     }
 
     // Update existing row by replacing values
-    // Note: does affect hash code -- DO NOT USE ON ENTRY IN DICT
+    // Note: does affect hash code -- REMOVE FROM DICT BEFORE USE
     public DataRow Update(TypedValue[] values) {
       Logger.Assert(values.Length == Degree, "length");
       _values = values;
@@ -193,28 +192,19 @@ namespace Andl.Runtime {
     }
 
     // Update existing row by replacing values
-    // Note: does affect hash code -- DO NOT USE ON ENTRY IN DICT
+    // Note: does affect hash code -- REMOVE FROM DICT BEFORE USE
     public DataRow Update(DataRow other) {
       return Update(other._values);
     }
 
-    //// new row, merge invidivual values from expressions
-    //// TODO: do not use
-    //public DataRow Merge(ExpressionEval[] exprs) {
-    //  var values = _values.Clone() as TypedValue[]; //??
-    //  foreach (var expr in exprs)
-    //    values[Heading.FindIndex(expr.Name)] = expr.EvalOpen(this);
-    //  return Create(Heading, values);
-    //}
-
-    // new row, merge values using index (on this). Empty fields still have nulls.
-    // TODO: do not use
-    public DataRow Merge(DataRow other, int[] index) {
-      var values = _values.Clone() as TypedValue[]; //??
-      for (int i = 0; i < index.Length; ++i)
-        if (index[i] >= 0)
-          values[i] = other.Values[index[i]];
-      return Create(Heading, values);
+    // New set of values, by merging another row using two complementary indexes
+    public TypedValue[] MergeValues(int[] index, DataRow other, int[] oindex) {
+      Logger.Assert(index.Length == oindex.Length);
+      var values = new TypedValue[index.Length];
+      for (int i = 0; i < index.Length; ++i) {
+        values[i] = (index[i] >= 0) ? _values[index[i]] : other._values[oindex[i]];
+      }
+      return values;
     }
 
     // Test for match of fields according to index (on this)
@@ -271,23 +261,14 @@ namespace Andl.Runtime {
 
     // Merge aggregated fields from old row lookup and accumulators
     // Create new row
-    public DataRow Create(DataRow lookup, AccumulatorBlock accblk, ExpressionEval[] exprs) {
-      return Create(AccumulateValues(lookup, accblk, exprs));
-    }
+    //public DataRow Create(DataRow lookup, AccumulatorBlock accblk, ExpressionEval[] exprs) {
+    //  return Create(AccumulateValues(lookup, accblk, exprs));
+    //}
 
     // Project this row onto a new heading using the move index
     public DataRow Project(DataHeading newheading, int[] movendx) {
       Logger.Assert(movendx.Length == newheading.Degree, "degree");
       var values = Enumerable.Range(0, movendx.Length).Select(x => _values[movendx[x]]).ToArray();
-      return DataRow.Create(newheading, values);
-    }
-
-    // Create new row from this one using index (on new). Empty fields have nulls.
-    public DataRow Transform(DataHeading newheading, int[] index) { // TODO: normalised heading
-      var values = new TypedValue[newheading.Degree];
-      for (int i = 0; i < index.Length; ++i)
-        if (index[i] >= 0)
-          values[i] = Values[index[i]];
       return DataRow.Create(newheading, values);
     }
 

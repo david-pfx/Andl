@@ -101,23 +101,6 @@ namespace Andl.Runtime {
         ? col : -1;
     }
 
-    // Make an index of columns that are not in another heading
-    public int[] MakeExtendIndex(DataHeading other) {
-      return Enumerable.Range(0, Degree)
-        .Where(x => !other.Contains(Columns[x]))
-        .ToArray();
-    }
-
-    // Make an index for moving columns from another heading
-    // but ignore any columns in the exclude heading
-    public int[] MakeMoveIndex(DataHeading other, DataHeading exclude) {
-      return Enumerable.Range(0, this.Degree)
-        .Where(x => !exclude.Contains(other.Columns[x]))
-        .Select(x => other.FindIndex(Columns[x]))
-        .Where(y => y >= 0)
-        .ToArray();
-    }
-
     // Make an index (on this) where to find our fields in another heading
     // missing fields are -1
     public int[] MakeIndex(DataHeading other) {

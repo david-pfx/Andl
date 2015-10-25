@@ -269,7 +269,7 @@ namespace Andl.Runtime {
       foreach (var row1 in this.GetRows()) {  //TODO:Enumerable
         foreach (var row2 in other.GetRows()) {  //TODO:Enumerable
           if (Matches(row1, row2, cmpindex)) {
-            var newrow = row1.Transform(newheading, thisindex).Merge(row2, otherindex);
+            var newrow = DataRow.Create(newheading, row1.MergeValues(thisindex, row2, otherindex));
             newtable.AddRow(newrow);
           }
         }
