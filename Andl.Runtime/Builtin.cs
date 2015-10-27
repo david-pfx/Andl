@@ -114,7 +114,7 @@ namespace Andl.Runtime {
 
       addins.Add(AddinInfo.Create("count", 1, DataTypes.Number, "Count"));
       addins.Add(AddinInfo.Create("degree", 1, DataTypes.Number, "Degree"));
-      addins.Add(AddinInfo.Create("schema", 1, DataTypeRelation.Get(DataHeading.Create("Name", "Type")), "Schema"));
+      addins.Add(AddinInfo.Create("schema", 1, DataTypeRelation.Get(DataHeading.Create("Name:text", "Type:text")), "Schema"));
       addins.Add(AddinInfo.Create("seq", 1, DataTypeRelation.Get(DataHeading.Create("N:number")), "Sequence"));
       addins.Add(AddinInfo.Create("andl_variable", 0, DataTypeRelation.Get(Catalog.CatalogTableHeading(Catalog.CatalogTables.Variable)), "Variables"));
       addins.Add(AddinInfo.Create("andl_operator", 0, DataTypeRelation.Get(Catalog.CatalogTableHeading(Catalog.CatalogTables.Operator)), "Operators"));
@@ -194,14 +194,14 @@ namespace Andl.Runtime {
       Logger.WriteLine(3, "Invoke {0} accbase={1} ({2})", funcarg, accbasarg, String.Join(",", valargs.Select(a => a.ToString()).ToArray()));
 
       // wrap raw value with evaluator
-      var func = ExpressionEval.Create(_evaluator, funcarg.Value);
-      var args = DataRow.CreateUntyped(func.Lookup, valargs);
+      var expr = ExpressionEval.Create(_evaluator, funcarg.Value);
+      var args = DataRow.CreateNonTuple(expr.Lookup, valargs);
       TypedValue ret;
-      if (func.HasFold) {
+      if (expr.HasFold) {
         var accblk = accblkarg.Value as AccumulatorBlock;
         var accbase = (int)accbasarg.Value;
-        ret = func.EvalHasFold(args, accblk, accbase);
-      } else ret = func.EvalOpen(args);
+        ret = expr.EvalHasFold(args, accblk, accbase);
+      } else ret = expr.EvalOpen(args);
       if (ret is RelationValue && !(ret.AsTable() is DataTableLocal))
         ret = RelationValue.Create(DataTableLocal.Convert(ret.AsTable(), args));
       Logger.WriteLine(3, "[Inv {0}]", ret);
@@ -653,7 +653,7 @@ namespace Andl.Runtime {
 
     // relation representing heading
     public RelationValue Schema(RelationValue relarg) {
-      var heading = DataHeading.Create("Name", "Type");
+      var heading = DataHeading.Create("Name:text", "Type:text");
       var table = DataTableLocal.Create(heading);
       foreach (var col in relarg.Value.Heading.Columns) {
         table.AddRow(DataRow.Create(heading, col.Name, col.DataType.Name));

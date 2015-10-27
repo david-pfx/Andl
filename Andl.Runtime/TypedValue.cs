@@ -556,8 +556,6 @@ namespace Andl.Runtime {
       if (Value == null) return "()";
       var str = _datatype.Name + "(" + String.Join(",", Value.Select(s => s.Format())) + ")";
       return str;
-      //return ToString();
-      //return "(" + ToString() + ")";
     }
 
     public override bool Equals(object other) {

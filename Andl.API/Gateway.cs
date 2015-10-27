@@ -245,7 +245,7 @@ namespace Andl.API {
       if (arguments.Length != expr.Lookup.Degree) return Result.Failure("wrong no of args");
 
       var argvalues = arguments.Select((a, x) => TypeMaker.FromNativeValue(a, expr.Lookup.Columns[x].DataType)).ToArray();
-      var args = DataRow.CreateUntyped(expr.Lookup, argvalues);
+      var args = DataRow.CreateNonTuple(expr.Lookup, argvalues);
       TypedValue value = null;
       try {
         value = _evaluator.Exec(expr.Code, args);
@@ -271,7 +271,7 @@ namespace Andl.API {
           var nvalue = JsonConvert.DeserializeObject(a, datatype.NativeType);
           return TypeMaker.FromNativeValue(nvalue, datatype);
         }).ToArray();
-        argvalue = DataRow.CreateUntyped(expr.Lookup, argvalues);
+        argvalue = DataRow.CreateNonTuple(expr.Lookup, argvalues);
       } catch {
         return Result.Failure("argument conversion error");
       }
@@ -322,7 +322,7 @@ namespace Andl.API {
           var datatype = expr.Lookup.Columns[x].DataType;
           return TypeMaker.FromNativeValue(nv, datatype);
         }).ToArray();
-        argvalue = DataRow.CreateUntyped(expr.Lookup, argvalues);
+        argvalue = DataRow.CreateNonTuple(expr.Lookup, argvalues);
       } catch {
         return Result.Failure("argument conversion error");
       }
@@ -354,7 +354,7 @@ namespace Andl.API {
           return Fail("argument conversion error", out result);
         }
       }
-      var argvalue = DataRow.CreateUntyped(expr.Lookup, argvalues);
+      var argvalue = DataRow.CreateNonTuple(expr.Lookup, argvalues);
       TypedValue retvalue;
 
       try {
@@ -388,7 +388,7 @@ namespace Andl.API {
       var expr = (_catalogpriv.GetValue(name) as CodeValue).Value;
       TypedValue retvalue;
       try {
-        var argvalue = DataRow.CreateUntyped(expr.Lookup, arguments.FilledValues());
+        var argvalue = DataRow.CreateNonTuple(expr.Lookup, arguments.FilledValues());
         retvalue = _evaluator.Exec(expr.Code, argvalue);
         return Result.Success(TypedValueBuilder.Create(new TypedValue[] { retvalue }));
       } catch (ProgramException ex) {

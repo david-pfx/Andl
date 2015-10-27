@@ -233,7 +233,7 @@ namespace Andl.Runtime {
       if (_database == null || !_database.GetTableColumns(table, out columns) || columns.Length == 0)
         return null;
       var cols = columns.Select(c => DataColumn.Create(c.Item1, FromSqlTypeDict[c.Item2]));
-      return DataHeading.Create(cols);
+      return DataHeading.Create(cols);    // ignore column order
     }
 
   }

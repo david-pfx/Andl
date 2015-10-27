@@ -115,8 +115,7 @@ namespace Andl.Compiler {
 
     internal string Name { get { return Sym != null ? Sym.Name : ":anon"; } }
     internal DataHeading GetLookup() {
-      return (LookupItems == null) ? null : DataHeading.Create(LookupItems);
-        //: DataHeading.Create(LookupItems.Select(x => DataColumn.Create(x.Name, x.DataType)).ToArray());
+      return (LookupItems == null) ? null : DataHeading.Create(LookupItems, false); // preserve order
     }
     internal ExpressionKinds Kind {
       get {

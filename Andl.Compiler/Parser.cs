@@ -262,7 +262,7 @@ namespace Andl.Compiler {
       // add to catalog now type is known
       SymbolTable.AddCatalog(idsym);
 
-      var argtype = DataHeading.Create(idsym.CallInfo.Arguments);
+      var argtype = DataHeading.Create(idsym.CallInfo.Arguments, false);  // preserve order
       var eblock = expr.Expression(argtype, true);
       // output wrapped as code value to suppress execution
       _emitter.OutLoad(CodeValue.Create(eblock));
@@ -887,7 +887,6 @@ namespace Andl.Compiler {
       if (!Match(Atoms.RC)) return ErrExpect(Atoms.RC);
 
       var cols = MakeColumns(idents);
-      //var cols = idents.Select(a => DataColumn.Create(a.Name, a.DataType)).ToArray();
       var heading = DataHeading.Create(cols);
 
       var exprs = new List<ExprInfo>();

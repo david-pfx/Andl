@@ -25,7 +25,10 @@ namespace Andl.Runtime {
   }
 
   /// <summary>
-  /// Internal type for the heading of a tuple or relation
+  /// Internal type for the heading of a tuple, relation, user type or function argument
+  /// 
+  /// For tuple and relation, istuple is true and column order is not preserved.
+  /// For user type and function argument, istuple is false and column order is preserved.
   /// </summary>
   public class DataHeading {
     public static DataHeading Empty;
@@ -38,6 +41,8 @@ namespace Andl.Runtime {
 
     public int Degree { get { return _columns.Length; } }
     public DataColumn[] Columns { get { return _columns; } }
+    // True if this heading is for a tuple type, so column order may have changed
+    public bool IsTuple { get; private set; }
 
     // overrides -------------------------------------------------------
     public override bool Equals(object obj) {
@@ -69,7 +74,7 @@ namespace Andl.Runtime {
       return "{" + s + "}";
     }
 
-    // Return true if column by this name and columns test equal
+    // Return true if has column of same name and type
     public bool Contains(DataColumn column) {
       int col;
       var ok = _coldict.TryGetValue(column.Name, out col);
@@ -116,104 +121,69 @@ namespace Andl.Runtime {
       return exprs.Select(e => FindIndex(e.Name) * (e.IsDesc ? -1 : 1)).ToArray();
     }
 
-    // --- create ------------------------------------------------------
-
-    // from an existing heading, with normalisation
-    public static DataHeading Create(DataHeading heading) {
-      return DataTypeTuple.Get(heading).Heading;
+    // Reorder expressions to match heading
+    public ExpressionEval[] Reorder(ExpressionEval[] exprs) {
+      Logger.Assert(exprs.All(e => FindIndex(e.Name) >= 0), "reorder mismatch");
+      var newexprs = new ExpressionEval[exprs.Length];
+      foreach (var e in exprs)
+        newexprs[FindIndex(e.Name)] = e;
+      return newexprs;
     }
 
-    // from existing columns, with normalisation
-    public static DataHeading Create(IEnumerable<DataColumn> columns) {
+    // Check that the values provided match this heading
+    public void CheckValues(TypedValue[] values) {
+      Logger.Assert(values.Length == Degree, "values length");
+      Logger.Assert(values.Select((v, x) => v.DataType == Columns[x].DataType).All(b => b), "values type");
+    }
+
+    // --- create ------------------------------------------------------
+
+    // from existing columns, with normalisation by default
+    public static DataHeading Create(IEnumerable<DataColumn> columns, bool istuple = true) {
       var dh = new DataHeading() {
-        _columns = columns.ToArray()
+        _columns = columns.ToArray(),
+        IsTuple = istuple,
       };
       dh._coldict = Enumerable.Range(0, dh._columns.Length)
         .ToDictionary(x => dh._columns[x].Name, x => x);
-      return Create(dh);
+      return (istuple) ? DataTypeTuple.Get(dh).Heading : dh;
     }
 
     // from name:types
+    // created as non-tuple to preserve order, although eventually will be a tuple
     public static DataHeading Create(params string[] names) {
-      return Create(names.Select(a => DataColumn.Create(a)));
+      return Create(names.Select(a => DataColumn.Create(a)), false);
     }
 
-    // from expressions
+    // from expressions -- assume tuple since caller can track order
     public static DataHeading Create(IEnumerable<ExpressionBlock> exprs) {
       return Create(exprs.Select(e => DataColumn.Create(e.Name, e.DataType)));
     }
 
-    // from existing with renames applied
+    // Merge two tuple headings
+    public static DataHeading Merge(MergeOps op, DataHeading left, DataHeading right) {
+      return Create(DataColumn.Merge(op, left.Columns, right.Columns));
+    }
+
+    //--- new from old
+
+    // from existing with (possibly partial) renames applied
     // existing heading order must be preserved, so use direct lookup
-    // TODO: newheading requires normalisation???
     public DataHeading Rename(IEnumerable<ExpressionBlock> exprs) {
       var dict = exprs.ToDictionary(e => e.OldName);
       return Create(this._columns
         .Select(c => dict.ContainsKey(c.Name) ? c.Rename(dict[c.Name].Name) : c));
     }
 
-    //// from existing with extends applied
-    //public DataHeading Extend(IEnumerable<DataColumn> newcols) {
-    //  return Create(this._columns.Concat(newcols));
-    //}
-
-    //// from existing with some removed applied
-    //public DataHeading Minus(IEnumerable<DataColumn> notcols) {
-    //  return Create(this._columns.Except(notcols));
-    //}
-
-    //// from existing with some in common
-    //public DataHeading Union(IEnumerable<DataColumn> notcols) {
-    //  return Create(this._columns.Union(notcols));
-    //}
-
-    public static DataHeading Merge(MergeOps op, DataHeading left, DataHeading right) {
-      return Create(DataColumn.Merge(op, left.Columns, right.Columns));
-    }
-
-    // form union of two headings
+    // Form union of this tuple heading and another
     public DataHeading Union(DataHeading other) {
       return Create(this._columns.Union(other.Columns).ToArray());
     }
 
-    // form intersection of two headings.
+    // Form intersection of this tuple heading and another
     public DataHeading Intersect(DataHeading other) {
       return Create(this._columns.Intersect(other.Columns).ToArray());
     }
-
-    //// form difference of two headings.
-    //public DataHeading Minus(DataHeading other) {
-    //  return Create(this._columns.Except(other.Columns).ToArray());
-    //}
-
-    // form bi-difference of two headings.
-    //public DataHeading BiDifference(DataHeading other) {
-    //  var u = this._columns.Union(other.Columns);
-    //  var i = this._columns.Intersect(other.Columns);
-    //  return Create(u.Except(i).ToArray());
-    //}
-
-    // return a new heading with only those columns with names passed in
-    //public DataHeading Only(params string[] names) {
-    //  var newcols = Columns
-    //    .Where(c => names.Contains(c.Name)).ToArray();
-    //  Logger.Assert(newcols.Length == names.Length, "length");    // misspelling will trigger this
-    //  return DataHeading.Create(newcols);
-    //}
-
-    // return a new heading omitting those columns with names passed in
-    //public DataHeading AllBut(params string[] names) {
-    //  var newcols = Columns
-    //    .Where(c => !names.Contains(c.Name)).ToArray();
-    //  Logger.Assert(newcols.Length == Columns.Length - names.Length, "length");    // misspelling will trigger this
-    //  return DataHeading.Create(newcols);
-    //}
-
-    //// return a new heading with additonal columns from those passed in
-    //public DataHeading Add(DataColumn[] newcols) {
-    //  return DataHeading.Create(Columns.Union(newcols).ToArray());
-
-    //}
 
   }
 }

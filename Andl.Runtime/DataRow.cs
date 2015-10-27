@@ -19,8 +19,15 @@ namespace Andl.Runtime {
   /// <summary>
   /// Implement a row of data, consististing of a heading and an ordered array of values.  
   /// Immutable. Hash code based on value and computed on creation.
-  /// Created as needed from table, so that the heading will be correct after renames.
-  /// Values accessed implicitly, by column order.
+  /// 
+  /// NOTE: values are ordered as per the heading, but heading order is not preserved 
+  /// for tuples. Entry points that take a list or values must respect this. 
+  /// Two strategies.
+  /// 
+  /// 1. Where the argument is a heading and a set of values, the heading must be non-tuple.
+  ///    To create a tuple the heading is converted and the values are reordered.
+  /// 2. Where the argument is a heading and a set of expressions, the expressions are
+  ///    re-ordered to match the final heading.
   /// </summary>
   public class DataRow : ILookupValue {
     public static DataRow Empty {
@@ -124,29 +131,33 @@ namespace Andl.Runtime {
     /// 
 
     // Create a row that has no data type and can be used as an argument
-    public static DataRow CreateUntyped(DataHeading newheading, TypedValue[] values) {
-      if (values.Length != newheading.Degree) throw new ArgumentOutOfRangeException("values", "wrong degree");
-      if (values.Any(v => v == null)) ProgramError.Fatal("DataRow", "null value not allowed");
+    public static DataRow CreateNonTuple(DataHeading heading, TypedValue[] values) {
+      if (values.Length != heading.Degree) throw new ArgumentOutOfRangeException("values", "wrong degree");
+      Logger.Assert(values.All(v => v != null), "null value");
+      Logger.Assert(!heading.IsTuple, "istuple");
       var dr = new DataRow() {
-        Heading = newheading,
+        Heading = heading,
         DataType = null,
         _values = values,
       };
       dr._hashcode = dr.CalcHashCode();
+      dr.Heading.CheckValues(dr.Values);
       return dr;
     }
 
-    // Create a row that belongs to a table. Reorder values to match.
+    // Create a row that belongs to a table. 
+    // Can be called with a tuple or non-tuple heading. If the latter, reorder values to match tuple heading.
     public static DataRow Create(DataHeading heading, TypedValue[] values) {
       if (values.Length != heading.Degree) throw new ArgumentOutOfRangeException("values", "wrong degree");
-      if (values.Any(v => v == null)) ProgramError.Fatal("DataRow", "null value not allowed");
-      var newheading = DataTypeTuple.Get(heading).Heading;
+      Logger.Assert(values.All(v => v != null), "null value");
+      var newheading = (heading.IsTuple) ? heading : DataTypeTuple.Get(heading).Heading;
       var dr = new DataRow() {
         DataType = DataTypeTuple.Get(heading),
         Heading = newheading,
-        _values = newheading.Columns.Select(c => values[heading.FindIndex(c)]).ToArray(),
+        _values = (heading.IsTuple) ? values : newheading.Columns.Select(c => values[heading.FindIndex(c)]).ToArray(),
       };
       dr._hashcode = dr.CalcHashCode();
+      dr.Heading.CheckValues(dr.Values);
       return dr;
     }
 

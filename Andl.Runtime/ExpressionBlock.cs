@@ -128,7 +128,7 @@ namespace Andl.Runtime {
         Name = name,
         DataType = type,
         OldName = oldname,
-        Lookup = DataHeading.Create(new DataColumn[] { DataColumn.Create(oldname, type) }),
+        Lookup = DataHeading.Create(new DataColumn[] { DataColumn.Create(oldname, type) }), // CHECK: is this really needed?
       };
     }
 

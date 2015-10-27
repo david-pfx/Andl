@@ -458,12 +458,14 @@ namespace Andl.Runtime {
     //}
 
     // Create and add, return new type (must not exist)
+    // Note: heading must have IsTuple=false to preserve order
     public static DataTypeUser Get(string name, DataColumn[] columns) {
       var old = Find(name);
       if (old != null && columns.SequenceEqual(old.Heading.Columns)) return old;
       Logger.Assert(!_usertypes.ContainsKey(name), name);
       var flags = columns.Any(c => c.DataType.IsOrdered) ? TypeFlags.Ordered : TypeFlags.None;
-      var dt = DataTypeUser.Create(name, DataHeading.Create(columns), flags | TypeFlags.Variable | TypeFlags.Generated | TypeFlags.HasHeading);
+      var dt = DataTypeUser.Create(name, DataHeading.Create(columns, false),    // preserve column order
+        flags | TypeFlags.Variable | TypeFlags.Generated | TypeFlags.HasHeading);
       _usertypes[name] = dt;
       return dt;
     }

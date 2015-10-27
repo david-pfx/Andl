@@ -278,6 +278,7 @@ namespace Andl.Runtime {
     }
 
     void Write(DataHeading heading) {
+      Write(heading.IsTuple);
       Write(heading.Degree);
       foreach (var col in heading.Columns)
         Write(col);
@@ -472,12 +473,13 @@ namespace Andl.Runtime {
 
     // read a heading
     public DataHeading ReadHeading() {
+      var istuple = _reader.ReadBoolean();
       var degree = _reader.ReadInt32();
       Logger.Assert(degree >= 0 && degree < Persist.MaxDegree, degree);
       var cols = new List<DataColumn>();
       while (degree-- > 0)
         cols.Add(ReadColumn());
-      return DataHeading.Create(cols.ToArray());
+      return DataHeading.Create(cols.ToArray(), istuple);
     }
 
     // read a column

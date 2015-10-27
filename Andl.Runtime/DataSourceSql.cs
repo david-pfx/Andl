@@ -165,7 +165,7 @@ namespace Andl.Runtime {
         .Where(x => _convdict.ContainsKey(reader.GetDataTypeName(x)))
         .Select(x => DataColumn.Create(reader.GetName(x), GetType(_convdict[reader.GetDataTypeName(x)])))
         .ToArray();
-      var heading = DataHeading.Create(cols);
+      var heading = DataHeading.Create(cols, false); // preserve order
       var tabnew = DataTableLocal.Create(heading);
       while (reader.Read() && !preview) {
         var values = cols.Select(c => MakeValue(reader, c.Name, c.DataType)).ToArray();

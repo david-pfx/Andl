@@ -146,7 +146,7 @@ namespace Andl.Runtime {
       var count = (int)countpi.GetValue(instance, null);
 
       var rows = new List<DataRow>();
-      var heading = DataHeading.Create(columns);
+      var heading = DataHeading.Create(columns, false); // preserve column order
       for (var x = 0; x < count; ++x) {
         var row = itempi.GetValue(instance, new object[] { x });
         var values = GetValues(row, columns);

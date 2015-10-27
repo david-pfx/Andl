@@ -93,9 +93,9 @@ namespace Andl.Runtime {
     }
 
     // Create new table and add tuples to it
-    public new static DataTableLocal Create(DataHeading heading, IEnumerable<ExpressionEval> exprs) {
+    public new static DataTableLocal Create(DataHeading heading, IEnumerable<ExpressionEval> texprs) {
       DataTableLocal newtable = DataTableLocal.Create(heading);
-      foreach (var expr in exprs)
+      foreach (var expr in texprs)
         newtable.AddRow(expr.Evaluate().AsRow());
       return newtable;
     }
@@ -477,8 +477,9 @@ namespace Andl.Runtime {
     public override DataTable Project(ExpressionEval[] exprs) {
       var newheading = DataHeading.Create(exprs);
       var newtable = DataTableLocal.Create(newheading);
+      var newexprs = newtable.Heading.Reorder(exprs);
       foreach (var row in GetRows())  //TODO:Enumerable
-        newtable.AddRow(row.Transform(newheading, exprs));
+        newtable.AddRow(row.Transform(newheading, newexprs));
       Logger.WriteLine(4, "[Project={0}]", newtable);
       return newtable;
     }
@@ -489,8 +490,9 @@ namespace Andl.Runtime {
       // note: this is an explicit heading. Order matters.
       var newheading = Heading.Rename(exprs);
       var newtable = DataTableLocal.Create(newheading);
+      var newexprs = newtable.Heading.Reorder(exprs);
       foreach (var row in GetRows())
-        newtable.AddRow(row.Transform(newheading, exprs));
+        newtable.AddRow(row.Transform(newheading, newexprs));
       //newtable.AddRow(DataRow.Create(heading, row.Values));
       Logger.WriteLine(4, "[Rename={0}]", newtable);
       return newtable;
@@ -513,8 +515,9 @@ namespace Andl.Runtime {
       Logger.WriteLine(4, "Transform {0} exprs={1}", newheading, exprs.Count());
       Logger.Assert(exprs.Count() == newheading.Degree, "degree");
       var newtable = DataTableLocal.Create(newheading);
+      var newexprs = newtable.Heading.Reorder(exprs);
       foreach (var row in GetRows()) {  //TODO:Enumerable
-        newtable.AddRow(row.Transform(newheading, exprs));
+        newtable.AddRow(row.Transform(newheading, newexprs));
       }
       Logger.WriteLine(4, "[{0}]", newtable);
       return newtable;
@@ -530,12 +533,13 @@ namespace Andl.Runtime {
       // create a dictionary for output records
       var dict = new Dictionary<DataRow, int>();
       var accblks = new List<AccumulatorBlock>();
+      var newexprs = newtable.Heading.Reorder(exprs);
 
       foreach (var oldrow in this.GetRows()) {  //TODO:Enumerable
-        var temprow = oldrow.Transform(newheading, exprs);
+        var temprow = oldrow.Transform(newheading, newexprs);
         if (!dict.ContainsKey(temprow)) {
           var accblk = AccumulatorBlock.Create(numacc);
-          var newrow = oldrow.TransformAggregate(newheading, accblk, exprs);
+          var newrow = oldrow.TransformAggregate(newheading, accblk, newexprs);
           newtable.AddRaw(newrow);
           Logger.Assert(newtable._dict[newtable._rows[newtable.Cardinality - 1]] == newtable.Cardinality - 1);
           dict.Add(temprow, newtable.Cardinality - 1);
@@ -544,7 +548,7 @@ namespace Andl.Runtime {
           var ord = dict[temprow];
           var newrow = newtable._rows[ord];
           var accblk = accblks[ord];
-          newtable.Replace(newrow, oldrow.TransformAggregate(newheading, accblk, exprs));
+          newtable.Replace(newrow, oldrow.TransformAggregate(newheading, accblk, newexprs));
         }
       }
       Logger.WriteLine(4, "[{0}]", newtable);
@@ -560,6 +564,7 @@ namespace Andl.Runtime {
 
       var numacc = exprs.Where(e => e.HasFold).Sum(e => e.AccumCount);
       var newtable = DataTableLocal.Create(newheading);
+      var newexprs = newtable.Heading.Reorder(exprs);
       var ordidx = OrderedIndex.Create(orderexps, Heading);
       // list of indexes of not-folded columns
       var notfold = exprs.Where(e => !e.HasFold)
@@ -579,7 +584,7 @@ namespace Andl.Runtime {
         // if there is a group break, reset the accumulators
         if (ordidx.IsBreak)
           accblk = AccumulatorBlock.Create(numacc);
-        DataRow newrow = oldrow.TransformAggregate(newheading, accblk, exprs);
+        DataRow newrow = oldrow.TransformAggregate(newheading, accblk, newexprs);
 
         // save the current row, output it on group break or when any non-fold column has changed
         // any rows not output will have identical non-fold cols so only running sums are lost
@@ -797,12 +802,13 @@ namespace Andl.Runtime {
     public override DataTable UpdateTransform(ExpressionEval pred, ExpressionEval[] exprs) {
       Logger.WriteLine(4, "UpdateTransform {0}", Heading);
 
+      var newexprs = Heading.Reorder(exprs);
       // pass 1 - new rows
       var relins = DataTableLocal.Create(Heading);
       for (var ord = 0; ord < _rows.Count; ) { //TODO:Enumerable
         if (pred.EvalPred(_rows[ord]).Value) {
           if (exprs.Length > 0)
-            relins.AddRow(_rows[ord].Transform(Heading, exprs));
+            relins.AddRow(_rows[ord].Transform(Heading, newexprs));
           // deleting a row will replace row at ord with a different one, not yet tested
           DeleteRaw(ord);
         } else ord++;
