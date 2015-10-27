@@ -13,13 +13,17 @@ getnext_project() => do {
 
 // Add a set of projects
 add_project(pr:project) => do {
-    project := union pr [ { *
+    if(pr.count <> 1, fail("add_project", "must be single record"), do{})
+    a := pr [ { *
         id := getnext_project(),
     }]
+    project := union a
+    a
 }
 
 // Replace a set of projects
 put_project_id(pid:0, pr:project) => do {
+    if(pr.count <> 1, fail("put_project", "must be single record"), do{})
     project := [ ?(id = pid) ]
     project := union pr [ { * id := pid} ]
 }

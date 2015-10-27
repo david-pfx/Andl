@@ -11,13 +11,17 @@ getnext_link() => do {
 
 // Add a set of links
 add_link(lk:link) => do {
-    link := union lk [ { *
+    if(lk.count <> 1, fail("add_link", "must be single record"), do{})
+    a := lk [ { *
         id := getnext_link() 
     } ]
+    link := union a
+    a
 }
 
 // Replace a set of links
 put_link_id(lid:0, lk:link) => do {
+    if(lk.count <> 1, fail("put_link", "must be single record"), do{})
     link := [ ?(id = lid) ]
     link := union lk [{ * id := lid }]
 }

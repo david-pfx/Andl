@@ -17,14 +17,15 @@ getnext_address() => do {
 
 // Add a set of addresses
 add_address(addr:address) => do {
-    if(addr.count>0, fail("address", "cannot add multiple addresses"), do{}))
-    address := union addr [ { * 
-        address_num := getnext_address() 
-    } ]
+    if(addr.count <> 1, fail("add_address", "must be single record"), do{})
+    a := addr [ { * address_num := getnext_address() } ]
+    address := union a
+    a
 }
 
 // Replace an address
 put_address_id(aid:0, addr:address) => do {
+    if(addr.count <> 1, fail("put_address", "must be single record"), do{})
     address := [ ?(address_num = aid) ]
     address := union addr [ { * address_num := aid } ]
 }

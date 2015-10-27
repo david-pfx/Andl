@@ -13,9 +13,12 @@ getid_tasklog() => do {
 
 // Add a set of tasklogs
 add_tasklog(tl:tasklog) => do {
-    tasklog := union tl [ { *
+    if(tl.count <> 1, fail("add_tasklog", "must be single record"), do{})
+    a := tl [ { *
         id := getid_tasklog(),
     }]
+    tasklog := union a
+    a
 }
 
 // Add a tasklog with desc and task

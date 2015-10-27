@@ -31,6 +31,22 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Andl.Client", "Andl.Client\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Andl.Thrift", "Andl.Thrift\Andl.Thrift.csproj", "{360CD9B1-360A-4735-80E6-2A6F3F6B1D2C}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Borg", "Borg", "{961BD987-00CD-4B11-9BFA-9CB43E067BDC}"
+	ProjectSection(SolutionItems) = preProject
+		Borg\borg-address.andl = Borg\borg-address.andl
+		Borg\borg-appointment.andl = Borg\borg-appointment.andl
+		Borg\borg-checklist.andl = Borg\borg-checklist.andl
+		Borg\borg-link.andl = Borg\borg-link.andl
+		Borg\borg-memo.andl = Borg\borg-memo.andl
+		Borg\borg-option.andl = Borg\borg-option.andl
+		Borg\borg-project.andl = Borg\borg-project.andl
+		Borg\borg-subtask.andl = Borg\borg-subtask.andl
+		Borg\borg-task.andl = Borg\borg-task.andl
+		Borg\borg-tasklog.andl = Borg\borg-tasklog.andl
+		Borg\borg.andl = Borg\borg.andl
+		Borg\setup.bat = Borg\setup.bat
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -80,5 +96,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{961BD987-00CD-4B11-9BFA-9CB43E067BDC} = {B8BDB516-8721-4448-AA66-FEA391AF9ABF}
 	EndGlobalSection
 EndGlobal

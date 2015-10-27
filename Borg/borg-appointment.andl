@@ -21,16 +21,20 @@ getnext_appointment_todo() => do {
 
 // Add a set of appointments
 add_appointment(appt:appointment) => do {
-    appointment := union appt [ { * 
+    if(appt.count <> 1, fail("add_appointment", "must be single record"), do{})
+    a := appt [ { * 
         appt_num := getnext_appointment(),
         next_todo := getnext_appointment_todo(), 
         create_time := now(), 
         lastmod := now()
     } ]
+    appointment := union a
+    a
 }
 
 // Replace a set of appointments
 put_appointment_id(aid:0, appt:appointment) => do {
+    if(appt.count <> 1, fail("put_appointment", "must be single record"), do{})
     appointment := [ ?(appt_num = aid) ]
     appointment := union appt [ { *
         appt_num := aid,

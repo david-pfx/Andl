@@ -15,15 +15,19 @@ getnext_task() => do {
 
 // Add a task
 add_task(tk:task) => do {
-    task := union tk [ { *
+    if(tk.count <> 1, fail("add_task", "must be single record"), do{})
+    a := tk [ { *
         tasknum := getnext_task(),
         create_time := now(), 
         lastmod := now() 
     } ]
+    task := union a
+    a
 }
 
 // Replace a task
 put_task_id(tid:0, tk:task) => do {
+    if(tk.count <> 1, fail("put_task", "must be single record"), do{})
     task[ ?(tasknum = tid) ]
     task := union tk [ { *
         tasknum := tid,
