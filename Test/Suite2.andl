@@ -7,7 +7,8 @@ start($filename$)
 
 t1 := {name := 'Smith', age := 17} 
 assert($lineno$, t1 = {age := 16+1, name := 'Smi''th'})
-r1 := {{name := 'Smith', age := 17}} 
+r1 := {{age := 17, name := 'Smith'}} 
+//r1 := {{name := 'Smith', age := 17}} 
 assert($lineno$, r1 = {{age := 1+16, name := 'S'&'mith'}})
 r2 := {{name := 'Smith', age := 17},
        {name := 'Jones', age := 35},
@@ -30,13 +31,21 @@ assert($lineno$, r2 sup r2)
 assert($lineno$, r1 sep r2 = false)
 assert($lineno$, r2 sep r1 = false)
 
+assert($lineno$, count(S) = 5)
+assert($lineno$, S.count = 5)
+//--- meta data uses internal table
+Smeta0 := {{ Type:'', Name:'' }}
+assert($lineno$, Smeta0.count = 0)
+
+Smeta1 := {{ Type:='', Name:='' }}
+assert($lineno$, Smeta1.count = 1)
+
 Smeta := {{ Name := 'S#', Type := 'text'}, 
     { Name := 'SNAME', Type := 'text'}, 
     { Name := 'STATUS', Type := 'number'}, 
     { Name := 'CITY', Type := 'text'} }
 
-assert($lineno$, count(S) = 5)
-assert($lineno$, S.count = 5)
+assert($lineno$, count(Smeta0 union Smeta1 union Smeta) = 5)
 assert($lineno$, schema(S) = Smeta)
 assert($lineno$, S.schema = Smeta)
 

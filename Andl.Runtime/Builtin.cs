@@ -677,6 +677,10 @@ namespace Andl.Runtime {
     //--- system tables
 
     // variables
+    public RelationValue All() {
+      return _catalog.Catalog.GetCatalogTableValue(Catalog.CatalogTables.Catalog);
+    }
+
     public RelationValue Variables() {
       return _catalog.Catalog.GetCatalogTableValue(Catalog.CatalogTables.Variable);
     }

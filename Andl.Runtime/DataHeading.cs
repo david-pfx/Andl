@@ -33,7 +33,7 @@ namespace Andl.Runtime {
   public class DataHeading {
     public static DataHeading Empty;
     static DataHeading()  {
-      Empty = DataHeading.Create(new DataColumn[0]);
+      Empty = DataHeading.Create(new DataColumn[0], false); // avoids assert later
     }
       
     DataColumn[] _columns;

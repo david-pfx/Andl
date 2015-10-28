@@ -39,16 +39,6 @@ namespace Andl.Runtime {
     public ProgramException(string message) : base(message) { }
   }
 
-  //public enum RteCodes {
-  //  CnvNvb,
-  //  CnvNvn,
-  //  CnvNvt,
-  //  BinGxoor,
-  //  BinSxoor,
-  //  CatLfis,
-  //  CatDbne,
-  //}
-
   public enum ErrorKind { 
     Warn,     // never fatal
     Error,    // fatal if not handled

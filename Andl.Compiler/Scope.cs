@@ -71,6 +71,9 @@ namespace Andl.Compiler {
     public static Scope Current { get { return _current; } }
     static Scope _current = null;
 
+    // set this flag for symbols that should be pushed out to catalog
+    public bool IsGlobal { get; set; }
+
     // Create a new scope level
     public static Scope Push() {
       _current = new Scope() {

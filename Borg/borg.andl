@@ -18,7 +18,6 @@ text_value := { str := '' }
 #include borg-tasklog.andl
 #include borg-project.andl
 
-//andl_operator()//
 
 @paste(s1, s2) => if(s1='',s2 , s1 & ', ' & s2)
 

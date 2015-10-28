@@ -78,6 +78,13 @@ namespace Andl.Runtime {
       { CatalogTables.Member, (c, e) => c.AddMembers(e) },
     };
 
+    internal static readonly Dictionary<string, CatalogTables> _catalogtables = new Dictionary<string, CatalogTables> {
+      { _catalogtablename, CatalogTables.Catalog },
+      { "andl_variables", CatalogTables.Variable }, 
+      { "andl_operators", CatalogTables.Operator }, 
+      { "andl_members", CatalogTables.Member },  
+    };
+    
     static Dictionary<string, Action<Catalog, string>> _settings = new Dictionary<string, Action<Catalog, string>> {
       { "DatabasePath", (c,s) => c.DatabasePath = s },
       { "DatabaseSqlFlag", (c,s) => c.DatabaseSqlFlag = (s != null && s.ToLower() == "true") },
@@ -258,7 +265,8 @@ namespace Andl.Runtime {
     }
 
     public void LoadFromTable() {
-      var table = GlobalVars.GetValue(_catalogtablename).AsTable();
+      var table = GlobalVars.FindEntry(_catalogtablename).Value.AsTable();
+      //var table = GlobalVars.GetValue(_catalogtablename).AsTable();
       //var level = FindLevel(ScopeLevels.Persistent);
       foreach (var row in table.GetRows()) {
         var blob = (row.Values[3] as BinaryValue).Value;
@@ -345,7 +353,13 @@ namespace Andl.Runtime {
     }
 
     // Return raw value from variable
+    // special handling of system catalog names
     internal TypedValue GetValue(string name) {
+      if (Catalog.IsSystem(name)) {
+        if (Catalog._catalogtables.ContainsKey(name))
+          return Catalog.GetCatalogTableValue(Catalog._catalogtables[name]);
+        return null;
+      }
       var entry = FindEntry(name);
       return entry == null ? null : entry.Value;
     }
@@ -366,7 +380,7 @@ namespace Andl.Runtime {
       var entry = FindEntry(name);
       if (entry == null && Level == ScopeLevels.Local) {
         Add(name, value.DataType, EntryKinds.Value);
-        return;
+        entry = FindEntry(name);
       }
       Logger.Assert(entry != null);
       entry.Set(value);

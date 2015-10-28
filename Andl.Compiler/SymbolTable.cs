@@ -238,7 +238,7 @@ namespace Andl.Compiler {
   /// SymbolTable implements the main compiler symbol table.
   /// </summary>
   public class SymbolTable {
-    Scope _catalogscope;
+    Scope _importscope;
     Catalog _catalog;
 
     //public static SymbolTable Create() {
@@ -250,13 +250,15 @@ namespace Andl.Compiler {
 
     //--- publics
 
-    // Add a symbol to the catalog.
+    // Add a symbol to the catalog, but only if it is global
     public void AddCatalog(Symbol symbol) {
-      var kind = symbol.IsUserType ? EntryKinds.Type
-        : symbol.IsDefFunc ? EntryKinds.Code
-        : EntryKinds.Value;
-      var flags = EntryFlags.Public;  // FIX: when visibility control implemented
-      _catalog.GlobalVars.AddNew(symbol.Name, symbol.DataType, kind, flags);
+      if (Scope.Current.IsGlobal) {
+        var kind = symbol.IsUserType ? EntryKinds.Type
+          : symbol.IsDefFunc ? EntryKinds.Code
+          : EntryKinds.Value;
+        var flags = EntryFlags.Public;  // FIX: when visibility control implemented
+        _catalog.GlobalVars.AddNew(symbol.Name, symbol.DataType, kind, flags);
+      }
     }
 
     // Find existing symbol by name
@@ -341,23 +343,24 @@ namespace Andl.Compiler {
       AddSymbols();
       foreach (var info in AddinInfo.GetAddinInfo())
         AddBuiltinFunction(info.Name, info.NumArgs, info.DataType, info.Method);
-      _catalogscope = Scope.Push();
+      _importscope = Scope.Push();  // reserve a level for imported symbols
+      Scope.Current.IsGlobal = true;
     }
 
     // Process catalog to add all entries from persistent level
     // Called functions should discard duplicates, or flag errors???
-    public void Add(CatalogScope catalogscope) {
+    public void Import(CatalogScope catalogscope) {
       foreach (var entry in catalogscope.GetEntries()) {
         var value = entry.Value;
-        if (_catalogscope.Find(entry.Name) == null)
+        if (_importscope.Find(entry.Name) == null)
           Logger.WriteLine(3, "From catalog add {0}:{1}", entry.Name, entry.DataType.BaseType.Name);
 
         if (entry.Kind == EntryKinds.Type)
-          _catalogscope.Add(MakeUserType(entry.Name, entry.DataType as DataTypeUser));
+          _importscope.Add(MakeUserType(entry.Name, entry.DataType as DataTypeUser));
         else if (entry.Kind == EntryKinds.Value)
-          _catalogscope.Add(MakeCatVar(entry.Name, entry.DataType));
+          _importscope.Add(MakeCatVar(entry.Name, entry.DataType));
         else if (entry.Kind == EntryKinds.Code)
-          _catalogscope.Add(MakeDeferred(entry.Name, entry.DataType, entry.CodeValue.Value.Lookup.Columns));
+          _importscope.Add(MakeDeferred(entry.Name, entry.DataType, entry.CodeValue.Value.Lookup.Columns));
       }
     }
 

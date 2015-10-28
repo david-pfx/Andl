@@ -32,14 +32,17 @@ assert($lineno$, 3 = (7 and 11))
 assert($lineno$, 15 = (7 or 11))
 assert($lineno$, 12 = (7 xor 11))
 
+//--- if(,,)
 assert($lineno$, if(true,"yes",'no') = 'yes')
 assert($lineno$, if(false,0,1+2) = 3)
 
+//--- assign
 a1 := 22
 assert($lineno$, a1 = 22)
 a2 := a1*2
 assert($lineno$, a2 = 44)
 
+//--- defer
 d1 => 22
 assert($lineno$, d1 = 22)
 d2 => a1*2 + d1*2
@@ -64,9 +67,24 @@ dfact:0(n:0) => do {
 assert($lineno$, dfact(6) = 720)
 assert($lineno$, dfact(20) = 2432902008176640000)
 
+scope1(n:0) => do {
+  a := n+2
+  a - 2
+}
+assert($lineno$, scope1(7) = 7)
+
+r := {{ name:='abc', id:=17 }}
+scope2(rr:r) => do {
+  a := rr
+  rr
+}
+assert($lineno$, scope2(r) = r)
+
+//--- builtin
 assert($lineno$, seq(3) = {{N:=0},{N:=1},{N:=2}})
 assert($lineno$, seq(3) [{nnn:=N}] = {{nnn:=0},{nnn:=1},{nnn:=2}})
 
+//--- system type 'date' --- defer for now
 tim1 := t'2015/02/26'
 //dat1 := date(tim1)
 //dat2 := dateymd(2015,2,27)
@@ -78,6 +96,7 @@ tim1 := t'2015/02/26'
 //dat2.dow = 5 // Friday
 //daysdiff(dat2,dat1) = 1
 
+//--- string operations
 ss1 := 'abcdefg'
 ss2 := 'XYZ   '
 assert($lineno$, ss2.trim = 'XYZ')
@@ -95,7 +114,7 @@ assert($lineno$, fill('abc', 0) = '')
 assert($lineno$, fill('abc', -20) = '')
 assert($lineno$, ss1.length = 7)
 
-// user type defs
+//--- user type defs
 def :utype1(age:0, name:'')
 uvar1 := utype1(17, 'smith')
 assert($lineno$, uvar1 = utype1(17, 'smith'))

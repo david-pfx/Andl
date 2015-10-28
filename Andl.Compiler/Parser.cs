@@ -80,8 +80,8 @@ namespace Andl.Compiler {
       // only when everything is ready -- process initial directives to set flags
       TakeEol();
       Catalog.Start();
-      SymbolTable.Add(Catalog.GlobalVars);
-      SymbolTable.Add(Catalog.PersistentVars);
+      SymbolTable.Import(Catalog.GlobalVars);
+      SymbolTable.Import(Catalog.PersistentVars);
       
       // main parser
       if (!ParseMain() || ErrorCount > 0) return ErrorCount == 0;
