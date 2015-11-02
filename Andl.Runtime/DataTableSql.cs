@@ -419,11 +419,6 @@ namespace Andl.Runtime {
       if (other is DataTableSql)
         InsertValuesQuery(other as DataTableSql);
       else InsertValuesSingly(other);
-      //var other = Convert(otherarg);
-      //_database.OpenStatement();
-      //string sql = _gen.InsertJoin(TableName, other.Heading, other.GetQuery(), joinops);
-      //_database.ExecuteCommand(sql);
-      //_database.CloseStatement();
       return this;
     }
 

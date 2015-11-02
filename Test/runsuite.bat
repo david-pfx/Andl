@@ -3,7 +3,7 @@
 @if exist out.txt rm out.txt
 @if exist andl.sandl rd andl.sandl /s
 
-for %f in (suite*.andl) (
+for %%f in (suite*.andl) (
   echo %f
   echo %f >> out.txt
   ..\Debug\Andl %1 %f >> out.txt

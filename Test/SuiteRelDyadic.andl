@@ -1,6 +1,6 @@
 // Test Suite 3 -- testing of RA
 
-#include SuiteLib.andl
+#include TestLib.andl
 #include SupplierData.andl
 
 start($filename$)

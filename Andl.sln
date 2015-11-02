@@ -50,12 +50,13 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Test", "Test", "{4C7FFE8E-722C-4667-8EA1-C6B3FC937106}"
 	ProjectSection(SolutionItems) = preProject
 		Test\runsuite.bat = Test\runsuite.bat
-		Test\Suite1.andl = Test\Suite1.andl
-		Test\Suite2.andl = Test\Suite2.andl
-		Test\Suite3.andl = Test\Suite3.andl
-		Test\Suite4.andl = Test\Suite4.andl
-		Test\SuiteLib.andl = Test\SuiteLib.andl
+		Test\SuiteBasic.andl = Test\SuiteBasic.andl
+		Test\SuiteDefer.andl = Test\SuiteDefer.andl
+		Test\SuiteRelBasic.andl = Test\SuiteRelBasic.andl
+		Test\SuiteRelDyadic.andl = Test\SuiteRelDyadic.andl
+		Test\SuiteRelFold.andl = Test\SuiteRelFold.andl
 		Test\SupplierData.andl = Test\SupplierData.andl
+		Test\TestLib.andl = Test\TestLib.andl
 	EndProjectSection
 EndProject
 Global

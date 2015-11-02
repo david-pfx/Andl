@@ -1,6 +1,6 @@
 // Test Suite 4 -- testing of aggregation
 
-#include SuiteLib.andl
+#include TestLib.andl
 #include SupplierData.andl
 
 start($filename$)

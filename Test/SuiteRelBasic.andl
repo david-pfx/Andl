@@ -1,6 +1,6 @@
 ﻿// Test Suite 2 -- basic testing of relational features
 
-#include SuiteLib.andl
+#include TestLib.andl
 #include SupplierData.andl
 
 start($filename$)
