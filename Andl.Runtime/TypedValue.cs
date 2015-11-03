@@ -573,7 +573,7 @@ namespace Andl.Runtime {
     // IOrdinal
     public bool IsLess(object other) {
       var uvo = (UserValue)other;
-      return DataType == uvo.DataType && 
+      return DataType == uvo.DataType &&
         Enumerable.Range(0, Value.Length)
         .All(x => ((IOrdinalValue)Value[x]).IsLess(uvo.Value[x]));
     }
@@ -601,5 +601,55 @@ namespace Andl.Runtime {
 
   }
 
+  ///-------------------------------------------------------------------
+  /// <summary>
+  /// A value of a type that is a subtype
+  /// 
+  /// Basically just one level of indirection plus a predicate constraint (TBD)
+  /// </summary>
+  public class SubtypeValue : TypedValue, IDataValue {
+    // the default value for the type
+    public static SubtypeValue Default;
+
+    public DataTypeSubtype _datatype;
+    public TypedValue Value { get; private set; }
+
+    static SubtypeValue() {
+      Default = Create(TypedValue.Empty, DataTypes.Subtype as DataTypeSubtype);
+    }
+
+    static public SubtypeValue Create(TypedValue value, DataTypeSubtype datatype) {
+      return new SubtypeValue {
+        Value = value,
+        _datatype = datatype,
+      };
+    }
+
+    // Recursively find base value
+    TypedValue BaseValue() {
+      if (Value is SubtypeValue)
+        return (Value as SubtypeValue).BaseValue();
+      else return Value;
+    }
+
+    // delegate formatting
+    public override string ToString() {
+      return BaseValue().ToString();
+    }
+    public override string Format() {
+      return BaseValue().Format();
+    }
+    public override DataType DataType {
+      get { return _datatype; }
+    }
+    public override bool Equals(object other) {
+      var rvother = other as SubtypeValue;
+      return rvother != null && Value.Equals(rvother.Value);
+    }
+    public override int GetHashCode() {
+      return Value.GetHashCode();
+    }
+
+  }
 }
 
