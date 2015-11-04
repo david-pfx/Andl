@@ -67,7 +67,7 @@ namespace Andl.Main {
         Finish();
       } catch (Exception ex) {
         if (ex.GetBaseException() is ProgramException)
-          Logger.WriteLine("*** {0}", ex.Message);
+          Logger.WriteLine("*** {0} error ({1}): {2}", (ex as ProgramException).Kind, (ex as ProgramException).Source, ex.Message);
         else if (ex.GetBaseException() is UtilAssertException)
           Logger.WriteLine("*** Assert failure: {0}", ex.ToString());
         else {
@@ -125,7 +125,7 @@ namespace Andl.Main {
         _catalog.DatabaseName = _paths[1];
       if (_paths.Count > 2)
         _catalog.DatabasePath = _paths[2];
-      _catalog.SourcePath = ".";
+      _catalog.SourcePath = "";
 
       // Create private catalog with access to global level
       var catalogp = CatalogPrivate.Create(_catalog, true);

@@ -5,7 +5,8 @@
 'webspsetup.andl -- set up for access by Web REST API'
 
 // load initial data
-def S:db(csv), P:db(csv), SP:db(csv)
+db  S(csv), P(csv), SP(csv)
+//def S:db(csv), P:db(csv), SP:db(csv)
 
 supplier := S [{ *Sid:=S# }]
 part := P [{ *Pid := P# }]

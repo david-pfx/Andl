@@ -17,6 +17,9 @@ using System.Text.RegularExpressions;
 using System.IO;
 
 namespace Andl.Runtime {
+  public enum InputMode {
+    Preview, Import
+  };
   /// <summary>
   /// Generic source of relational data
   /// </summary>
@@ -25,7 +28,8 @@ namespace Andl.Runtime {
     protected string _ext;
     protected bool _hasid = false;
 
-    // Create parses first part of command string, decides which driver, and passes remainder to it
+    // Create an input source of given type and location
+    // The locator argument is a path or connection string. The actual filename or table name comes later.
     public static DataSourceStream Create(string source, string locator) {
       switch (source) {
       case "con":
@@ -46,35 +50,6 @@ namespace Andl.Runtime {
       }
       return null;
     }
-    //public static DataSourceStream Create(string command) {
-    //  var re = new Regex(@"([a-z]*:) *(.*)", RegexOptions.IgnoreCase);
-    //  var m = re.Match(command);
-    //  var arg = m.Groups[2].Value;
-    //  if (m.Success)
-    //    switch (m.Groups[1].Value) {
-    //    case "con:":
-    //      return DataSourceCon.Create(arg);
-    //    case "file:":
-    //      return DataSourceFile.Create(arg);
-    //    case "csv:":
-    //      return DataSourceCsv.Create(arg);
-    //    case "sql:":
-    //      return DataSourceSql.Create(arg);
-    //    case "oledb:":
-    //      return DataSourceOleDb.Create(arg);
-    //    case "odbc:":
-    //      return DataSourceOdbc.Create(arg);
-    //    //return new DataSourceSql() {
-    //      //  _locator = arg
-    //      //};
-    //    default:
-    //      Logger.Assert(false, command);
-    //      break;
-    //    }
-    //  return new DataSourceStream() {
-    //    _locator = command,
-    //  };
-    //}
 
     public string GetPath(string filename) {
       if (Path.GetExtension(filename) == String.Empty && _ext != null)
@@ -83,7 +58,7 @@ namespace Andl.Runtime {
     }
 
     // default input handler does nothing
-    public virtual DataTable Input(string file, bool preview = false) {
+    public virtual DataTable Input(string file, InputMode mode = InputMode.Import) {
       return DataTable.Empty;
     }
   }
@@ -99,7 +74,7 @@ namespace Andl.Runtime {
       };
     }
 
-    public override DataTable Input(string file, bool preview = false) {
+    public override DataTable Input(string file, InputMode mode = InputMode.Import) {
       var table = DataTable.Empty as DataTableLocal;
       var path = GetPath(file);
       if (!File.Exists(path)) return null;
@@ -114,7 +89,7 @@ namespace Andl.Runtime {
               row = (new string[] { "Id:number" })
                 .Concat(row).ToArray();
             table = DataTableLocal.Create(DataHeading.Create(row));
-            if (preview)
+            if (mode == InputMode.Preview)
               break;
           } else {
             if (_hasid)
@@ -140,12 +115,12 @@ namespace Andl.Runtime {
       };
     }
 
-    public override DataTable Input(string file, bool preview = false) {
+    public override DataTable Input(string file, InputMode mode = InputMode.Import) {
       var heading = DataHeading.Create("Line");
       var newtable = DataTableLocal.Create(heading);
       var path = GetPath(file);
       if (!File.Exists(path)) return null;
-      if (preview) return newtable;
+      if (mode == InputMode.Preview) return newtable;
       using (var rdr = File.OpenText(path)) { 
         for (var line = rdr.ReadLine(); line != null; line = rdr.ReadLine()) {
           newtable.AddRow(DataRow.Create(heading, line));
@@ -166,10 +141,10 @@ namespace Andl.Runtime {
       };
     }
 
-    public override DataTable Input(string file, bool preview = false) {
+    public override DataTable Input(string file, InputMode mode = InputMode.Import) {
       var heading = DataHeading.Create("line");
       var newtable = DataTableLocal.Create(heading);
-      if (preview) return newtable;
+      if (mode == InputMode.Preview) return newtable;
       Console.WriteLine(file);
       var line = Console.ReadLine();
       newtable.AddRow(DataRow.Create(heading, line));

@@ -1,0 +1,20 @@
+# test script for SQL Speed database
+
+#noisy 1
+#source "Data Source=Mona;Initial Catalog=Speed;Integrated Security=true"
+db camera(sql), mark(sql), site(sql), photo(sql), Justice7C(sql)
+camera.schema
+count(camera)
+mark.schema
+count(mark)
+site.schema
+count(site)
+photo.schema
+count(photo)
+Justice7C.schema
+count(Justice7C)
+
+(camera [{*sid:=siteid}] join site [{*sid:=id}]) [{make,location}]
+
+camera [?(id < 50) $(kind,make) {*id}]
+(camera [{*sid:=siteid}] join site [{*sid:=id}]) [$(make,kind){make,kind, seq:=fold(+,1)}]

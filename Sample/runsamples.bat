@@ -14,9 +14,10 @@
 ..\Debug\Andl /1 %1 >> out.txt sample5.andl
 ..\Debug\Andl /1 %1 >> out.txt SPPsample1.andl
 ..\Debug\Andl /1 %1 >> out.txt DbixCdSample.andl
+..\Debug\Andl /1 %1 >> out.txt family_tree.andl
 ..\Debug\Andl /1 %1 >> out.txt recursive.andl
-:..\Debug\Andl /1 %1 >> out.txt mandelbrot.andl
 ..\Debug\Andl /1 %1 >> out.txt sudoku-logic.andl
+:..\Debug\Andl /1 %1 >> out.txt mandelbrot.andl
 
 @grep -n "False" out.txt
 @grep -ni "exception" out.txt

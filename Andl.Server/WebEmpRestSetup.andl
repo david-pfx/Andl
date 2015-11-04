@@ -5,7 +5,8 @@
 'WebEmpApiSetup.andl -- set up for Web REST employee sample'
 
 // load initial data
-def WebEmp:db(csv)
+db WebEmp(csv)
+//def WebEmp:db(csv)
 //WebEmp
 
 newempno := WebEmp [{ fold(max,EmpNo)}]

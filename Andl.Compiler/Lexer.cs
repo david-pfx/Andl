@@ -297,10 +297,10 @@ namespace Andl.Compiler {
     private bool Directive(Token token) {
       var line = token.Value;
       if (line.StartsWith("#")) {
-        var cmd = line.Split(null);
+        var cmd = line.Split(null, 2);
         switch (cmd[0]) {
         case "#noisy": 
-          Logger.Level = cmd.Length >= 2 ? int.Parse(cmd[1]) : 1;
+          Logger.Level = (cmd.Length >= 2) ? int.Parse(cmd[1]) : 1;
           return true;
         case "#stop":
           if (cmd.Length >= 2) Logger.Level = int.Parse(cmd[1]);
@@ -316,6 +316,9 @@ namespace Andl.Compiler {
           _catalog.LoadFlag = !cmd.Contains("new");
           _catalog.SaveFlag = cmd.Contains("update");
           return true;
+        case "#source":
+          _catalog.SourcePath = (cmd.Length >= 2) ? Unquote(cmd[1]) : "";
+          return true;
         default:
           ErrLexer(token.LineNumber, "bad directive: {0}", cmd[0]);
           return true;
@@ -328,6 +331,12 @@ namespace Andl.Compiler {
     bool ErrLexer(int lineno, string message, params object[] args) {
       Logger.WriteLine("Error line {0}: {1}", lineno, String.Format(message, args));
       return true;
+    }
+
+    string Unquote(string s) {
+      if (Regex.IsMatch(s, "^'.*'$") || Regex.IsMatch(s, "^\".*\"$"))
+        return s.Substring(1, s.Length - 2);
+      else return s;
     }
 
   }

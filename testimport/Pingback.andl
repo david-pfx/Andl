@@ -1,0 +1,22 @@
+﻿// Pingback.andl
+
+// Retrieve data from Pingback database
+
+#source "Provider=Microsoft.ACE.OLEDB.12.0;Data Source=D:\MyDocs\ACCESS\PingbackSqlImport.accdb"
+db dbo_Companies(oledb), dbo_Devices(oledb), dbo_Installations(oledb), dbo_LicenseKeys(oledb), dbo_Pingback(oledb), dbo_Servers(oledb)
+
+dbo_Companies.schema
+dbo_Devices.schema
+dbo_Installations.schema
+dbo_LicenseKeys.schema
+//dbo_Pingback.schema
+dbo_Servers.schema
+dbo_Companies.count
+dbo_Devices.count
+dbo_Installations.count
+dbo_LicenseKeys.count
+//dbo_Pingback.count
+dbo_Servers.count
+
+dbo_Companies
+#stop

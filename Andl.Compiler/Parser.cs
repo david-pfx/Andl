@@ -152,6 +152,7 @@ namespace Andl.Compiler {
       datatype = DataTypes.Void;
       return ParseDeferred()
         || ParseDecls()
+        || ParseData()
         || ParseUpdateJoin()
         || ParseUpdateTransform()
         || ParseAssignment()      // after updates to resolve ambiguity
@@ -170,6 +171,20 @@ namespace Andl.Compiler {
         } else if (ParseDecl(out idsym)) {  //FIX: what does this mean?
 
         } else return ErrExpect("declaration");
+      } while (Match(Atoms.SEP));
+      return true;
+    }
+
+    //------------------------------------------------------------------
+    // Parse data statement with one or more source items separated by commas
+    bool ParseData() {
+      if (!(Look().Kind == SymKinds.DB)) return false;
+      var funcsym = Take();
+      //if (!Match(Atoms.DB)) return false;
+      DataType datatype;
+      do {
+        if (ParseSource(funcsym, out datatype)) {}
+        else return ErrExpect("data source");
       } while (Match(Atoms.SEP));
       return true;
     }
@@ -465,6 +480,7 @@ namespace Andl.Compiler {
       return true;
     }
 
+    //------------------------------------------------------------------
     // Parse a recursive relational expression
     // TODO: keyword for DEPTH first
     bool ParseRecurse(ref DataType datatype) {
@@ -1147,6 +1163,37 @@ namespace Andl.Compiler {
     }
 
     //------------------------------------------------------------------
+    // Data source ::= ident ( source {options} )
+    // returns data type and emits code for runtime to make it so
+    bool ParseSource(Symbol funcsym, out DataType datatype) {
+      datatype = DataTypes.Unknown;
+      if (!(Look().IsIdent)) return false;
+      var idsym = Take();
+      if (!idsym.IsDefinable) return ErrSyntax("already defined {0}", idsym.Name);
+      if (!Match(Atoms.LP)) return ErrExpect(Atoms.LP);
+
+      var source = TextValue.Default;
+      if (Look().Kind == SymKinds.SOURCE) {
+        source = Take().Value as TextValue;
+        // placeholder for additional source-specific args
+      }
+      if (!Match(Atoms.RP)) return ErrCheck(Atoms.RP);
+
+      datatype = Catalog.GetRelvarType(idsym.Name, source.AsString());
+      if (datatype == null) return ErrSyntax("not found: {0}", idsym.Name);
+
+      idsym = SymbolTable.MakeCatVar(idsym.Name, datatype);
+      Scope.Current.Add(idsym);
+      SymbolTable.AddCatalog(idsym);
+
+      _emitter.Out(Opcodes.LDVALUE, TextValue.Create(idsym.Name));
+      _emitter.Out(Opcodes.LDVALUE, source);
+      _emitter.Out(Opcodes.LDVALUE, HeadingValue.Create(datatype.Heading));
+      _emitter.OutCall(funcsym);
+      return true;
+    }
+
+    //------------------------------------------------------------------
     // Connect Function ::= ident COLON db LP [ typelist ] RP
     // returns data type and emits code for runtime to make it so
     bool ParseConnect(out DataType datatype) {
@@ -1178,7 +1225,6 @@ namespace Andl.Compiler {
       _emitter.Out(Opcodes.LDVALUE, source);
       _emitter.Out(Opcodes.LDVALUE, HeadingValue.Create(datatype.Heading));
       _emitter.OutCall(symbol);
-      //_emitter.OutCall(symbol, 0, symbol.CallInfo);
       return true;
     }
 
@@ -1340,21 +1386,6 @@ namespace Andl.Compiler {
 
     public static DataColumn[] MakeColumns(IEnumerable<Symbol> syms) {
       return syms.Select(s => DataColumn.Create(s.Name, s.DataType)).ToArray();
-    }
-
-    // resolve return type given a method and a list of types
-    // requires calls to runtime functions
-    // returns true if type error detected 
-    // DEAD:
-    bool ResolveTypes(Symbol symbol, out DataType datatype, out CallInfo callinfo, params DataType[] datatypes) {
-      datatype = symbol.DataType;
-      callinfo = symbol.CallInfo;
-      string name = symbol.Name;
-      if (symbol.Kind == SymKinds.DB) {
-        datatype = Catalog.GetRelvarType(name, "");
-        return datatype != null || ErrSyntax("not found: {0}", name);
-      }
-      return ErrSyntax("unknown function {0}", name);
     }
 
     ///=================================================================

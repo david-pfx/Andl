@@ -5,7 +5,8 @@
 'webempsetup.andl -- set up for access by employeeinfo sample app'
 
 // load initial data
-def WebEmp:db(csv)
+db  WebEmp(csv)
+//def WebEmp:db(csv)
 WebEmp
 
 newempno := WebEmp [{ fold(max,EmpNo)}]

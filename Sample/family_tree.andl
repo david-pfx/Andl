@@ -1,6 +1,7 @@
 ﻿// test data from PFX samples
 
-def family_tree:db(csv)
+db family_tree(csv)
+//def family_tree:db(csv)
 
 family_tree.schema
 

@@ -1,0 +1,7 @@
+// test file for ODBC access to Openwiki
+
+#source "Dsn=OpenWikiDist;dbq=D:\MyDocs\inetpub\DidiWiki (OpenWiki v0.78 SP1)\data\OpenWikiDist.mdb;driverid=25;fil=MS Access;maxbuffersize=2048;pagetimeout=5"
+
+db openwiki_pages(odbc), openwiki_revisions(odbc)
+openwiki_pages.schema
+openwiki_revisions.schema

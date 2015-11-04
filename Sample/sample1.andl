@@ -94,7 +94,8 @@ write(v1)
 //output := 'You typed <' & vin & '>'
 
 // read a file as a relation of lines of text {{ Line:text }}
-def test:db(txt)
+db test(txt)
+//def test:db(txt)
 test
 
 wait

@@ -5,7 +5,8 @@
 'WebSpApiSetup.andl -- set up for Web API SP sample'
 
 // load initial data
-def S:db(csv), P:db(csv), SP:db(csv)
+db S(csv), P(csv), SP(csv)
+//def S:db(csv), P:db(csv), SP:db(csv)
 
 // Assume these will be accessed directly
 supplier := S [{ *Sid:=S# }]

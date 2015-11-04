@@ -200,7 +200,7 @@ namespace Andl.Runtime {
           return type;
         }
       } else {
-        var table = DataSourceStream.Create(source, SourcePath).Input(name, true);
+        var table = DataSourceStream.Create(source, SourcePath).Input(name, InputMode.Preview);
         if (table != null) return table.DataType;
       }
       return null;
@@ -234,7 +234,7 @@ namespace Andl.Runtime {
       var entry = GlobalVars.FindEntry(name);
       Logger.Assert(entry != null);
       var heading = entry.DataType.Heading;
-      var table = DataSourceStream.Create(source, SourcePath).Input(name, false);
+      var table = DataSourceStream.Create(source, SourcePath).Input(name, InputMode.Import);
       if (table == null || !heading.Equals(table.Heading))
         ProgramError.Fatal("Catalog", "{0} table not found: '{1}'", source, name);
       GlobalVars.SetValue(name, RelationValue.Create(table));

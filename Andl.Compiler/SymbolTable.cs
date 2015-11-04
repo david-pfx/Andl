@@ -453,6 +453,8 @@ namespace Andl.Compiler {
       AddOperator("sup", Atoms.IDENT, 2, 4, DataTypes.Bool, "Superset");
       AddOperator("sep", Atoms.IDENT, 2, 4, DataTypes.Bool, "Separate");
 
+      AddFunction("db", Atoms.IDENT, 0, DataTypes.Void, CallKinds.FUNC, "Connect", SymKinds.DB);
+
       AddFunction(Symbol.Assign, Atoms.NUL, 1, DataTypes.Void, CallKinds.FUNC, "Assign");
       AddFunction(Symbol.Defer, Atoms.NUL, 1, DataTypes.Void, CallKinds.FUNC, "Defer");
       AddFunction(Symbol.DoBlock, Atoms.NUL, 1, DataTypes.Any, CallKinds.FUNC, "DoBlock");
@@ -469,8 +471,6 @@ namespace Andl.Compiler {
       AddFunction(Symbol.UpdateJoin, Atoms.NUL, 3, DataTypes.Bool, CallKinds.FUNC, "UpdateJoin");
       AddFunction(Symbol.UpdateTransform, Atoms.NUL, 3, DataTypes.Bool, CallKinds.VFUNC, "UpdateTrans");
       AddFunction(Symbol.UserSelector, Atoms.NUL, 2, DataTypes.User, CallKinds.VFUNCT, "UserSelector");
-      //AddFunction("create", Atoms.IDENT, 2, DataTypes.Void, CallKinds.FUNC, "CreateTable", SymKinds.CREATE);
-      //AddFunction("source", Atoms.IDENT, 2, DataTypes.Unknown, CallKinds.FUNC, "Source");
 
       AddFoldableFunction("max", Atoms.IDENT, 2, DataTypes.Ordered, CallKinds.FUNC, FoldableFlags.ANY, FoldSeeds.MIN, "Max");
       AddFoldableFunction("min", Atoms.IDENT, 2, DataTypes.Ordered, CallKinds.FUNC, FoldableFlags.ANY, FoldSeeds.MAX, "Min");
@@ -512,8 +512,6 @@ namespace Andl.Compiler {
       AddAlias("joincr", "rsemijoin");
       AddAlias("joinr", "rdivide");
 
-      //AddFunction("create", Atoms.IDENT, 2, DataTypes.Table, CallKinds.FUNC, "CreateSql");
-      AddFunction("db", Atoms.IDENT, 0, DataTypes.Void, CallKinds.FUNC, "Connect", SymKinds.DB);
     }
 
     // Add a symbol to the current scope

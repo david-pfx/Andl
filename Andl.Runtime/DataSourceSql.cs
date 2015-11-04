@@ -33,8 +33,12 @@ namespace Andl.Runtime {
     public static DataSourceSql Create(string locator) {
       var ds = new DataSourceSql {
         _locator = locator,
-        _connection = new SqlConnection(locator)
       };
+      try {
+        ds._connection = new SqlConnection(locator);
+      } catch(Exception ex) {
+        ProgramError.Fatal("Source sql", ex.Message);
+      }
       ds._convdict = new Dictionary<string, ConversionTypes> {
         { "char", ConversionTypes.String },
         { "varchar", ConversionTypes.String },
@@ -83,8 +87,12 @@ namespace Andl.Runtime {
     public static DataSourceOdbc Create(string locator) {
       var ds = new DataSourceOdbc {
         _locator = locator,
-        _connection = new OdbcConnection(locator)
       };
+      try {
+        ds._connection = new OdbcConnection(locator);
+      } catch (Exception ex) {
+        ProgramError.Fatal("Source odbc", ex.Message);
+      }
       ds._convdict = new Dictionary<string, ConversionTypes> {
         { "CHAR", ConversionTypes.String },
         { "VARCHAR", ConversionTypes.String },
@@ -118,8 +126,12 @@ namespace Andl.Runtime {
     public static DataSourceOleDb Create(string locator) {
       var ds = new DataSourceOleDb {
         _locator = locator,
-        _connection = new OleDbConnection(locator)
       };
+      try {
+        ds._connection = new OleDbConnection(locator);
+      } catch (Exception ex) {
+        ProgramError.Fatal("Source OleDb", ex.Message);
+      }
       ds._convdict = new Dictionary<string, ConversionTypes> {
         { "DBTYPE_BOOL", ConversionTypes.Bool },
         { "DBTYPE_I4", ConversionTypes.Int },
@@ -156,18 +168,19 @@ namespace Andl.Runtime {
     abstract protected void Close();
 
     // Generic input
-    public override DataTable Input(string table, bool preview = false) {
+    public override DataTable Input(string table, InputMode mode = InputMode.Import) {
+      Logger.WriteLine(2, "Table '{0}' mode:{1}", table, mode);
       var reader = Open(table);
       var s = Enumerable.Range(0, reader.FieldCount)
         .Select(n => reader.GetName(n) + ":" + reader.GetDataTypeName(n)).ToArray();
-      Logger.WriteLine("Table {0} fields {1}", table, String.Join(",", s));
+      Logger.WriteLine(3, "Table {0} fields {1}", table, String.Join(",", s));
       var cols = Enumerable.Range(0, reader.FieldCount)
         .Where(x => _convdict.ContainsKey(reader.GetDataTypeName(x)))
         .Select(x => DataColumn.Create(reader.GetName(x), GetType(_convdict[reader.GetDataTypeName(x)])))
         .ToArray();
       var heading = DataHeading.Create(cols, false); // preserve order
       var tabnew = DataTableLocal.Create(heading);
-      while (reader.Read() && !preview) {
+      while (reader.Read() && mode == InputMode.Import) {
         var values = cols.Select(c => MakeValue(reader, c.Name, c.DataType)).ToArray();
         var row = DataRow.Create(heading, values);
         tabnew.AddRow(row);

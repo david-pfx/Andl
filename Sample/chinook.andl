@@ -3,8 +3,10 @@
 
 #catalog new
 
-def Album:db(), Employee:db(), InvoiceLine:db(), PlaylistTrack:db(), Artist:db(), Genre:db(), MediaType:db()
-def Track:db(), Customer:db(), Invoice:db(), Playlist:db()
+db Album(), Employee(), InvoiceLine(), PlaylistTrack(), Artist(), Genre(), MediaType()
+db Track(), Customer(), Invoice(), Playlist()
+//def Album:db(), Employee:db(), InvoiceLine:db(), PlaylistTrack:db(), Artist:db(), Genre:db(), MediaType:db()
+//def Track:db(), Customer:db(), Invoice:db(), Playlist:db()
 
 Album.schema
 //Employee.schema

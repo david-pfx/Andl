@@ -1,6 +1,7 @@
 ﻿// test data from PFX samples
 
-def member:db(csv), council:db(csv), teams:db(csv), country:db(csv)
+db member(csv), council(csv), teams(csv), country(csv)
+//def member:db(csv), council:db(csv), teams:db(csv), country:db(csv)
 
 // Schemas
 member[?(false)]

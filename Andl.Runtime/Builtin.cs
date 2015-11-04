@@ -234,9 +234,12 @@ namespace Andl.Runtime {
       return usertype.CreateValue(valargs);
     }
 
-    // Connect to a persisted or imported relvar
+    // Connect to a linked or imported relvar
     public VoidValue Connect(TextValue namearg, TextValue sourcearg, HeadingValue heading) {
-      if (!_catalog.Catalog.ImportRelvar(namearg.Value, sourcearg.Value))
+      if (sourcearg.Value == "") {
+        if (!_catalog.Catalog.LinkRelvar(namearg.Value))
+          ProgramError.Error("Connect", "cannot link to '{0}'", namearg.Value);
+      } else if (!_catalog.Catalog.ImportRelvar(namearg.Value, sourcearg.Value))
         ProgramError.Error("Connect", "cannot import from '{0}'", namearg.Value);
       return VoidValue.Default;
     }
