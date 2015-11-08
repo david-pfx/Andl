@@ -151,8 +151,8 @@ namespace Andl.Compiler {
       TakeEol();
       datatype = DataTypes.Void;
       return ParseDeferred()
-        || ParseDecls()
-        || ParseData()
+        || ParseTypedef()
+        || ParseImport()
         || ParseUpdateJoin()
         || ParseUpdateTransform()
         || ParseAssignment()      // after updates to resolve ambiguity
@@ -161,31 +161,58 @@ namespace Andl.Compiler {
 
     //------------------------------------------------------------------
     // Parse one or more declarations separated by commas
-    bool ParseDecls() {
+    bool ParseTypedef() {
       if (!Match(Atoms.DEF)) return false;
-      DataType datatype;
-      Symbol idsym;
       do {
-        if (ParseUserType(out datatype) || ParseConnect(out datatype)) {
-
-        } else if (ParseDecl(out idsym)) {  //FIX: what does this mean?
-
+        if (ParseUserType()) {
+        } else if (ParseSubtype()) {  //FIX: what does this mean? Subtype?
         } else return ErrExpect("declaration");
       } while (Match(Atoms.SEP));
       return true;
     }
 
     //------------------------------------------------------------------
-    // Parse data statement with one or more source items separated by commas
-    bool ParseData() {
+    // Parse import statement with one or more source items separated by commas
+    // db { ident LP source RP SEP }...
+    bool ParseImport() {
       if (!(Look().Kind == SymKinds.DB)) return false;
       var funcsym = Take();
-      //if (!Match(Atoms.DB)) return false;
       DataType datatype;
       do {
         if (ParseSource(funcsym, out datatype)) {}
         else return ErrExpect("data source");
       } while (Match(Atoms.SEP));
+      return true;
+    }
+
+    //------------------------------------------------------------------
+    // Data source ::= ident ( source {options} )
+    // returns data type and emits code for runtime to make it so
+    bool ParseSource(Symbol funcsym, out DataType datatype) {
+      datatype = DataTypes.Unknown;
+      if (!(Look().IsIdent)) return false;
+      var idsym = Take();
+      if (!idsym.IsDefinable) return ErrSyntax("already defined {0}", idsym.Name);
+      if (!Match(Atoms.LP)) return ErrExpect(Atoms.LP);
+
+      var source = TextValue.Default;
+      if (Look().Kind == SymKinds.SOURCE) {
+        source = Take().Value as TextValue;
+        // placeholder for additional source-specific args
+      }
+      if (!Match(Atoms.RP)) return ErrCheck(Atoms.RP);
+
+      datatype = Catalog.GetRelvarType(idsym.Name, source.AsString());
+      if (datatype == null) return ErrSyntax("not found: {0}", idsym.Name);
+
+      idsym = SymbolTable.MakeCatVar(idsym.Name, datatype);
+      Scope.Current.Add(idsym);
+      SymbolTable.AddCatalog(idsym);
+
+      _emitter.Out(Opcodes.LDVALUE, source);
+      _emitter.Out(Opcodes.LDVALUE, TextValue.Create(idsym.Name));
+      _emitter.Out(Opcodes.LDVALUE, TextValue.Create(Catalog.SourcePath));
+      _emitter.OutCall(funcsym);
       return true;
     }
 
@@ -1163,78 +1190,10 @@ namespace Andl.Compiler {
     }
 
     //------------------------------------------------------------------
-    // Data source ::= ident ( source {options} )
-    // returns data type and emits code for runtime to make it so
-    bool ParseSource(Symbol funcsym, out DataType datatype) {
-      datatype = DataTypes.Unknown;
-      if (!(Look().IsIdent)) return false;
-      var idsym = Take();
-      if (!idsym.IsDefinable) return ErrSyntax("already defined {0}", idsym.Name);
-      if (!Match(Atoms.LP)) return ErrExpect(Atoms.LP);
-
-      var source = TextValue.Default;
-      if (Look().Kind == SymKinds.SOURCE) {
-        source = Take().Value as TextValue;
-        // placeholder for additional source-specific args
-      }
-      if (!Match(Atoms.RP)) return ErrCheck(Atoms.RP);
-
-      datatype = Catalog.GetRelvarType(idsym.Name, source.AsString());
-      if (datatype == null) return ErrSyntax("not found: {0}", idsym.Name);
-
-      idsym = SymbolTable.MakeCatVar(idsym.Name, datatype);
-      Scope.Current.Add(idsym);
-      SymbolTable.AddCatalog(idsym);
-
-      _emitter.Out(Opcodes.LDVALUE, TextValue.Create(idsym.Name));
-      _emitter.Out(Opcodes.LDVALUE, source);
-      _emitter.Out(Opcodes.LDVALUE, HeadingValue.Create(datatype.Heading));
-      _emitter.OutCall(funcsym);
-      return true;
-    }
-
-    //------------------------------------------------------------------
-    // Connect Function ::= ident COLON db LP [ typelist ] RP
-    // returns data type and emits code for runtime to make it so
-    bool ParseConnect(out DataType datatype) {
-      datatype = DataTypes.Unknown;
-      if (!(Look().IsIdent && Look(1).Atom == Atoms.COLON && Look(2).Kind == SymKinds.DB)) return false;
-      var idsym = Take();
-      if (!idsym.IsDefinable) return ErrSyntax("already defined {0}", idsym.Name);
-      Match(Atoms.COLON);
-      var symbol = Take();
-
-      if (!Match(Atoms.LP)) return ErrCheck(Atoms.LP);
-      var source = TextValue.Default;
-      if (Look().Kind == SymKinds.SOURCE) {
-        source = Take().Value as TextValue;
-        if (!(Match(Atoms.SEP) || Check(Atoms.RP))) return ErrCheck(Atoms.RP);
-      }
-      var datatypes = new List<DataType>();
-      ParseTypeList(datatypes);
-      if (!Match(Atoms.RP)) return ErrCheck(Atoms.RP);
-
-      datatype = Catalog.GetRelvarType(idsym.Name, source.AsString());
-      if (datatype == null) return ErrSyntax("not found: {0}", idsym.Name);
-
-      idsym = SymbolTable.MakeCatVar(idsym.Name, datatype);
-      Scope.Current.Add(idsym);
-      SymbolTable.AddCatalog(idsym);
-
-      _emitter.Out(Opcodes.LDVALUE, TextValue.Create(idsym.Name));
-      _emitter.Out(Opcodes.LDVALUE, source);
-      _emitter.Out(Opcodes.LDVALUE, HeadingValue.Create(datatype.Heading));
-      _emitter.OutCall(symbol);
-      return true;
-    }
-
-    //------------------------------------------------------------------
     // Udt ::= Id LC attr-list RC
     // Handles UDT selector functions
-    bool ParseUserType(out DataType datatype) {
-      datatype = DataTypes.Unknown;
-      if (!(Look().Atom == Atoms.COLON && Look(1).IsIdent && Look(2).Atom == Atoms.LP)) return false;
-      Match(Atoms.COLON);
+    bool ParseUserType() {
+      if (!(Look().IsIdent && Look(1).Atom == Atoms.LP)) return false;
       var idsym = Take();
       if (!idsym.IsDefinable) return ErrSyntax("already defined: {0}", idsym.Name);
       if (!Match(Atoms.LP)) return ErrCheck(Atoms.LP);
@@ -1245,8 +1204,28 @@ namespace Andl.Compiler {
       if (!Match(Atoms.RP)) return ErrCheck(Atoms.RP);
 
       var cols = MakeColumns(args);
-      var udt = DataTypeUser.Get(idsym.Name, cols);
-      idsym = SymbolTable.MakeUserType(idsym.Name, udt);
+      var datatype = DataTypeUser.Get(idsym.Name, cols);
+      idsym = SymbolTable.MakeUserType(idsym.Name, datatype);
+      Scope.Current.Add(idsym);
+      SymbolTable.AddCatalog(idsym);
+      return true;
+    }
+
+    //------------------------------------------------------------------
+    // Parse a subtype
+    // subtype ::= ident COLON type
+    bool ParseSubtype() {
+      if (!(Look().IsIdent && Look(1).Atom == Atoms.COLON)) return false;
+      DataType supertype = DataTypes.Unknown;
+      var idsym = Take();
+      if (!(idsym.IsDefinable)) return ErrSyntax("already defined: '{0}'", idsym.Name);
+      Match(Atoms.COLON);
+      if (!ParseType(out supertype)) return ErrExpect("type or expression");
+      if (!supertype.IsVariable) return ErrSyntax("not a valid type");
+
+      var cols = new DataColumn[] { DataColumn.Create("super", supertype) };
+      var datatype = DataTypeUser.Get(idsym.Name, cols);
+      idsym = SymbolTable.MakeUserType(idsym.Name, datatype);
       Scope.Current.Add(idsym);
       SymbolTable.AddCatalog(idsym);
       return true;

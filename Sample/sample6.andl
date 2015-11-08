@@ -6,7 +6,12 @@
 
 // Date: system defined
 d1 := dateymd(2015,1,31)
+d2 := date(now())
 "Date: " & d1 & " Year:" & d1.year & " month:" & d1.month & " day:" & d1.day & " dow:" & d1.dow
-date(t'1/1/2015')
+"Date: " & d2 & " Year:" & d2.year & " month:" & d2.month & " day:" & d2.day & " dow:" & d2.dow
 time(date(time(d1)))
-
+time(date(time(d2)))
+now()
+date(now())
+date(t'1/1/2015')
+daysdiff(d1, d2)

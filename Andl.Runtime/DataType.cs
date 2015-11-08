@@ -68,7 +68,6 @@ namespace Andl.Runtime {
     public static readonly DataType Table;
     public static readonly DataType Row;
     public static readonly DataType User;
-    public static readonly DataType Subtype;
 
     public static Dictionary<string, DataType> Dict { get; private set; }
     public static Dictionary<Type, DataType> TypeDict { get; private set; }
@@ -107,13 +106,11 @@ namespace Andl.Runtime {
       // specials -- actually subtypes, one created here, more by user code
       // defaults will be overwritten for generated types
       Row = DataType.Create("tuple", typeof(TupleValue), null,
-        v => TupleValue.Create((DataRow)v), () => TupleValue.Default, TypeFlags.HasHeading);
+        v => TupleValue.Create((DataRow)v), () => TupleValue.Default, TypeFlags.HasHeading | TypeFlags.Variable);
       Table = DataType.Create("relation", typeof(RelationValue), null,
-        v => RelationValue.Create((DataTable)v), () => RelationValue.Default, TypeFlags.HasHeading);
+        v => RelationValue.Create((DataTable)v), () => RelationValue.Default, TypeFlags.HasHeading | TypeFlags.Variable);
       User = DataType.Create("user", typeof(UserValue), null,
-        v => UserValue.Create((TypedValue)v), () => UserValue.Default, TypeFlags.HasHeading | TypeFlags.HasName);
-      Subtype = DataType.Create("subtype", typeof(SubtypeValue), null,
-        v => SubtypeValue.Create((TypedValue)v), () => SubtypeValue.Default, TypeFlags.HasHeading | TypeFlags.HasName);
+        v => UserValue.Create((TypedValue)v), () => UserValue.Default, TypeFlags.HasHeading | TypeFlags.HasName | TypeFlags.Variable);
       Default = Text;
     }
 
@@ -457,7 +454,7 @@ namespace Andl.Runtime {
       Logger.Assert(!_usertypes.ContainsKey(name), name);
       var flags = columns.Any(c => c.DataType.IsOrdered) ? TypeFlags.Ordered : TypeFlags.None;
       var dt = DataTypeUser.Create(name, DataHeading.Create(columns, false),    // preserve column order
-        flags | TypeFlags.Variable | TypeFlags.Generated | TypeFlags.HasHeading);
+        flags | TypeFlags.Variable | TypeFlags.Generated | TypeFlags.HasName | TypeFlags.HasHeading);
       _usertypes[name] = dt;
       return dt;
     }
@@ -473,69 +470,4 @@ namespace Andl.Runtime {
     }
   }
 
-  //////////////////////////////////////////////////////////////////////
-  /// <summary>
-  /// Subtype is just an alias, a single value of the parent type and a constraint on that value
-  /// </summary>
-  public class DataTypeSubtype : DataType {
-    static Dictionary<string, DataTypeSubtype> _subtypes = new Dictionary<string, DataTypeSubtype>();
-    SubtypeValue _default;
-
-    //public static DataTypeSubtype Empty { get { return Get(":empty", new DataColumn[0]); } }
-    DataType _basetype;
-
-    public override bool Equals(object obj) {
-      var udto = obj as DataTypeSubtype;
-      return udto != null && Name == udto.Name;
-    }
-
-    public override int GetHashCode() {
-      return Heading.GetHashCode();
-    }
-
-    public override string ToString() {
-      return Name + ":" + Heading.ToString();
-    }
-
-    public override DataType BaseType { get { return _basetype; } }
-    public override string GetUniqueName { get { return Name; } }
-    public override string GetNiceName { get { return Name; } }
-
-    public override TypedValue DefaultValue() {
-      if (_default == null) {
-        var defval = _basetype.DefaultValue();
-        _default = SubtypeValue.Create(defval, this);
-      }
-      return _default;
-    }
-
-    // Create a new Subtype type for a particular parent
-    public static DataTypeSubtype Create(string name, DataType basetype, TypeFlags flags, ConvertDelegate converter = null, DefaultDelegate defaulter = null) {
-      var dt = new DataTypeSubtype {
-        Name = name,
-        _basetype = basetype,
-        _converter = converter, //TODO: ?? (v => SubtypeValue.Create((TypedValue)v, basetype)),
-        Flags = flags,
-      };
-      dt.NativeType = TypeMaker.CreateType(dt);
-      return dt;
-    }
-
-    // Create and add, return new type (must not exist)
-    public static DataTypeSubtype Get(string name, DataType basetype) {
-      var old = Find(name);
-      if (old != null && basetype.Equals(_subtypes[name])) return old;
-      Logger.Assert(!_subtypes.ContainsKey(name), name);
-      var flags = basetype.Flags;
-      var dt = DataTypeSubtype.Create(name, basetype, flags);
-      _subtypes[name] = dt;
-      return dt;
-    }
-
-    // Find type in dictionary
-    public static DataTypeSubtype Find(string name) {
-      return name != null && _subtypes.ContainsKey(name) ? _subtypes[name] : null;
-    }
-
-  }
 }

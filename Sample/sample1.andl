@@ -145,7 +145,7 @@ wait
 // ===== Types =====
 
 // create a user-defined type, with components of any type
-def :ut0(t:text)
+def ut0(t:text)
 u0 := ut0('abc')
 // show the value
 u0
@@ -155,7 +155,7 @@ u0.t
 'The value ' & u0 & ' and its component ' & u0.t
 
 // multiple components
-def :ut1(n:number, t:text, d:time)
+def ut1(n:number, t:text, d:time)
 v2 := 'Hello World!'
 t2 := t'2015/01/31'
 u1 := ut1(42, v2, t2)

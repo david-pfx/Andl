@@ -53,8 +53,8 @@ assert($lineno$, scope2(r) = r)
 
 rr1 := {{ id:number, name:text }}
 rr2 := {{ name:='abc', id:=17 }}
-def :rt1(id:number, name:text)
-def :rt2(name:text, id:number)
+def rt1(id:number, name:text)
+def rt2(name:text, id:number)
 
 fr1(arg:rr1) => do {
   a := arg

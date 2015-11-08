@@ -230,11 +230,11 @@ namespace Andl.Runtime {
 
     // Get the value of a relation by importing some other format
     // Entry previously created by peeking
-    public bool ImportRelvar(string name, string source) {
+    public bool ImportRelvar(string source, string name, string locator) {
       var entry = GlobalVars.FindEntry(name);
       Logger.Assert(entry != null);
       var heading = entry.DataType.Heading;
-      var table = DataSourceStream.Create(source, SourcePath).Input(name, InputMode.Import);
+      var table = DataSourceStream.Create(source, locator).Input(name, InputMode.Import);
       if (table == null || !heading.Equals(table.Heading))
         ProgramError.Fatal("Catalog", "{0} table not found: '{1}'", source, name);
       GlobalVars.SetValue(name, RelationValue.Create(table));

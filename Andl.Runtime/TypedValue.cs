@@ -531,16 +531,17 @@ namespace Andl.Runtime {
     // values of each component
     public TypedValue[] Value { get; set; }
     // Hash code calculated from values
-    int _hashcode;
+    protected int _hashcode;
     // the data type for this value
     public override DataType DataType { get { return _datatype; } }
-    DataTypeUser _datatype;
+    protected DataTypeUser _datatype;
 
     static UserValue() {
       Default = Create(new TypedValue[0], DataTypeUser.Empty);
     }
 
     static public UserValue Create(TypedValue[] value, DataTypeUser datatype) {
+      if (datatype.Name == "date") return Builtin.DateValue.Create(value[0] as TimeValue);
       var ret = new UserValue { Value = value, _datatype = datatype };
       ret._hashcode = ret.CalcHashCode();
       return ret;
@@ -590,7 +591,7 @@ namespace Andl.Runtime {
 
     // internal calculate hash code
     // independent of column order, but need not be so
-    int CalcHashCode() {
+    protected int CalcHashCode() {
       var hash = 0;
       for (var i = 0; i < Value.Length; ++i) {
         var code = Value[i].GetHashCode();
@@ -607,49 +608,49 @@ namespace Andl.Runtime {
   /// 
   /// Basically just one level of indirection plus a predicate constraint (TBD)
   /// </summary>
-  public class SubtypeValue : TypedValue, IDataValue {
-    // the default value for the type
-    public static SubtypeValue Default;
+  //public class SubtypeValue : TypedValue, IDataValue {
+  //  // the default value for the type
+  //  public static SubtypeValue Default;
 
-    public DataTypeSubtype _datatype;
-    public TypedValue Value { get; private set; }
+  //  public DataTypeSubtype _datatype;
+  //  public TypedValue Value { get; private set; }
 
-    static SubtypeValue() {
-      Default = Create(TypedValue.Empty, DataTypes.Subtype as DataTypeSubtype);
-    }
+  //  static SubtypeValue() {
+  //    Default = Create(TypedValue.Empty, DataTypes.Subtype as DataTypeSubtype);
+  //  }
 
-    static public SubtypeValue Create(TypedValue value, DataTypeSubtype datatype) {
-      return new SubtypeValue {
-        Value = value,
-        _datatype = datatype,
-      };
-    }
+  //  static public SubtypeValue Create(TypedValue value, DataTypeSubtype datatype) {
+  //    return new SubtypeValue {
+  //      Value = value,
+  //      _datatype = datatype,
+  //    };
+  //  }
 
-    // Recursively find base value
-    TypedValue BaseValue() {
-      if (Value is SubtypeValue)
-        return (Value as SubtypeValue).BaseValue();
-      else return Value;
-    }
+  //  // Recursively find base value
+  //  TypedValue BaseValue() {
+  //    if (Value is SubtypeValue)
+  //      return (Value as SubtypeValue).BaseValue();
+  //    else return Value;
+  //  }
 
-    // delegate formatting
-    public override string ToString() {
-      return BaseValue().ToString();
-    }
-    public override string Format() {
-      return BaseValue().Format();
-    }
-    public override DataType DataType {
-      get { return _datatype; }
-    }
-    public override bool Equals(object other) {
-      var rvother = other as SubtypeValue;
-      return rvother != null && Value.Equals(rvother.Value);
-    }
-    public override int GetHashCode() {
-      return Value.GetHashCode();
-    }
+  //  // delegate formatting
+  //  public override string ToString() {
+  //    return BaseValue().ToString();
+  //  }
+  //  public override string Format() {
+  //    return BaseValue().Format();
+  //  }
+  //  public override DataType DataType {
+  //    get { return _datatype; }
+  //  }
+  //  public override bool Equals(object other) {
+  //    var rvother = other as SubtypeValue;
+  //    return rvother != null && Value.Equals(rvother.Value);
+  //  }
+  //  public override int GetHashCode() {
+  //    return Value.GetHashCode();
+  //  }
 
-  }
+  //}
 }
 

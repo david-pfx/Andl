@@ -376,9 +376,9 @@ namespace Andl.Runtime {
     // Must read both type and heading to preserve column order
     public TypedValue ReadValue() {
       var basetype = ReadBaseType();
-      var username = (basetype == DataTypes.User) ? ReadString() : null;
+      var name = (basetype.HasName) ? ReadString() : null;
       var heading = (basetype.HasHeading) ? ReadHeading() : null;
-      return Read(DataType.Derive(basetype, heading, username), heading);
+      return Read(DataType.Derive(basetype, heading, name), heading);
     }
 
     // Read a value -- type already known
@@ -458,7 +458,6 @@ namespace Andl.Runtime {
     }
 
     // read a full data type
-    // note: final type may not preserve column order
     public DataType ReadDataType() {
       var basetype = ReadBaseType();
       var username = (basetype.HasName) ? ReadString() : null;

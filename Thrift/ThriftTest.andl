@@ -8,9 +8,9 @@
 
 #catalog new update
 
-def :ut2(AN:number,AS:text)
-def :ut5(AB:bool,AD:time,AN:number,AS:text)
-def :ut3(AN:number,AS:text,AU:ut2)
+def ut2(AN:number,AS:text)
+def ut5(AB:bool,AD:time,AN:number,AS:text)
+def ut3(AN:number,AS:text,AU:ut2)
 
 VB := true
 VD := t'31/12/2015'

@@ -75,7 +75,6 @@ namespace Andl.Runtime {
       { "relation", (v) => GetNativeValue(v.DataType as DataTypeRelation, ((RelationValue)v).Value.GetRows()) },
       { "text",     (v) => ((TextValue)v).Value },
       { "time",     (v) => ((TimeValue)v).Value },
-      { "date",     (v) => ((TimeValue)v).Value },  // FIX: temp
       { "user",     (v) => GetNativeValue(v.DataType, ((UserValue)v).Value) },
     };
 
@@ -87,7 +86,6 @@ namespace Andl.Runtime {
       { "relation", (v, dt) => RelationValue.Create(DataTableLocal.Create(dt.Heading, GetRows(v, dt.Heading.Columns))) },
       { "text",     (v, dt) => TextValue.Create(v as string) },
       { "time",     (v, dt) => TimeValue.Create((DateTime)v) },
-      { "date",     (v, dt) => Builtin.DateValue.Create((DateTime)v) },   // FIX: temp
       { "user",     (v, dt) => UserValue.Create(GetValues(v, dt.Heading.Columns), dt as DataTypeUser) },    };
 
     // tuple -- with ordered heading

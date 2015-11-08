@@ -300,7 +300,7 @@ namespace Andl.Compiler {
     }
 
     // Make symbols that can be user-defined
-    public static Symbol MakeUserType(string name, DataTypeUser datatype) {
+    internal static Symbol MakeUserType(string name, DataTypeUser datatype) {
       var callinfo = CallInfo.Create(name, datatype, datatype.Heading.Columns.ToArray());
       return new Symbol {
         Name = name,
@@ -453,7 +453,7 @@ namespace Andl.Compiler {
       AddOperator("sup", Atoms.IDENT, 2, 4, DataTypes.Bool, "Superset");
       AddOperator("sep", Atoms.IDENT, 2, 4, DataTypes.Bool, "Separate");
 
-      AddFunction("db", Atoms.IDENT, 0, DataTypes.Void, CallKinds.FUNC, "Connect", SymKinds.DB);
+      AddFunction("db", Atoms.IDENT, 3, DataTypes.Void, CallKinds.FUNC, "Import", SymKinds.DB);
 
       AddFunction(Symbol.Assign, Atoms.NUL, 1, DataTypes.Void, CallKinds.FUNC, "Assign");
       AddFunction(Symbol.Defer, Atoms.NUL, 1, DataTypes.Void, CallKinds.FUNC, "Defer");

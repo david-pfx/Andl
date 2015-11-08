@@ -234,12 +234,12 @@ namespace Andl.Runtime {
       return usertype.CreateValue(valargs);
     }
 
-    // Connect to a linked or imported relvar
-    public VoidValue Connect(TextValue namearg, TextValue sourcearg, HeadingValue heading) {
+    // Import a linked or externally held relvar
+    public VoidValue Import(TextValue sourcearg, TextValue namearg, TextValue locatorarg) {
       if (sourcearg.Value == "") {
         if (!_catalog.Catalog.LinkRelvar(namearg.Value))
           ProgramError.Error("Connect", "cannot link to '{0}'", namearg.Value);
-      } else if (!_catalog.Catalog.ImportRelvar(namearg.Value, sourcearg.Value))
+      } else if (!_catalog.Catalog.ImportRelvar(sourcearg.Value, namearg.Value, locatorarg.Value))
         ProgramError.Error("Connect", "cannot import from '{0}'", namearg.Value);
       return VoidValue.Default;
     }
@@ -868,32 +868,40 @@ namespace Andl.Runtime {
     /// <summary>
     /// A value that represents a date
     /// </summary>
-    public class DateValue : TimeValue {
-      public static DataType StaticDatatype { get; private set; }
+
+    public class DateValue : UserValue {
+      public static DataTypeUser StaticDatatype { get; private set; }
+      public new DateTime Value { 
+        get { return (base.Value[0] as TimeValue).Value; }
+      }
+
+      // ctor - so we can access base
+      DateValue(DateTime value) {
+        base.Value = new TypedValue[] { TimeValue.Create(value.Date) };
+        _datatype = StaticDatatype;
+        _hashcode = CalcHashCode();
+      }
 
       static DateValue() {
-        StaticDatatype = DataType.Create("date", typeof(DateValue), typeof(DateTime), null, () => TimeValue.Default, null, //x => IsSubtype(x),
-          TypeFlags.Ordered | TypeFlags.Ordinal | TypeFlags.Variable);
-      }
-      public override DataType DataType { get { return StaticDatatype; } }
-      // TODO: when we get a class
-      //public override DataType BaseType { get { return DataTypes.Time; } }
-
-      // Override this and return true as needed
-      public bool IsSubtype(IDataType other) {
-        return false;
+        // FIX: better to have a lookup for this
+        StaticDatatype = DataTypeUser.Get("date", new DataColumn[] {  DataColumn.Create("super", DataTypes.Time) });
+        DataTypes.TypeDict[typeof(DateValue)] = StaticDatatype;
       }
 
-      public static DateValue Create(TimeValue time) {
-        return new DateValue { Value = time.Value };
+      public static new DateValue Create(DateTime time) {
+        return new DateValue(time);
+      }
+
+      public static DateValue Create(TimeValue value) {
+        return new DateValue(value.Value);
       }
     }
 
     public DateValue FromTime(TimeValue time) {
-      return new DateValue { Value = time.Value };
+      return DateValue.Create(time.Value);
     }
     public DateValue FromYmd(NumberValue year, NumberValue month, NumberValue day) {
-      return new DateValue { Value = new DateTime((int)year.Value, (int)month.Value, (int)day.Value) };
+      return DateValue.Create(new DateTime((int)year.Value, (int)month.Value, (int)day.Value));
     }
 
     public TimeValue TimeD(DateValue arg1) { return TimeValue.Create(arg1.Value); }

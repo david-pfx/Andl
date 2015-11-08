@@ -313,8 +313,9 @@ namespace Andl.Compiler {
           }
           return true;
         case "#catalog":
-          _catalog.LoadFlag = !cmd.Contains("new");
-          _catalog.SaveFlag = cmd.Contains("update");
+          var cmdopts = line.Split(null);
+          _catalog.LoadFlag = !cmdopts.Contains("new");
+          _catalog.SaveFlag = cmdopts.Contains("update");
           return true;
         case "#source":
           _catalog.SourcePath = (cmd.Length >= 2) ? Unquote(cmd[1]) : "";

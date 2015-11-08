@@ -78,7 +78,7 @@ assert($lineno$, fill('abc', -20) = '')
 assert($lineno$, ss1.length = 7)
 
 //--- user type defs
-def :utype1(age:0, name:'')
+def utype1(age:0, name:'')
 uvar1 := utype1(17, 'smith')
 assert($lineno$, uvar1 = utype1(17, 'smith'))
 assert($lineno$, uvar1.age = 17)
@@ -86,7 +86,7 @@ assert($lineno$, uvar1.name = 'smith')
 uvar11 := utype1(18, 'jones')
 assert($lineno$, uvar11 > uvar1)
 
-def :utype2(age:0, name:'', given:'')
+def utype2(age:0, name:'', given:'')
 uvar2 := utype2(63, 'jones', 'mary')
 assert($lineno$, uvar2 = utype2(63, 'jones', 'mary'))
 assert($lineno$, uvar2.age = 63)
