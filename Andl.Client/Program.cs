@@ -10,25 +10,56 @@ namespace Andl.Client {
   class Program {
     static void Main(string[] args) {
       Console.WriteLine("Andl.Client");
-      CallFindSupplier();
+      new CallCompile().Exec();
+      //new CallNative().Exec();
+      //CallFindSupplier();
       //CallFunc();
       //ShowCatalog();
     }
-    static Dictionary<string, string> _settingsdict = new Dictionary<string, string> {
-      //{ "DatabasePath", "DatabasePath" },
-      //{ "DatabasePathSqlFlag", "DatabaseSqlFlag" },
-      //{ "CatalogName", "CatalogName" },
-      //{ "Noisy", "Noisy" },
+  }
+
+  class CallCompile {
+    Dictionary<string, string> _settingsdict = new Dictionary<string, string> {
+      { "DatabaseName", "Supplier" },
+      { "Noisy", "2" },
+      //{ "DatabasePath", "" },
+      //{ "DatabasePathSqlFlag", "" },
     };
 
-    static void CallFindSupplier() {
-      Supplier[] s;
-      var ret = FindSupplier("S1", out s);
-      Console.WriteLine("FindSupplier {0} {1} {2} {3} {4} ", ret, s[0].SNAME, s[0].STATUS, s[0].CITY, s[0].Sid);
-
+    internal void Exec() {
+      var api = Gateway.StartUp(_settingsdict);
+      var program = "S";
+      var result = api.Execute(program);
+      ShowResult(result);
     }
 
-    static void CallFunc() {
+    void ShowResult(Result result) {
+      Console.WriteLine("Result={0} message={1} value={2}", result.Ok, result.Message, result.Value);
+    }
+
+  }
+
+  class CallNative {
+    Dictionary<string, string> _settingsdict = new Dictionary<string, string> {
+      { "DatabaseName", "Supplier" },
+      { "Noisy", "2" },
+      //{ "DatabasePath", "" },
+      //{ "DatabasePathSqlFlag", "" },
+    };
+
+    internal void Exec() {
+      CallFindSupplier();
+    }
+    
+    void CallFindSupplier() {
+      Supplier[] s;
+      var ret = FindSupplier("S1", out s);
+      if (ret)
+        Console.WriteLine("FindSupplier {0} {1} {2} {3} {4} ", ret, s[0].SNAME, s[0].STATUS, s[0].CITY, s[0].Sid);
+      else Console.WriteLine("error!");
+    }
+
+    void CallFunc() {
       var api = Gateway.StartUp(_settingsdict);
       var args = ArgWriter.Create().Put("abcdef").Out();
       byte[] result;
@@ -37,7 +68,7 @@ namespace Andl.Client {
       Console.WriteLine("Result={0}", rr.ReadText());
     }
 
-    static void ShowCatalog() {
+    void ShowCatalog() {
       var api = Gateway.StartUp(_settingsdict);
       byte[] result;
       var ret = api.NativeCall("andl_catalog", new byte[0], out result);
@@ -50,7 +81,7 @@ namespace Andl.Client {
       public string Sid;
     };
 
-    static bool FindSupplier(string id, out Supplier[] supplier) {
+    bool FindSupplier(string id, out Supplier[] supplier) {
       var api = Gateway.StartUp(_settingsdict);
       byte[] args = ArgWriter.Create().Put(id).Out();
       byte[] result;

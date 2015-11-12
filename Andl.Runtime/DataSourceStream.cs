@@ -132,7 +132,7 @@ namespace Andl.Runtime {
 
 
   /// <summary>
-  /// Source that is a console
+  /// Source that is a console (really!)
   /// </summary>
   public class DataSourceCon : DataSourceStream {
     public static DataSourceCon Create(string locator) {

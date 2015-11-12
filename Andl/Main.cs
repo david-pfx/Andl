@@ -62,9 +62,9 @@ namespace Andl.Main {
       try {
         if (!Start())
           return;
-        if (!Compile())
+        if (!Compile(_paths[0]))
           return;
-        Finish();
+        Finish(_paths[0]);
       } catch (Exception ex) {
         if (ex.GetBaseException() is ProgramException)
           Logger.WriteLine("*** {0} error ({1}): {2}", (ex as ProgramException).Kind, (ex as ProgramException).Source, ex.Message);
@@ -130,23 +130,25 @@ namespace Andl.Main {
       // Create private catalog with access to global level
       var catalogp = CatalogPrivate.Create(_catalog, true);
       // Create evaluator (may not get used)
-      _evaluator = Evaluator.Create(catalogp);
+      _evaluator = Evaluator.Create(catalogp, Console.Out, Console.In);
 
       return true;
     }
 
-    static bool Compile() {
-      Logger.WriteLine("*** Compiling: {0} ***", _paths[0]);
-      var parser = Parser.Create(_catalog, _evaluator);
-      var ret = parser.Process(_paths[0]);
-      Logger.WriteLine("*** Compiled {0} {1} ***", _paths[0], ret ? "OK"
-        : "with error count = " + parser.ErrorCount.ToString());
-      return parser.ErrorCount == 0;
+    static bool Compile(string path) {
+      Logger.WriteLine("*** Compiling: {0} ***", path);
+      var parser = Parser.Create(_catalog);
+      using (StreamReader input = File.OpenText(path)) {
+        var ret = parser.Process(input, Console.Out, _evaluator, path);
+        Logger.WriteLine("*** Compiled {0} {1} ***", path, ret ? "OK"
+          : "with error count = " + parser.ErrorCount.ToString());
+        return parser.ErrorCount == 0;
+      }
     }
 
-    static void Finish() {
+    static void Finish(string path) {
       if (_tsw) {
-        var thriftname = Path.ChangeExtension(_paths[0], ".thrift");
+        var thriftname = Path.ChangeExtension(path, ".thrift");
         using (StreamWriter sw = new StreamWriter(thriftname)) {
           Logger.WriteLine("*** Writing: {0} ***", thriftname);
           (new CatalogInterfaceWriter()).WriteThrift(sw, _catalog.BaseName, _catalog.PersistentVars.GetEntries());

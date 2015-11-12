@@ -115,23 +115,20 @@ namespace Andl.Compiler {
     public Symbol CurrentSymbol { get { return _currentsymbol; } }
 
     // Create new lexer on given reader
-    public static Lexer Create(string input, SymbolTable symbols, Catalog catalog) {
+    public static Lexer Create(SymbolTable symbols, Catalog catalog) {
       var lexer = new Lexer() {
         _symbols = symbols,
         _catalog = catalog,
       };
-      lexer.Start(input);
+      lexer.InitRegexTable();
       return lexer;
     }
 
     // Load up the first source file
-    void Start(string input) {
-      InitRegexTable();
-      using (StreamReader sr = File.OpenText(input)) {
-        _symbols.Find("$filename$").Value = TextValue.Create(input);
-        _inputpaths.Push(input);
-        PrepareTokens(sr);
-      }
+    public void Start(TextReader input, string filename) {
+      _symbols.Find("$filename$").Value = TextValue.Create(filename);
+      _inputpaths.Push(filename);
+      PrepareTokens(input);
       Next();
     }
 
@@ -270,7 +267,7 @@ namespace Andl.Compiler {
         if (token.TokenType == TokenTypes.LINE) {
           _symbols.Find("$lineno$").Value = NumberValue.Create(token.LineNumber);
           if (Logger.Level > 0)
-            Console.WriteLine("{0,3}: {1}", token.LineNumber, token.Value);
+            Logger.WriteLine("{0,3}: {1}", token.LineNumber, token.Value);
         } else if (token.TokenType == TokenTypes.Directive) {
           Directive(token);
         } else if (token.TokenType == TokenTypes.Bad) {

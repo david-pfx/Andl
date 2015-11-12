@@ -40,14 +40,14 @@ namespace Andl.Compiler {
     Stack<Symbol> _symstack = new Stack<Symbol>();
     //// scope stack
     Stack<DataType> _typestack = new Stack<DataType>();
-
     // code emitter
     Emitter _emitter;
     // evaluator, in case we need it
     Evaluator _evaluator;
-
     // Accumulator info is discovered during expression parsing and set globally
     AccumulatorInfo _accuminfo;
+    // Output destination for syntax errors
+    TextWriter _output;
 
     //------------------------------------------------------------------
 
@@ -61,36 +61,44 @@ namespace Andl.Compiler {
     }
 
     // Factory method
-    public static Parser Create(Catalog catalog, Evaluator evaluator) {
+    public static Parser Create(Catalog catalog) {
       return new Parser() {
         SymbolTable = SymbolTable.Create(catalog),
         Catalog = catalog,
-        _evaluator = evaluator,
       };
       // TODO: add symbols from catalog
     }
 
-    // Load a file from a reader
-    // Compile and execute line by line or in batch if required
-    public bool Process(string input) {
-      _lexer = Lexer.Create(input, SymbolTable, Catalog);
+    bool _started = false;
+    public bool Start() {
+      if (_started) return false;
+      Catalog.Start();
+      SymbolTable.Import(Catalog.GlobalVars);
+      SymbolTable.Import(Catalog.PersistentVars);
+      _started = true;
+      return true;
+    }
+
+    public bool Process(TextReader input, TextWriter output, Evaluator evaluator, string filename) {
+      _lexer = Lexer.Create(SymbolTable, Catalog);
+      _evaluator = evaluator;
+      _output = output;
       _emitter = new Emitter();
       Error = false;
 
       // only when everything is ready -- process initial directives to set flags
+      _lexer.Start(input, filename);
       TakeEol();
-      Catalog.Start();
-      SymbolTable.Import(Catalog.GlobalVars);
-      SymbolTable.Import(Catalog.PersistentVars);
-      
+      Start();
+
       // main parser
       if (!ParseMain() || ErrorCount > 0) return ErrorCount == 0;
 
       var code = _emitter.GetCode();
       // decode if didn't already
       if (Logger.Level >= 3 && !Catalog.InteractiveFlag)
-          Decoder.Create(code).Decode();
-    
+        Decoder.Create(code).Decode();
+
       // batch execution
       if (Catalog.ExecuteFlag) {
         Logger.WriteLine(3, "Begin execution");
@@ -138,7 +146,7 @@ namespace Andl.Compiler {
           try {
             _evaluator.Exec(code);
           } catch (ProgramException ex) {
-            Console.WriteLine(ex.ToString());
+            Logger.WriteLine(ex.ToString());
           }
         ret = true;
       }
@@ -1428,7 +1436,7 @@ namespace Andl.Compiler {
     //--- error functions return true if error
 
     bool ErrSyntax(string message, params object[] args) {
-      Logger.WriteLine("{0} ({1}): error : {2}", _lexer.CurrentToken.SourcePath, 
+      _output.WriteLine("{0} ({1}): error : {2}", _lexer.CurrentToken.SourcePath, 
         _lexer.CurrentToken.LineNumber, String.Format(message, args));
       Error = true;
       return true;

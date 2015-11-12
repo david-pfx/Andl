@@ -56,7 +56,7 @@ namespace Andl.Runtime {
       if (!handled) {
         //string msg = "Fatal error " + source + ": " + message;
         if (kind == ErrorKind.Warn)
-          Console.WriteLine("Program error ({0}): {1}", source, message);
+          Logger.WriteLine("Program error ({0}): {1}", source, message);
         else {
           throw new ProgramException(message) {
             Kind = kind,

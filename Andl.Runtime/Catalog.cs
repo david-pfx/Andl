@@ -86,9 +86,9 @@ namespace Andl.Runtime {
     };
     
     static Dictionary<string, Action<Catalog, string>> _settings = new Dictionary<string, Action<Catalog, string>> {
+      { "DatabaseName", (c,s) => c.DatabaseName = s },
       { "DatabasePath", (c,s) => c.DatabasePath = s },
       { "DatabaseSqlFlag", (c,s) => c.DatabaseSqlFlag = (s != null && s.ToLower() == "true") },
-      { "DatabaseName", (c,s) => c.DatabaseName = s },
       { "Noisy", (c,s) => Logger.Level = Int32.Parse(s) },
     };
 
@@ -108,6 +108,8 @@ namespace Andl.Runtime {
     public string DatabaseName { get; set; }    // name of the database (defaults to same as filename)
     public string DatabasePath { get; set; }    // path to the database (either kind)
     public string SourcePath { get; set; }      // base path for reading a source
+
+    bool _started = false;
 
     // predefined scopes, accessed globally
     public CatalogScope PersistentVars { get; private set; }
@@ -148,7 +150,9 @@ namespace Andl.Runtime {
 
     // open the catalog for use, after all flags set up (including from lexer)
     // create catalog table here, local until the end
-    public void Start() {
+    // only do it once
+    public bool Start() {
+      if (_started) return false;
       if (DatabaseName == null)
         DatabaseName = (DatabasePath == null) ? _databasename : Path.GetFileNameWithoutExtension(DatabasePath);
       if (DatabasePath == null)
@@ -168,14 +172,19 @@ namespace Andl.Runtime {
         LoadFromTable();
         Logger.WriteLine(1, "Loaded catalog for '{0}'", DatabaseName);
       }
+      _started = true;
+      return true;
     }
 
     // All done, persist catalog if required
-    public void Finish() {
+    public bool Finish() {
+      if (!_started) return false;
       if (SaveFlag) {
         StoreToTable();
         Logger.WriteLine(1, "Updated catalog for '{0}'", DatabaseName);
       }
+      _started = false;
+      return true;
     }
 
     // return value for system tables

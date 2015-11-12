@@ -831,15 +831,16 @@ namespace Andl.Runtime {
     /// Sequential IO
     /// 
 
-    // Write a text value to the console
+    // Write a text value to the console/output
     public VoidValue Write(TextValue line) {
-      Console.WriteLine(line.Value);
+      _evaluator.Output.WriteLine(line.Value);
       return VoidValue.Default;
     }
 
-    // Obtain a text value by reading from the console
+    // Obtain a text value by reading from the console/standard input output
     public TextValue Read() {
-      var input = Console.ReadLine();
+      var input = _evaluator.Input.ReadLine();
+      if (input == null) ProgramError.Fatal("Read", "input not available");
       return TextValue.Create(input);
     }
 
@@ -847,8 +848,8 @@ namespace Andl.Runtime {
     public VoidValue Pause(TextValue value) {
       if (_catalog.Catalog.InteractiveFlag) {
         if (value.Value.Length > 0)
-          Console.WriteLine(value.Value);
-        Console.ReadLine();
+          _evaluator.Output.WriteLine(value.Value);
+        _evaluator.Input.ReadLine();
       }
       return VoidValue.Default;
     }

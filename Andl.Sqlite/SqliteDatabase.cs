@@ -147,14 +147,14 @@ namespace Andl.Sqlite {
     public bool CheckError() {
       if (LastResult == Result.OK || LastResult == Result.DONE || LastResult == Result.ROW) return true;
       LastMessage = sqlite3_errmsg(_dbhandle);
-      Console.WriteLine("Error: {0} {1}", LastResult, LastMessage);
+      //Console.WriteLine("Error: {0} {1}", LastResult, LastMessage);
       return false;
     }
 
     public bool SetError(Result result,string message) {
       LastResult = result;
       LastMessage = message;
-      Console.WriteLine("Error: {0} {1}", LastResult, LastMessage);
+      //Console.WriteLine("Error: {0} {1}", LastResult, LastMessage);
       return true;
     }
 

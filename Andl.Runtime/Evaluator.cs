@@ -88,7 +88,10 @@ namespace Andl.Runtime {
   ///   builtin for method calls
   /// </summary>
   public class Evaluator {
+    //BUG: obsolete, used by ?
     public static Evaluator Current { get; private set; }
+    public TextWriter Output { get; private set; }
+    public TextReader Input { get; private set; }
 
     CatalogPrivate _catalog;
     Builtin _builtin;
@@ -99,10 +102,12 @@ namespace Andl.Runtime {
     Stack<TypedValue> _stack = new Stack<TypedValue>();
 
     // Create with catalog 
-    public static Evaluator Create(CatalogPrivate catalog) {
+    public static Evaluator Create(CatalogPrivate catalog, TextWriter output, TextReader input) {
       DataTypes.Init();
       var ev = new Evaluator() {
         _catalog = catalog,
+        Output = output,
+        Input = input,
       };
       ev._builtin = Builtin.Create(catalog, ev);
       return ev;

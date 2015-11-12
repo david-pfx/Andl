@@ -38,10 +38,10 @@ namespace Andl.Runtime {
       { "binary",  20 }
     };
 
-    public static DataSinkStream Create(DataTable table, TextWriter writer = null) {
+    public static DataSinkStream Create(DataTable table, TextWriter writer) {
       var ds = new DataSinkStream() { 
         _table = table,
-        _writer = writer ?? Console.Out,
+        _writer = writer,
         MaxWidth = 79,
         Lines = new List<string>(),
       };
@@ -96,7 +96,7 @@ namespace Andl.Runtime {
           var dtype = _table.Heading.Columns[col].DataType;
           var value = row.Values[col];
           if (dtype is DataTypeRelation) {
-            var sink = DataSinkStream.Create(value.AsTable());
+            var sink = DataSinkStream.Create(value.AsTable(), _writer);
             sink.WriteTable();
             rowval[col] = sink;
             widths[col] = Math.Max(widths[col], sink._width);
