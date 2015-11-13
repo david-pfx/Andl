@@ -10,6 +10,7 @@ namespace Andl.Client {
   class Program {
     static void Main(string[] args) {
       Console.WriteLine("Andl.Client");
+      //new CallCompile().Repl();
       new CallCompile().Exec();
       //new CallNative().Exec();
       //CallFindSupplier();
@@ -19,22 +20,39 @@ namespace Andl.Client {
   }
 
   class CallCompile {
+    Gateway _api;
     Dictionary<string, string> _settingsdict = new Dictionary<string, string> {
       { "DatabaseName", "Supplier" },
-      { "Noisy", "2" },
+      { "Noisy", "0" },
       //{ "DatabasePath", "" },
       //{ "DatabasePathSqlFlag", "" },
     };
 
     internal void Exec() {
-      var api = Gateway.StartUp(_settingsdict);
-      var program = "S";
-      var result = api.Execute(program);
-      ShowResult(result);
+      _api = Gateway.StartUp(_settingsdict);
+      Run("fact:0(n:0) => if(n<=1,1,n*fact(n-1))");
+      Run("fact(6)");
+      Run("zzz");
     }
 
+    internal void Repl() {
+      _api = Gateway.StartUp(_settingsdict);
+      for (; ; ) {
+        Console.Write(">>>");
+        var line = Console.ReadLine();
+        Run(line);
+      }
+    }
+
+    void Run(string program) {
+      Console.WriteLine("{0}", program);
+      ShowResult(_api.Execute(program));
+    }
+        
     void ShowResult(Result result) {
-      Console.WriteLine("Result={0} message={1} value={2}", result.Ok, result.Message, result.Value);
+      if (result.Ok)
+        Console.WriteLine("{0}", result.Value);
+      else Console.WriteLine("{0}", result.Message);
     }
 
   }

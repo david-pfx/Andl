@@ -8,6 +8,7 @@ using Andl;
 using Andl.Runtime;
 using Andl.Compiler;
 using System.IO;
+using System.Text.RegularExpressions;
 
 namespace Andl.API {
   /// <summary>
@@ -96,6 +97,56 @@ namespace Andl.API {
 
   }
 
+  ///===========================================================================
+  /// <summary>
+  /// Manager/factory for multiple gateways accessed by database name
+  /// </summary>
+  public static class GatewayManager {
+    enum SettingOptions { Ignore, Common, Split }
+
+    static Dictionary<string, SettingOptions> _settingsdict = new Dictionary<string, SettingOptions> {
+      { "Noisy", SettingOptions.Common },
+      { "DatabasePath", SettingOptions.Common },
+      { "DatabaseSqlFlag", SettingOptions.Common },
+      { "DatabaseName", SettingOptions.Common },
+      //{ "^Database.*$", SettingOptions.Split },
+    };
+
+    static Dictionary<string, Gateway> _gatewaydict = new Dictionary<string, Gateway>();
+
+    public static Gateway AddGateway(Dictionary<string, string> settings) {
+      var common = settings
+        .Where(s => _settingsdict.ContainsKey(s.Key) && _settingsdict[s.Key] == SettingOptions.Common)
+        .ToDictionary(k => k, v => v);
+      var gateway = GatewayImpl.Create(settings);
+      if (settings.ContainsKey("DatabaseName"))
+        _gatewaydict[settings["DatabaseName"]] = gateway;
+      return gateway;
+    }
+
+    // Add one gateway for each DatabaseN key, plus common settings
+    public static void AddGateways(Dictionary<string, string> settings) {
+      var common = settings
+        .Where(s => _settingsdict.ContainsKey(s.Key) && _settingsdict[s.Key] == SettingOptions.Common)
+        .ToDictionary(k => k, v => v);
+      foreach (var key in settings.Keys) {
+        if (Regex.IsMatch(key, "^Database.*$")) {
+          var values = settings[key].Split(',');
+          var settingsx = new Dictionary<string, string>(settings);
+          settingsx.Add("DatabaseName", values[0]);
+          if (values.Length >= 2) settingsx.Add("DatabaseSqlFlag", values[1]);
+          if (values.Length >= 3) settingsx.Add("DatabasePath", values[2]);
+          _gatewaydict[values[0]] = GatewayImpl.Create(settingsx);
+        }
+      }
+    }
+
+    public static Gateway GetGateway(string database) {
+      return _gatewaydict[database];
+    }
+
+  }
+  
   ///===========================================================================
   /// <summary>
   /// The implementation of the gateway API for a particular catalog
@@ -433,11 +484,10 @@ namespace Andl.API {
       try {
         var ret = _runtime.Parser.Process(input, _output, _evaluator, "-api-");
         if (ret) return Result.Success(_output.ToString());
-        else Result.Failure(_output.ToString());
+        else return Result.Failure(_output.ToString());
       } catch (ProgramException ex) {
         return Result.Failure(ex.ToString());
       }
-      return null; //??
     }
 
     internal Result Execute(string program, out string output) {

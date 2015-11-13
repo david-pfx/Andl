@@ -1,0 +1,25 @@
+﻿@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@section scripts {
+    @Scripts.Render("~/bundles/repl")
+}
+
+<div class="jumbotron">
+    <h1>Andl is a New Data Language</h1>
+    <p class="lead">
+        This is an Andl REPL sample.
+        Program fragments are sent to be compiled and executed against the current database.
+    </p>
+    <p>
+        This sample is a single page application using Knockout data binding, Bootstrap CSS and JQuery Ajax calls.
+        It uses the classical Supplier Part database, courtesy of CJ Date.
+    </p>
+    <p>
+        Andl provides all database services.
+        There is no application code other than Andl, plus HTML, JavaScript and a bit of Web Server configuration.
+    </p>
+</div>
+<div class="repl"></div>
+<p> console goes here --> </p>

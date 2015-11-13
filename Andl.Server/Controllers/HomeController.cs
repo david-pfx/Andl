@@ -37,5 +37,11 @@ namespace Andl.Server.Controllers {
 
       return View();
     }
+
+    public ActionResult AppRepl() {
+      ViewBag.Title = "Supplier Info REPL Sample";
+
+      return View();
+    }
   }
 }

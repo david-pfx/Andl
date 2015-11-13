@@ -21,6 +21,11 @@ namespace Andl.Server {
           routeTemplate: "api/{database}/{name}",
           defaults: new { controller = "andl" }
       );
+      config.Routes.MapHttpRoute(
+          name: "ReplApi",
+          routeTemplate: "repl/{database}",
+          defaults: new { controller = "home" }
+      );
     }
   }
 }

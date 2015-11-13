@@ -35,28 +35,32 @@ namespace Andl.Compiler {
     public DataColumn[] Arguments { get; private set; }
     // chain for overloaded functions with same name
     public CallInfo OverLoad { get; private set; }
-
     // number of accumulators used
     public int AccumCount { get; set; }
     // declared number of arguments
     public int NumArgs { get { return Arguments.Length; } }
-
     // return true if a fold was used
     public bool HasFold { get { return AccumCount > 0; } }
 
+    // flag indicating final init
+    bool _finalinit = false;
+
     // find the call info by name (including overloads)
     public static CallInfo Get(string name) {
-      if (_callables.Count == 0) {
+      if (_callables.Count == 0)
         Init(BuiltinInfo.GetBuiltinInfo());
-      }
+      var names = name.Split(',');
+      // Chain overloads together, but make sure to only do this once, for static
       CallInfo callinfo = null;
-      foreach (var overload in name.Split(',')) {
+      foreach (var overload in names) {
         Logger.Assert(_callables.ContainsKey(overload), overload);
+        if (_callables[overload]._finalinit) break;
         Logger.Assert(_callables[overload].OverLoad == null, overload);
         _callables[overload].OverLoad = callinfo;
+        _callables[overload]._finalinit = true;
         callinfo = _callables[overload];
       }
-      return callinfo;
+      return _callables[names.Last()];
     }
 
     // Create for user defined

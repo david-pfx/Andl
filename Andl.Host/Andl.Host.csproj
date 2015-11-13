@@ -51,6 +51,8 @@
     <None Include="App.config">
       <SubType>Designer</SubType>
     </None>
+    <None Include="packages.config" />
+    <None Include="Scripts\jquery-2.1.1.min.map" />
     <None Include="webhostspsetup.andl" />
   </ItemGroup>
   <ItemGroup>
@@ -64,6 +66,10 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Scripts\jquery-2.1.1.intellisense.js" />
+    <Content Include="Scripts\jquery-2.1.1.js" />
+    <Content Include="Scripts\jquery-2.1.1.min.js" />
+    <Content Include="Scripts\jquery.console.nh.js" />
     <Content Include="www\appwebsp.html" />
     <Content Include="www\appwebsp.js" />
     <Content Include="www\bootstrap.css" />

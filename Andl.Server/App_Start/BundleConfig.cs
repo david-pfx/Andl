@@ -19,7 +19,8 @@ namespace Andl.Server {
 
       bundles.Add(new StyleBundle("~/Content/css").Include(
                 "~/Content/bootstrap.css",
-                "~/Content/site.css"));
+                "~/Content/site.css",
+                "~/Content/console.css"));
       // New code:
       bundles.Add(new ScriptBundle("~/bundles/spapi").Include(
                 "~/Scripts/knockout-{version}.js",
@@ -30,6 +31,10 @@ namespace Andl.Server {
       bundles.Add(new ScriptBundle("~/bundles/emprest").Include(
                 "~/Scripts/knockout-{version}.js",
                 "~/Scripts/appemprest.js"));
+      bundles.Add(new ScriptBundle("~/bundles/repl").Include(
+                "~/Scripts/knockout-{version}.js",
+                "~/Scripts/jQuery.Console.nH.js",
+                "~/Scripts/apprepl.js"));
     }
   }
 }
