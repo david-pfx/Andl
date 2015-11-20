@@ -84,7 +84,6 @@ namespace Andl.Compiler {
       _evaluator = evaluator;
       _output = output;
       _emitter = new Emitter();
-      Error = false;
 
       // only when everything is ready -- process initial directives to set flags
       _lexer.Start(input, filename);
@@ -92,6 +91,7 @@ namespace Andl.Compiler {
       Start();
 
       // main parser
+      ErrorCount = 0;
       if (!ParseMain() || ErrorCount > 0) return ErrorCount == 0;
 
       var code = _emitter.GetCode();

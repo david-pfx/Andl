@@ -35,6 +35,8 @@ namespace Andl.API {
     public string Value;
   }
 
+  public enum ExecModes { Raw, JsonString, JsonArray, JsonObj };
+
   /// <summary>
   /// Anstract class representing runtime
   /// </summary>
@@ -90,10 +92,16 @@ namespace Andl.API {
 
     //--- a gateway for submitting and executing program fragments
 
-    // Compile and execute the program, returning error or the last expression as a native value
-    public abstract Result Execute(string program);
+    // Compile and execute the program, returning error or program output or object
+    // Result.Ok false means bad request, could not execute, message says why
+    // Result.Ok true means request executed, value is return.
+    // In raw mode input and output both raw text
+    // In Json mode, input is Json string and output is Json object
+    public abstract Result Execute(string program, ExecModes kind = ExecModes.Raw);
+
+    //public abstract Result Execute(string program, bool isjson = false);
     // Compile and execute the program, returning error or program output as lines of text
-    public abstract Result Execute(string program, out string output);
+    //public abstract Result Execute(string program, out string output);
 
   }
 
@@ -260,20 +268,14 @@ namespace Andl.API {
     }
 
     //-- execute and return result
-    public override Result Execute(string program) {
-      Logger.WriteLine(3, "Execute {0}", program);
-      var result = RequestSession.Create(this, _catalog).Execute(program);
+    public override Result Execute(string program, ExecModes kind) {
+      Logger.WriteLine(3, "Execute {0} kind={1}", program, kind);
+      var result = (kind == ExecModes.Raw) ? RequestSession.Create(this, _catalog).RawExecute(program)
+        : RequestSession.Create(this, _catalog).JsonExecute(program);
       Logger.WriteLine(3, "[Ex {0}]", result.Ok);
       return result;
     }
 
-    //-- execute and return result
-    public override Result Execute(string program, out string output) {
-      Logger.WriteLine(3, "Execute2 {0}", program);
-      var result = RequestSession.Create(this, _catalog).Execute(program, out output);
-      Logger.WriteLine(3, "[Ex {0}]", result.Ok);
-      return result;
-    }
   }
 
   ///===========================================================================
@@ -363,7 +365,7 @@ namespace Andl.API {
       }
       if (retvalue != VoidValue.Void) {
         var nret = TypeMaker.ToNativeValue(retvalue);
-        if (_runtime.JsonReturnFlag) {
+        if (_runtime.JsonReturnFlag) {    // FIX: s/b default
           var jret = JsonConvert.SerializeObject(nret);
           return Result.Success(jret);
         }
@@ -413,7 +415,7 @@ namespace Andl.API {
         return Result.Failure(ex.ToString());
       }
       var nret = (retvalue == VoidValue.Void) ? null : TypeMaker.ToNativeValue(retvalue);
-      if (_runtime.JsonReturnFlag) {
+      if (_runtime.JsonReturnFlag) {    // FIX: s/b default
         var jret = JsonConvert.SerializeObject(nret);
         return Result.Success(jret);
       }
@@ -479,19 +481,31 @@ namespace Andl.API {
       }
     }
 
-    internal Result Execute(string program) {
+    // call to execute a piece of Andl code against the current catalog
+    // raw text in, Result var out
+    internal Result RawExecute(string program) {
       var input = new StringReader(program);
       try {
         var ret = _runtime.Parser.Process(input, _output, _evaluator, "-api-");
         if (ret) return Result.Success(_output.ToString());
-        else return Result.Failure(_output.ToString());
+        else return Result.Success("Failed: " + _output.ToString());
       } catch (ProgramException ex) {
         return Result.Failure(ex.ToString());
       }
     }
 
-    internal Result Execute(string program, out string output) {
-      throw new NotImplementedException();
+    // call to execute a piece of Andl code against the current catalog
+    // Json in, Json out
+    internal Result JsonExecute(string program) {
+      var input = new StringReader(JsonConvert.DeserializeObject<string>(program));
+      try {
+        var ret = _runtime.Parser.Process(input, _output, _evaluator, "-api-");
+        // Construct object for Json return
+        var result = new { ok = ret, value = _output.ToString() };
+        return Result.Success(JsonConvert.SerializeObject(result));
+      } catch (ProgramException ex) {
+        return Result.Failure(ex.ToString());
+      }
     }
   }
 

@@ -30,6 +30,9 @@ namespace Andl.Host {
   /// </summary>
   [ServiceContract]
   public interface IRestContract {
+    [WebInvoke(Method = "POST", UriTemplate = "{catalog}/repl")]
+    Stream DoRepl(string catalog, Stream body);
+
     [WebInvoke(Method = "GET", UriTemplate = "{catalog}/{name}/{id=null}")]
     Stream DoGet(string catalog, string name, string id);
 
@@ -68,6 +71,10 @@ namespace Andl.Host {
       return Common("Delete", catalog, name, id);
     }
 
+    public Stream DoRepl(string catalog, Stream body) {
+      return Exec(catalog, body);
+    }
+
     //--- common functions
 
     static readonly Dictionary<ResultCode, HttpStatusCode> _codedict = new Dictionary<ResultCode, HttpStatusCode> {
@@ -87,12 +94,28 @@ namespace Andl.Host {
       var result = (gateway == null) ? API.Result.Failure("catalog not found: " + catalog)
         : gateway.JsonCall(method, name, id, qparams, content);
 
+      // FIX: bad request should be for exceptions
       WebOperationContext.Current.OutgoingResponse.StatusCode = result.Ok ? HttpStatusCode.OK : HttpStatusCode.BadRequest;
       WebOperationContext.Current.OutgoingResponse.ContentType = "application/json";
       return ToStream(result.Ok ? result.Value as string : result.Message);
       // TODO: reconcile result types
       //WebOperationContext.Current.OutgoingResponse.StatusCode = _codedict[result.Code];
       //return ToStream(result.Value);
+    }
+
+    // handle repl execution
+    // gateway responsible for decoding raw/json input and providing json output
+    Stream Exec(string catalog, Stream body) {
+      string content = ReadStream(body);
+      Logger.WriteLine(2, "Server {0}: {1} <{2}>", "repl", catalog, content);
+
+      var mode = (WebOperationContext.Current.IncomingRequest.ContentType == "application/json") ? ExecModes.JsonString : ExecModes.Raw;
+      var gateway = HostProgram.GetGateway(catalog);
+      var result = gateway.Execute(content, mode);
+
+      WebOperationContext.Current.OutgoingResponse.ContentType = (mode == ExecModes.Raw || !result.Ok) ? "text/plain" : "application/json";
+      WebOperationContext.Current.OutgoingResponse.StatusCode = result.Ok ? HttpStatusCode.OK : HttpStatusCode.BadRequest;
+      return ToStream(result.Ok ? result.Value as string : result.Message);
     }
 
     // get string from stream
@@ -162,7 +185,7 @@ namespace Andl.Host {
       return host;
     }
 
-    // Force content mapping to use Raw always (otherwise it traps any Json or XML.
+    // Force content mapping to use Raw always (otherwise it traps any Json or XML).
     // see http://blogs.msdn.com/b/carlosfigueira/archive/2008/04/17/wcf-raw-programming-model-receiving-arbitrary-data.aspx
     public class RawMapper : WebContentTypeMapper {
       public override WebContentFormat GetMessageFormatForContentType(string contentType) {
@@ -191,7 +214,7 @@ namespace Andl.Host {
         .Where(k => _settingsdict.ContainsKey(k))
         .ToDictionary(k => _settingsdict[k], k => appsettings[k]);
       _gateway = Andl.API.Gateway.StartUp(settings);
-      _gateway.JsonReturnFlag = true;
+      _gateway.JsonReturnFlag = true;   // FIX: s/b default
     }
 
     //--- test only
@@ -200,9 +223,14 @@ namespace Andl.Host {
 
     static void SendTests(string baseaddress) {
       SendRequest(baseaddress + "/data/supplier", "GET");
+      SendRequest(baseaddress + "/data/repl", "POST", "text", "S jon SP");
+      SendRequest(baseaddress + "/data/repl", "POST", "json", "'S jon SP'");
+      SendRequest(baseaddress + "/data/repl", "POST", "text", "S join SP");
+      SendRequest(baseaddress + "/data/repl", "POST", "json", "'S join SP'");
       SendRequest(baseaddress + "/data/supplier/S2", "GET");
       var newsupp = "[{'Sid':'S9','SNAME':'Adolph','STATUS':99,'CITY':'Melbourne'}]".Replace('\'', '"');
       SendRequest(baseaddress + "/data/supplier/x", "POST", "json", newsupp);
+#if tests
       SendRequest(baseaddress + "/data/supplier/", "POST", "json", newsupp);
       SendRequest(baseaddress + "/data/supplier", "POST", "json", newsupp);
       SendRequest(baseaddress + "/data/supplier", "DELETE");
@@ -214,7 +242,6 @@ namespace Andl.Host {
       SendRequest(baseaddress + "/data/part", "GET");
       SendRequest(baseaddress + "/data/part?PNAME=S.*", "GET");
       SendRequest(baseaddress + "/data/xsupplier", "DELETE");
-#if tests
       SendRequest(baseaddress + "/data/badsupplier", "GET");
       SendRequest(baseaddress + "/data/badsupplier", "POST", "json", "post 1");
 #endif
@@ -230,6 +257,7 @@ namespace Andl.Host {
         var bytes = Encoding.UTF8.GetBytes(content);
         reqStream.Write(bytes, 0, bytes.Length);
         reqStream.Close();
+        req.ContentType = (kind == "json") ? "application/json" : "plain/text";
       }
       //--- send it
       HttpWebResponse resp;
