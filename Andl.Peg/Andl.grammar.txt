@@ -1,0 +1,245 @@
+// Andl grammar - Pegasus
+// See: https://github.com/otac0n/Pegasus/wiki/Syntax-Guide
+
+@namespace Andl.Peg
+@classname PegParser
+@using System.Linq
+
+
+// start rule
+Main <AstBlock> = #STATE{ PrintLine(state); } WSE* v:MainBodyLine* WSO EOF { AST.Block(v) } ;
+MainBodyLine <AstStatement> = !EOF DirectiveLine* v:StatementLine { v };
+StatementLine <AstStatement> = WSO &EOF { null }
+    / v:Statement EOLexp WSE+ { v };
+
+DoBody <AstValue> = v:DoBodyLine* &RC { AST.DoBody(v) };
+DoBodyLine <AstStatement> = !RC DirectiveLine* v:DoStatementLine { v };
+
+DoStatementLine <AstStatement> = &RC { null}
+    / v:Statement (&RC / EOLexp WSE+) { v };
+DirectiveLine = Directive EOLexp WSE+;
+
+// recovery rule
+//Error = #STATE{ ParseError(state); } Skip EOL;
+Skip = (!EOL .)* EOL;       // take EOL here to avoid printing line twice
+
+// directives
+Directive = "#" (CatalogDirective / IncludeDirective / NoisyDirective / StopDirective / PanicDirective / BadDirective);
+CatalogDirective = "catalog" IDX v:CatalogOption* (&EOL / #STATE{ ParseError(state, "option expected"); } Skip ) { CatalogDirective(v) };
+CatalogOption = v:("new" / "load" / "update") IDX { v };
+IncludeDirective = "include" IDX v:(!CC .)* { IncludeDirective(String.Concat(v).Trim()) };
+NoisyDirective = "noisy" IDX v:Integer { NoisyDirective(String.Concat(v)) };
+StopDirective = "stop" IDX v:Integer? { StopDirective(String.Concat(v)) };
+PanicDirective = "panic" IDX #ERROR{ "panic" };
+BadDirective = #STATE{ ParseError(state, "bad directive");} Skip;
+
+// statements
+Statement <AstStatement> = WSO &. v:(<AstStatement> Deferred / Typedef / Import / UpdateJoin / UpdateTransform / Assignment / Expression / BadStatement) { v };
+
+Typedef <AstDefine> = DEF v:(UserType / Subtype) { v };
+UserType <AstDefine> = v:Definable LP w:FieldList RPexp { AST.UserType(v, w.ToArray()) } ;
+Subtype <AstDefine> = v:Definable COLON w:Type { AST.SubType(v, w) };
+Type <AstType> = v:Typename &{ IsTypeName(v) } { AST.FindType(v) }
+    / v:SimplePrimary { AST.Typeof(v) }
+    / #STATE{ ParseError(state, "type expected"); } { null };
+
+Import <AstBlock> = DB v:ImportSource<0,,SEP> { AST.Block(v) };
+//ImportSource <AstStatement> = v:Definable LP w:("csv" / "txt" / "sql" / "con" / "file" / "oledb" / "odbc" / "") IDX RPexp { AST.Source(v, AST.Text(w)) };
+ImportSource <AstStatement> = v:Definable LP w:SourceName RPexp { AST.Source(v, AST.Text(w)) };
+SourceName = v:Ident  &{ IsSourceName(v) } { v }
+    / &RP { "" }
+    / #STATE{ ParseError(state, "source name expected"); } { "" };
+
+Assignment <AstStatement> = v:Definable LA w:OpenExpression { AST.Assignment(v,w) }
+    / Definable LA #STATE{ ParseError(state, "expression expected"); } { null };
+
+// must be able to backtrack from RA to pick up function call
+Deferred <AstDefine> = v:Definable 
+    w:(<AstType> COLON a:Type { a } / { null }) 
+    x:(<IList<AstField>> LP b:FieldList RP { b })? RA 
+    y:DeferredBody { AST.Deferred(v,w,Single(x),y) };
+
+DeferredBody <AstStatement> = 
+    (UpdateJoin 
+    / UpdateTransform 
+    / OpenAttrExpression 
+    / BadStatement);
+
+// prefer: &{ w.IsJoinOp() } 
+UpdateJoin <AstStatement> = v:Ident LA &("union" / "minus") w:Funcop x:ExpressionExp { AST.UpdateJoin(v,w,x) };
+UpdateTransform <AstStatement> = v:Ident LA &LB w:TransformTailExp { AST.UpdateTransform(v,w) };
+BadStatement <AstStatement> = #STATE{ ParseError(state, "bad statement");} Skip { null };
+
+TransformTailExp = TransformTail
+    / #STATE{ ParseError(state, "update transform expected"); } { null };
+Transform = TransformTail;
+
+TransformTail <AstOpCall> = LB v:Where? WSC w:Order? WSC 
+        LC WSC x:STAR? WSC y:ProjectList RCexp RBexp { AST.Transform(Single(v), Single(w), x.Count > 0, y) }
+    / LB v:Where? WSC w:Order? RBexp { AST.Transform(Single(v), Single(w), false, null) };
+
+ProjectList = Project<0,,SEP>;
+Project <AstProject> = &RC { null }
+    / v:Ident &(SEP / RC) { AST.Project(v) }
+    / v:Ident LA w:FieldIdent &(SEP / RC) { AST.Project(v, w) }
+    / v:Ident LA w:OpenAttrExprExp { AST.Project(v, null, w) }
+    / v:OpenAttrExprExp { AST.Project(null, null, v) };
+
+//expressions
+OpenAttrExprExp = (OpenAttrExpression 
+    / #STATE{ ParseError(state, "invalid attribute expression"); } { null });
+ExpressionExp = Expression
+    / #STATE{ ParseError(state, "expression expected"); } { null };
+
+OpenAttrExpression = LookupExpression; // may have a fold
+LookupExpression = OpenExpression;  // needs to do name lookup
+OpenExpressionList = v:OpenExpression<0,,SEP>;
+OpenExpression = Expression;  // expression may be passed as value
+ExpressionList = v:Expression<0,,SEP>;
+Expression <AstValue> = v:Primary w:BinopCall* { AST.Expression(v,w) }; 
+BinopCall <AstOpCall> = x:Binop WSC y:Primary { AST.OpCall(x,y) } 
+Primary <AstValue> = v:SimplePrimary w:(Transform / Recurse / Dot)* { AST.Expression(v,w) };
+
+// Unop???
+SimplePrimary = DoBlock 
+    / LP v:Expression RPexp { v }
+    / Table / Row
+    / Fold / If
+    / Function
+    / v:Literal { v }
+    / v:VarIdent  { AST.Variable(v) };
+
+DoBlock <AstValue> = DO LCexp v:DoBody RCexp { v };
+
+Table <AstValue> = (TableBody 
+    / LC LC #STATE{ ParseError(state, "invalid table body"); } { null } );
+TableBody <AstValue> = LC LC COLON RCexp RCexp { AST.Table(false) }
+    / LC LC STAR RCexp RCexp  { AST.Table(true) }
+    / LC LC &(Ident !LA (COLON / SEP)) v:FieldList RCexp w:TableValueList RCexp { AST.Table(v,w) }
+    / LC &LC v:RowList RCexp { AST.Table(null, v) };
+TableValueList = v:TableValue<0,,SEP>;
+TableValue <AstValue> = LP v:OpenExpressionList RPexp { AST.Row(v) };
+
+RowList = v:Row<0,,SEP>;
+Row <AstValue> = LC STAR RCexp { AST.RowStar() }
+    / LC v:ProjectList RCexp { AST.Row(v) }
+    / LC #STATE{ ParseError(state, "invalid attribute list"); } RCexp { null };
+
+FieldList = v:FieldTerm<0,,SEP>;
+FieldTerm <AstField> = v:Definable COLON w:Type { AST.Field(v, w) }
+    / v:Definable { AST.Field(v, null) };
+
+Recurse <AstOpCall> = RECURSE LP v:OpenExpression RPexp { AST.OpCall("recurse", v) };
+Dot <AstOpCall> = DOT v:(FieldIdent / Funcop) { AST.OpCall(v) };
+
+If <AstValue> = IF LP v:Expression SEP w:OpenExpression SEP x:OpenExpression RPexp { AST.FunCall("if", v, w, x) };
+Fold <AstValue> = FOLD LPexp v:Foldableop SEP w:OpenExpression RPexp { AST.FunCall("fold", AST.FunCall(v), w) };
+Function <AstValue> = v:Funcop LP w:ExpressionList RPexp { AST.FunCall(v, w.ToArray()) };
+
+Where <AstValue> = QUERY LPexp v:LookupExpression RPexp { v };
+Order <IList<AstOrder>> = DOLLAR LPexp v:OrderTermList RPexp { v};
+OrderTermList = OrderTerm<0,,SEP>;
+OrderTerm <AstOrder> = v:MINUS? w: PERCENT? x:FieldIdent { AST.Order(x, v.Count > 0, w.Count > 0) };
+
+Typename = Ident;
+Foldableop = Binop;
+Binop = Funcop;
+//Unop = Funcop;
+Funcop = Ident / Operator;
+FieldIdent = Ident;
+VarIdent = Ident;   // defined as a variable/named value
+Definable = Ident;  // can be defined in the current scope
+
+// expecteds
+LCexp = (WSC LC / #STATE{ ParseError(state, "left brace expected"); } );
+RCexp = (WSC RC / #STATE{ ParseError(state, "right brace expected"); } );
+RBexp = (WSC RB / #STATE{ ParseError(state, "right bracket expected"); } );
+LPexp = (WSC LP / #STATE{ ParseError(state, "left parenthesis expected"); } );
+RPexp = (WSC RP / #STATE{ ParseError(state, "right parenthesis expected"); } );
+//LAexp = (WSC LA / #STATE{ ParseError(state, ":= expected"); } );
+EOLexp = (&EOL / #STATE{ ParseError(state, "end of line expected"); } Skip );
+
+// Terminals -- each swallows following whitespace
+Ident = !KEYWORD v:(IdentName / IdentString TextString?) WSO { v };
+Operator = v:OpSym WSO { v };
+Literal<AstValue> = v:Literals WSO { v };
+Literals<AstValue> = TRUE { AST.Bool("true") }
+    / FALSE { AST.Bool("false") }
+    / v:BinaryString { AST.Binary(v) }
+    / v:NumberString { AST.Number(v) }
+    / v:IntegerString { AST.Number(v) }
+    / v:TimeString { AST.Time(v) }
+    / v:TextString { AST.Text(v) };
+Integer = IntegerString WSO;
+
+KEYWORD = DO / DEF / DB / TRUE / FALSE / NOT;
+
+// note: tokens followed by WSC will swallow an EOL
+DB = "db" IDX;
+DEF = "def" IDX;
+DO = "do" IDX;
+
+TRUE = "true" IDX;
+FALSE = "false" IDX;
+RECURSE = "recurse" IDX;
+IF = "if" IDX;
+FOLD = "fold" IDX;
+
+NOT = "not" IDX;
+RA = "=>" WSC;
+LA = ":=" WSC;
+COLON = ':' !OpChar WSC;
+SEP = ',' WSC;
+DOT = '.' WSO;
+LC = '{' WSC;
+RC = '}' WSO;   // note: gets its own handling
+LP = '(' WSC;
+RP = ')' WSO;
+LB = '[' WSC;
+RB = ']' WSO;
+STAR = '*' !OpChar WSC;
+QUERY = '?' WSO;
+DOLLAR = '$' WSO;
+PERCENT = '%' WSO;
+MINUS = '-' !OpChar WSO;
+
+IDX = !ID WS*;              // end of ident possibly followed by WS
+
+WSO = WS*;                  // optional whitespace between tokens
+WSC = WSO (EOLX WSO)?;      // continuation, take just one eol if found, plus WS
+WSE = WSO EOLX;             // whitespace and take eol, leave at start of line
+WS = (SP / Comment) { "" };
+SP = [ \t];
+Comment = "//" (!EOL .)*
+        / "/*" (!"*/" (EOLX / .))* "*/";
+
+EOLX = EOL #STATE{ PrintLine(state); }; // consumed EOL, so print it
+EOL = "\r"? "\n" { "" };
+EOF = !.;
+
+// More complex lexical tokens, but not for use as terminals
+TextString = v:(SingleQuoted / DoubleQuoted / CharHexQuoted / CharDecQuoted)+ { String.Concat(v) };
+SingleQuoted = SQ v:("" (!(CC / SQ) . )* ) SQ { v };
+DoubleQuoted = DQ v:("" (!(CC / DQ) . )* ) DQ { v };
+CharHexQuoted = "h" SQ v:("" SP* (HexDigit+ SP*)*) SQ { v };
+CharDecQuoted = "d" SQ v:("" SP* (Digit+ SP*)*) SQ { v };
+BinaryString  = "b" SQ v:("" HexDigit*) SQ { v };
+TimeString    = 't' SQ v:("" (Digit / Letter / TimeChar)+) SQ { v };
+NumberString  = '.' Digit+ / Digit+ ('.' Digit*)?;
+IntegerString = "" Digit+ / "$" Digit HexDigit*;
+IdentString   = "i" SQ v:""( (!CC !SQ .)* ) SQ { v };
+IdentName = (Letter / IdChar) (Letter / Digit / IdChar / IdCharX)*;
+OpSym = OpChar OpChar?;
+ID = Letter / Digit / IdChar / IdCharX;
+
+// character sets (not tokens)
+Letter = [a-zA-Z];
+Digit = [0-9];
+HexDigit = [a-fA-F0-9];
+OpChar = [&=<>:~*/+-];
+IdChar = [_$@^];
+IdCharX = [#%&?!~`];
+TimeChar = [: ./-];
+CC = [\x00-\x1f];
+SQ = "'";
+DQ = '"';

@@ -1,0 +1,273 @@
+﻿// test.andl
+#noisy 2
+db  S(csv), P(csv), SP(csv)
+G:=S[{S#}] [{* supplied:= {{*}} compose (SP join P)}]
+S join G
+S [{* supplied:={{*}} join (SP join P)}]
+S [?(CITY sub {{CITY:='London'},{CITY:='Paris'}})]
+#stop
+// types
+
+#noisy 0
+3 xor 10
+true xor false
+#noisy 2
+
+d1 := dateymd(2015,1,31)
+d1.year
+"Date: " & d1 & " Year:" & d1.year & " month:" & d1.month & " day:" & d1.day & " dow:" & d1.dow
+
+rr:={{a:text,b:text}}
+def utx(b:bool, s:text, n:number, t:time, r:rr)
+//def utx(b:bool, s:text, n:number, t:time, r:{{a:text,b:text}})
+utv:=utx(true,'hello world', 42, now(), {{a:='aaaa',b:='bbbb'},{a:='aaaaa',b:='bbbbb'}})
+utv
+
+def stx:time
+stv := stx(t'31/12/2015')
+stv
+stv.super
+
+def stxx:stx
+stvv := stxx(stx(t'31/12/2015'))
+stvv
+stvv.super
+stvv.super.super
+
+d1 := dateymd(2015,1,31)
+"Date: " & d1 & " Year:" & d1.year & " month:" & d1.month & " day:" & d1.day & " dow:" & d1.dow
+date(t'1/1/2015')
+time(date(time(d1)))
+
+andl_catalog
+#stop
+
+db test(txt)
+test
+
+// avoiding nulls
+db  S(csv), P(csv), SP(csv)
+//def S:db(csv), P:db(csv), SP:db(csv)
+
+(S join SP)
+#stop
+
+f1(a:'') => do {
+  t := a
+  t
+}
+f2(a:0) => do {
+  t := a
+  t
+}
+f3(a:S) => do {
+  t := a
+  t
+}
+
+rr1 := {{ id:number, name:text }}
+rr2 := {{ name:='abc', id:=17 }}
+def rt1(id:number, name:text)
+def rt2(name:text, id:number)
+
+fr1(arg:rr1) => do {
+  a := arg
+  a
+}
+fr2(arg:rr2) => do {
+  a := arg
+  a
+}
+fr3(arg:rt1) => do {
+  a := arg
+  a
+}
+fr4(arg:rt2) => do {
+  a := arg
+  a
+}
+
+andl_catalog
+
+f1('abc')
+f2(17)
+f3(S)
+fr1({{ id:=1, name:='abc' }})
+fr2({{ id:=2, name:='abc' }})
+fr3(rt1(3, 'abc'))
+fr4(rt2('abc', 4))
+
+#stop
+
+S [ { partition := {{*}} join SP } ]
+S [ { S#, SNAME, SUMQTY := ( {{*}} join SP ) [ { fold(+,QTY) } ] } ]
+
+(S join SP) [ { S#, SNAME, SUMQTY := fold(+,QTY) } ] union (S ajoin SP) [ { S#, SNAME, SUMQTY := 0 } ]
+(S join SP) [ { S#, SNAME, SUMQTY := fold(+,QTY).text } ] union (S ajoin SP) [ { S#, SNAME, SUMQTY := '--' } ]
+
+SP400 := SP [ ?(QTY>=400) ]
+(S join SP400) [ { S#, P# } ] union (S ajoin SP400) [ { S#, P# := 'none' } ]
+
+get_stuff() => do {
+    aa := S [{ * S# }]
+    aa
+}
+
+get_stuff()
+
+andl_catalog
+#stop
+
+//#noisy 4
+
+get_S_keys() => do {
+    S [ { S# } ]
+}
+
+get_S_keys()
+
+getSid(id:0) => do {
+    S [ ?(S#=id) ]
+}
+getS() => do {
+    S
+}
+putSid(id:0,s:S) => do {
+    S := [ ?(S#=id) ]
+    S := union s
+}
+putS(s:S) => do {
+    S := union s
+}
+
+//andl_catalog
+//andl_variable()
+andl_operator()
+//andl_member()
+
+@paste(s1, s2) => if(s1='',s2 , s1 & ', ' & s2)
+
+mem := andl_member() [{ 
+    K := MemberOf, 
+    V := fold(@paste, Name & ':' & Type)
+}] union {{ K := '', V := '' }}
+
+op1 := (andl_operator() join mem[{ * Members := K }]) [{ Name, Type, Attributes := V, A := Arguments }]
+//op1
+op2 := (op1 join mem[{ A := K, Arguments := V }]) union (op1[{ * Arguments := '' }] ajoin mem[{ A := K }])
+//op2
+op2 [ $(Name) { Name, Type, Attributes, Arguments }]
+
+#stop
+
+// test.andl -- is automatically loaded and run if no other file is specified
+// 
+// Use this for quickly testing out ideas
+
+//#catalog
+
+'testing 1,2,3,4...'
+
+//sbyname('a')
+//#stop
+
+//def ut1(n:number, t:text, d:date)
+//d1 := dateymd(2015,1,31)
+//u1 := ut1(42, 'xx', d1)
+//#stop
+
+db  S(csv), P(csv), SP(csv)
+//def S:db(csv), P:db(csv), SP:db(csv)
+
+S [{}]
+{{ X := 0 }} recurse (S [{ X := X + STATUS }])
+
+//{{ X := 0 }} recurse (S [{ X := X + STATUS }])
+#stop
+
+suppliersbyname(name:text) => S [ ?(SNAME =~ name) { *Sid:=S# }] 
+suppliersbyname('a')
+addsuppliers(adds:S) => S := union adds
+
+addsuppliers({{ S#:='S99', SNAME:="Freddo", STATUS:=99, CITY:="Ur"}})
+
+S [ { fold(+,STATUS) } ]    // aggregated value
+
+_vartext := 'testing 1,2,3,4...'
+_varnum := 42.00
+_varrel := { {name:text,age:number}('Smith', 17),('Jones', 35),('Frankenstein', 199) }
+_func(a:'') => do { a }
+def _udt(b:bool, s:text)
+
+vartext := _vartext
+varnum := _varnum
+varrel := _varrel
+@varrel := _varrel
+func(a:'') => do { a }
+def udt(b:bool, s:text)
+udv := udt(true, 'not false')
+
+andl_catalog
+#stop
+#catalog new update
+
+'testing 1,2,3,4...'
+
+x:=42
+x
+
+seed := {{ name:= 'Alice', level := 0 }}
+seed
+
+prompt := fill('.',80) & h'd a' & '>>>'
+wait => pause(prompt)
+
+db  S(csv), P(csv), SP(csv)
+//def S:db(csv), P:db(csv), SP:db(csv)
+suppliers := S [{ *Sid:=S# }]
+parts := P [{ *Pid := P# }]
+supplies := SP [{ *Sid := S#, Pid:= P# }]
+sandsp := S [{ * sp := {{*}} compose SP}]
+parts
+sandsp
+
+fib:number(n:number) => if(n < 2,n, fib(n-1) + fib(n-2))
+fib5 := fib(5)
+t:=now()
+
+andl_catalog
+#stop
+
+seed := {{ name:= 'Alice', level := 0 }}
+
+ua := seed recurse( {{ boss := name, level := level+1 }} compose orgcharts)
+ua
+ua [{ t:=fill('.', level*3) & name }]
+
+^seed := seed
+^seed
+#stop
+
+b := binary(100)
+b.blength
+
+n := {{ x:=0 }} recurse( {{ x:=x+1 }} [?(x <= 10)] )
+n
+
+#stop
+
+fib:number(n:number) => if(n < 2,n, fib(n-1) + fib(n-2))
+
+now()
+//seq(10) [{ result := fib(20), time := now() }]
+fib(20)
+now()
+
+#stop
+
+
+#include supplierdata.andl
+
+S [?(CITY='Paris' and STATUS > 0 or 
+true) 
+    {STATUS}] 
