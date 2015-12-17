@@ -76,6 +76,7 @@ namespace Andl.Runtime {
       addins.Add(AddinInfo.Create("write", 1, DataTypes.Void, "Write"));
       addins.Add(AddinInfo.Create("pause", 1, DataTypes.Void, "Pause"));
       addins.Add(AddinInfo.Create("fail", 2, DataTypes.Void, "Fail"));
+      addins.Add(AddinInfo.Create("assert", 2, DataTypes.Void, "Assert"));
 
       addins.Add(AddinInfo.Create("type", 1, DataTypes.Text, "Type"));
 
@@ -127,7 +128,7 @@ namespace Andl.Runtime {
   /// <summary>
   /// Implement set of built in functions for Andl language
   /// 
-  /// NOTE: do not introduce extraneous 'helper' functions here
+  /// These functions will be loaded by reflection.
   /// </summary>
   //public static class Builtin {
   public class Builtin {
@@ -857,6 +858,12 @@ namespace Andl.Runtime {
     // trigger an error
     public VoidValue Fail(TextValue source, TextValue message) {
       ProgramError.Error(source.Value, message.Value);
+      return VoidValue.Default;
+    }
+
+    // maybe trigger a crash
+    public VoidValue Assert(BoolValue condition, TextValue message) {
+      Logger.Assert(condition.Value, message.Value);
       return VoidValue.Default;
     }
 

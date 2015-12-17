@@ -51,8 +51,6 @@
     <None Include="App.config">
       <SubType>Designer</SubType>
     </None>
-    <None Include="packages.config" />
-    <None Include="Scripts\jquery-2.1.1.min.map" />
     <None Include="webhostspsetup.andl" />
   </ItemGroup>
   <ItemGroup>
@@ -66,18 +64,14 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Scripts\jquery-2.1.1.intellisense.js" />
-    <Content Include="Scripts\jquery-2.1.1.js" />
-    <Content Include="Scripts\jquery-2.1.1.min.js" />
-    <Content Include="Scripts\jquery.console.nh.js" />
     <Content Include="www\appwebsp.html" />
-    <Content Include="www\appwebsp.js" />
-    <Content Include="www\bootstrap.css" />
-    <Content Include="www\bootstrap.js" />
-    <Content Include="www\jquery-1.10.2.js" />
-    <Content Include="www\knockout-3.3.0.js" />
-    <Content Include="www\respond.js" />
-    <Content Include="www\Site.css" />
+    <Content Include="www\js\appwebsp.js" />
+    <Content Include="www\css\bootstrap.css" />
+    <Content Include="www\js\bootstrap.js" />
+    <Content Include="www\js\jquery-1.10.2.js" />
+    <Content Include="www\js\knockout-3.3.0.js" />
+    <Content Include="www\js\respond.js" />
+    <Content Include="www\css\Site.css" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

@@ -94,13 +94,20 @@ namespace Andl.Host {
       var result = (gateway == null) ? API.Result.Failure("catalog not found: " + catalog)
         : gateway.JsonCall(method, name, id, qparams, content);
 
-      // FIX: bad request should be for exceptions
-      WebOperationContext.Current.OutgoingResponse.StatusCode = result.Ok ? HttpStatusCode.OK : HttpStatusCode.BadRequest;
-      WebOperationContext.Current.OutgoingResponse.ContentType = "application/json";
-      return ToStream(result.Ok ? result.Value as string : result.Message);
-      // TODO: reconcile result types
-      //WebOperationContext.Current.OutgoingResponse.StatusCode = _codedict[result.Code];
-      //return ToStream(result.Value);
+      if (result.Ok) { 
+        // string returned will actually be prefab json.
+        WebOperationContext.Current.OutgoingResponse.StatusCode = HttpStatusCode.OK;
+        WebOperationContext.Current.OutgoingResponse.ContentType = "application/json";
+        return ToStream(result.Value as string);
+      } else {
+        // Bad result should cause bad request, but then it sends html. Maybe later?
+        WebOperationContext.Current.OutgoingResponse.StatusCode = HttpStatusCode.OK;
+        WebOperationContext.Current.OutgoingResponse.ContentType = "text/plain";
+        return ToStream(result.Message);
+      }
+      //WebOperationContext.Current.OutgoingResponse.StatusCode = result.Ok ? HttpStatusCode.OK : HttpStatusCode.BadRequest;
+      //WebOperationContext.Current.OutgoingResponse.ContentType = "application/json";
+      //return ToStream(result.Ok ? result.Value as string : result.Message);
     }
 
     // handle repl execution
@@ -155,7 +162,13 @@ namespace Andl.Host {
   /// Implement calling program
   /// </summary>
   class HostProgram {
+    static Gateway _gateway;
+    // return gateway for this catalog, used by server request handler
+    public static Gateway GetGateway(string catalog) {
+      return catalog == _gateway.DatabaseName ? _gateway : null;
+    }
 
+    //-------------------------------------------------------------------------
     // mainline
     // start up web host, then run tests
     static void Main(string[] args) {
@@ -170,12 +183,6 @@ namespace Andl.Host {
       Console.ReadLine();
       host.Close();
     }
-
-    // return gateway for this catalog
-    public static Gateway GetGateway(string catalog) {
-      return catalog == _gateway.DatabaseName ? _gateway : null;
-    }
-    static Gateway _gateway;
 
     static WebServiceHost CreateHost(string address, string endpoint) {
       var host = new WebServiceHost(typeof(RawDataService), new Uri(address));
@@ -201,6 +208,8 @@ namespace Andl.Host {
       return result;
     }
 
+    //-------------------------------------------------------------------------
+    // App startup
     static readonly Dictionary<string, string> _settingsdict = new Dictionary<string, string> {
       { "DatabasePath", "DatabasePath" },
       { "DatabaseSqlFlag", "DatabaseSqlFlag" },
@@ -217,6 +226,7 @@ namespace Andl.Host {
       _gateway.JsonReturnFlag = true;   // FIX: s/b default
     }
 
+    //-------------------------------------------------------------------------
     //--- test only
 
     // Note: some will trigger error response and raise an exception

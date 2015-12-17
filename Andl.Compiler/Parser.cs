@@ -1131,7 +1131,9 @@ namespace Andl.Compiler {
     //------------------------------------------------------------------
     // parse an open expression that uses a lookup
     bool ParseLookupExpression(out ExprInfo expr) {
-      Logger.Assert(Scope.Current.LookupItems.Items.Length == 0);
+      expr = new ExprInfo();
+      if (Scope.Current.LookupItems.Items.Length > 0) return ErrSyntax("nested scope not allowed here");
+      //Logger.Assert(Scope.Current.LookupItems.Items.Length == 0);
       var ret = ParseOpenExpression(out expr);
       if (ret && !Error) expr.LookupItems = Scope.Current.LookupItems.Items;
       Scope.Current.LookupItems.Clear();
