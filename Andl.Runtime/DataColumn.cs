@@ -72,6 +72,7 @@ namespace Andl.Runtime {
 
     // Create column with data type
     public static DataColumn Create(string name, DataType datatype) {
+      Logger.Assert(datatype != null);
       var newcol = new DataColumn {
         _name = name,
         _datatype = datatype,

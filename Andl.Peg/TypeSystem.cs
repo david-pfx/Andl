@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Andl.Runtime;
 
 namespace Andl.Peg {
   public class Field {
@@ -11,46 +12,63 @@ namespace Andl.Peg {
   }
 
   /// <summary>
-  /// Simple type system for parser
+  /// Type system for parser: a layer over the Runtime type system
   /// </summary>
   public class TypeSystem {
-    public Dictionary<string, DataType> Members {get; set; }
-    public TypeSystem() {
-      Members = new Dictionary<string, DataType>();
-      Add("bool");
-      Add("binary");
-      Add("number");
-      Add("text");
-      Add("time");
-      Add("tuple");
-      Add("relation");
-      Add("user");
-      Add("code");
-
-    }
-    public void Add(string name) {
-      Members.Add(name, new DataType { Name = name });
-    }
-
     public DataType Find(string name) {
-      if (Members.ContainsKey(name)) return Members[name];
-      return null;
+      var dt = DataTypes.Find(name);
+      return dt != null && dt.IsVariable ? dt : null;
     }
 
     internal DataType Find(IEnumerable<Field> typelist) {
-      return Members["tuple"];
+      var heading = DataHeading.Create(typelist.Select(f => DataColumn.Create(f.Name, f.Type)));
+      return DataTypeTuple.Get(heading);
     }
+
     internal DataType Tupof(DataType type) {
-      return Members["tuple"];
+      return DataTypeTuple.Get(type.Heading);
     }
     internal DataType Relof(DataType type) {
-      return Members["relation"];
+      return DataTypeRelation.Get(type.Heading);
     }
+
+    //public Dictionary<string, DataType> Members {get; set; }
+    //public TypeSystem() {
+    //  Members = new Dictionary<string, DataType>();
+    //  Add("bool");
+    //  Add("binary");
+    //  Add("number");
+    //  Add("text");
+    //  Add("time");
+    //  Add("tuple");
+    //  Add("relation");
+    //  Add("user");
+    //  Add("code");
+
+    //}
+    //public void Add(string name) {
+    //  Members.Add(name, new DataType { Name = name });
+    //}
+
+    //public DataType Find(string name) {
+    //  if (Members.ContainsKey(name)) return Members[name];
+    //  return null;
+    //}
+
+    //internal DataType Find(IEnumerable<Field> typelist) {
+    //  return Members["tuple"];
+    //}
+    //internal DataType Tupof(DataType type) {
+    //  return Members["tuple"];
+    //}
+    //internal DataType Relof(DataType type) {
+    //  return Members["relation"];
+    //}
   }
   ///
   /// An individual type - just the name for now
   /// 
-  public class DataType {
-    public string Name { get; set; }
-  }
+  //public class DataType {
+  //  public string Name { get; set; }
+  //}
 }

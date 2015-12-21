@@ -14,7 +14,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Andl.Runtime;
 
-namespace Andl.Compiler {
+namespace Andl.Peg {
   /// <summary>
   /// Symbols required for lookup
   /// </summary>

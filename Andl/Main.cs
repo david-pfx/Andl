@@ -10,12 +10,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 using Andl.Compiler;
 using Andl.Runtime;
-using System.Text.RegularExpressions;
+using Andl.Peg;
 
 namespace Andl.Main {
   /// <summary>
@@ -137,7 +135,11 @@ namespace Andl.Main {
 
     static bool Compile(string path) {
       Logger.WriteLine("*** Compiling: {0} ***", path);
+#if true // PEG
+      var parser = PegCompiler.Create(_catalog);
+#else
       var parser = Parser.Create(_catalog);
+#endif
       using (StreamReader input = File.OpenText(path)) {
         var ret = parser.Process(input, Console.Out, _evaluator, path);
         Logger.WriteLine("*** Compiled {0} {1} ***", path, ret ? "OK"

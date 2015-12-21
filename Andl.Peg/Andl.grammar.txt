@@ -12,11 +12,17 @@ MainBodyLine <AstStatement> = !EOF DirectiveLine* v:StatementLine { v };
 StatementLine <AstStatement> = WSO &EOF { null }
     / v:Statement EOLexp WSE+ { v };
 
-DoBody <AstValue> = v:DoBodyLine* &RC { AST.DoBody(v) };
-DoBodyLine <AstStatement> = !RC DirectiveLine* v:DoStatementLine { v };
-
+DoBody <AstValue> = LC RC { AST.DoBody(null) }
+    / LCexp v:DoBodyLine+ RCexp { AST.DoBody(v) };
+DoBodyLine <AstStatement> = DirectiveLine* v:DoStatementLine { v };
 DoStatementLine <AstStatement> = &RC { null}
     / v:Statement (&RC / EOLexp WSE+) { v };
+
+//DoBody <AstValue> = v:DoBodyLine* &RC { AST.DoBody(v) };
+//DoBodyLine <AstStatement> = !RC DirectiveLine* v:DoStatementLine { v };
+//DoStatementLine <AstStatement> = &RC { null}
+//    / v:Statement (&RC / EOLexp WSE+) { v };
+
 DirectiveLine = Directive EOLexp WSE+;
 
 // recovery rule
@@ -37,27 +43,26 @@ BadDirective = #STATE{ ParseError(state, "bad directive");} Skip;
 Statement <AstStatement> = WSO &. v:(<AstStatement> Deferred / Typedef / Import / UpdateJoin / UpdateTransform / Assignment / Expression / BadStatement) { v };
 
 Typedef <AstDefine> = DEF v:(UserType / Subtype) { v };
-UserType <AstDefine> = v:Definable LP w:FieldList RPexp { AST.UserType(v, w.ToArray()) } ;
-Subtype <AstDefine> = v:Definable COLON w:Type { AST.SubType(v, w) };
-Type <AstType> = v:Typename &{ IsTypeName(v) } { AST.FindType(v) }
+UserType <AstDefine> = v:DefinableExp LP w:FieldList RPexp { AST.UserType(v, w.ToArray()) } ;
+Subtype <AstDefine> = v:DefinableExp COLON w:Type { AST.SubType(v, w) };
+Type <AstType> = v:Typename &{ IsTypename(v) } { AST.FindType(v) }
     / v:SimplePrimary { AST.Typeof(v) }
     / #STATE{ ParseError(state, "type expected"); } { null };
 
 Import <AstBlock> = DB v:ImportSource<0,,SEP> { AST.Block(v) };
-//ImportSource <AstStatement> = v:Definable LP w:("csv" / "txt" / "sql" / "con" / "file" / "oledb" / "odbc" / "") IDX RPexp { AST.Source(v, AST.Text(w)) };
-ImportSource <AstStatement> = v:Definable LP w:SourceName RPexp { AST.Source(v, AST.Text(w)) };
+ImportSource <AstStatement> = v:DefinableExp LP w:SourceName RPexp { AST.Source(v, AST.Text(w)) };
 SourceName = v:Ident  &{ IsSourceName(v) } { v }
     / &RP { "" }
     / #STATE{ ParseError(state, "source name expected"); } { "" };
 
-Assignment <AstStatement> = v:Definable LA w:OpenExpression { AST.Assignment(v,w) }
+Assignment <AstStatement> = &(Ident LA) v:DefinableExp LA w:OpenExpression { AST.Assignment(v,w) }
     / Definable LA #STATE{ ParseError(state, "expression expected"); } { null };
 
 // must be able to backtrack from RA to pick up function call
 Deferred <AstDefine> = v:Definable 
     w:(<AstType> COLON a:Type { a } / { null }) 
     x:(<IList<AstField>> LP b:FieldList RP { b })? RA 
-    y:DeferredBody { AST.Deferred(v,w,Single(x),y) };
+    &{ DefScope(v, w, Single(x)) } y:DeferredBody &{ PopScope() } { AST.Deferred(v,w,Single(x),y) };
 
 DeferredBody <AstStatement> = 
     (UpdateJoin 
@@ -66,28 +71,28 @@ DeferredBody <AstStatement> =
     / BadStatement);
 
 // prefer: &{ w.IsJoinOp() } 
-UpdateJoin <AstStatement> = v:Ident LA &("union" / "minus") w:Funcop x:ExpressionExp { AST.UpdateJoin(v,w,x) };
-UpdateTransform <AstStatement> = v:Ident LA &LB w:TransformTailExp { AST.UpdateTransform(v,w) };
+UpdateJoin <AstStatement> = v:CatVar LA &("union" / "minus") w:Funcop x:ExpressionExp { AST.UpdateJoin(v,w,x) };
+UpdateTransform <AstStatement> = v:CatVar LA &LB w:TransformTailExp { AST.UpdateTransform(v,w) };
 BadStatement <AstStatement> = #STATE{ ParseError(state, "bad statement");} Skip { null };
 
 TransformTailExp = TransformTail
-    / #STATE{ ParseError(state, "update transform expected"); } { null };
-Transform = TransformTail;
-
-TransformTail <AstOpCall> = LB v:Where? WSC w:Order? WSC 
-        LC WSC x:STAR? WSC y:ProjectList RCexp RBexp { AST.Transform(Single(v), Single(w), x.Count > 0, y) }
-    / LB v:Where? WSC w:Order? RBexp { AST.Transform(Single(v), Single(w), false, null) };
+    / #STATE{ ParseError(state, "transform arguments expected"); } { null };
+TransformTail <AstValue[]> = LB v:Where? WSC w:Order? WSC 
+        LC WSC x:STAR? WSC y:ProjectList RCexp RBexp { AST.TransformTail(Single(v), Single(w), x.Count > 0, y) }
+    / LB v:Where? WSC w:Order? RBexp { AST.TransformTail(Single(v), Single(w), false, null) };
 
 ProjectList = Project<0,,SEP>;
 Project <AstProject> = &RC { null }
-    / v:Ident &(SEP / RC) { AST.Project(v) }
-    / v:Ident LA w:FieldIdent &(SEP / RC) { AST.Project(v, w) }
-    / v:Ident LA w:OpenAttrExprExp { AST.Project(v, null, w) }
+    / v:FieldIdent &(SEP / RC) { AST.Project(v) }
+    / v:Definable LA w:FieldIdent &(SEP / RC) { AST.Project(v, w) }
+    / v:Definable LA w:OpenAttrExprExp { AST.Project(v, null, w) }
     / v:OpenAttrExprExp { AST.Project(null, null, v) };
 
-//expressions
+// expressions
 OpenAttrExprExp = (OpenAttrExpression 
     / #STATE{ ParseError(state, "invalid attribute expression"); } { null });
+OpenExpressionExp = OpenExpression
+    / #STATE{ ParseError(state, "expression expected"); } { null };
 ExpressionExp = Expression
     / #STATE{ ParseError(state, "expression expected"); } { null };
 
@@ -96,20 +101,49 @@ LookupExpression = OpenExpression;  // needs to do name lookup
 OpenExpressionList = v:OpenExpression<0,,SEP>;
 OpenExpression = Expression;  // expression may be passed as value
 ExpressionList = v:Expression<0,,SEP>;
-Expression <AstValue> = v:Primary w:BinopCall* { AST.Expression(v,w) }; 
-BinopCall <AstOpCall> = x:Binop WSC y:Primary { AST.OpCall(x,y) } 
-Primary <AstValue> = v:SimplePrimary w:(Transform / Recurse / Dot)* { AST.Expression(v,w) };
+//Expression <AstValue> = v:Primary w:BinopCall* { AST.Expression(v,w) }; 
+//BinopCall <AstOpCall> = x:Binop WSC y:Primary { AST.OpCall(x,y) } 
+//Primary <AstValue> = v:SimplePrimary w:(Transform / Recurse / Dot)* { AST.Expression(v,w) };
 
-// Unop???
+Expression <AstValue> = v:Primary w:Binop WSC x:Expression { AST.FunCall(w,v,x) } 
+    / Primary;
+Primary <AstValue> -memoize = v:Unop w:Primary { AST.FunCall(v,w) }
+    / v:Primary RECURSE LPexp w:OpenExpressionExp RPexp { AST.FunCall("recurse",v,w) }
+    / v:Primary DOT w:FieldOrFuncExp { AST.FunCall(w,v) }
+    / v:Primary &LB 
+        &{ Check(IsRel(v), state, "relation type expected") }
+        &{ PushRelScope(v) } w:TransformTailExp &{ PopRelScope() } { AST.Transform(v,w) }
+    / SimplePrimary;
+
 SimplePrimary = DoBlock 
     / LP v:Expression RPexp { v }
     / Table / Row
     / Fold / If
     / Function
     / v:Literal { v }
-    / v:VarIdent  { AST.Variable(v) };
+    / v:VarIdent  { AST.Variable(v) }
+    / v:Ident #STATE{ ParseError(state, "undefined '{0}'", v); } { null };
 
-DoBlock <AstValue> = DO LCexp v:DoBody RCexp { v };
+//Transform = &LB TransformTailExp;
+
+//Recurse <AstOpCall> = RECURSE LPexp v:OpenExpression RPexp { AST.OpCall("recurse", v) }
+//    / RECURSE #STATE{ ParseError(state, "open expression expected"); } { null };
+
+//Dot <AstOpCall> = DOT v:(FieldIdent / Funcop) { AST.OpCall(v) }
+//    / DOT #STATE{ ParseError(state, "field or function expected"); } { null };
+
+If <AstValue> = IF LPexp v:Expression SEPexp w:OpenExpression SEPexp x:OpenExpression RPexp { AST.FunCall("if", v, w, x) }
+    / IF LP  #STATE{ ParseError(state, "expression expected"); } { null };
+
+Fold <AstValue> = FOLD LPexp v:Foldableop SEPexp w:OpenExpression RPexp { AST.FunCall("fold", AST.FunCall(v), w) }
+    / FOLD LP  #STATE{ ParseError(state, "fold operator expected"); } { null };
+
+DoBlock <AstValue> = DO v:DoBody { v }
+
+//DoBlock <AstValue> = DO LCexp v:DoBody RCexp { v }
+//    / DO LC #STATE{ ParseError(state, "do body expected"); } { null };
+
+Function <AstValue> = v:Funcop LP w:ExpressionList RPexp { AST.FunCall(v, w.ToArray()) };
 
 Table <AstValue> = (TableBody 
     / LC LC #STATE{ ParseError(state, "invalid table body"); } { null } );
@@ -129,26 +163,25 @@ FieldList = v:FieldTerm<0,,SEP>;
 FieldTerm <AstField> = v:Definable COLON w:Type { AST.Field(v, w) }
     / v:Definable { AST.Field(v, null) };
 
-Recurse <AstOpCall> = RECURSE LP v:OpenExpression RPexp { AST.OpCall("recurse", v) };
-Dot <AstOpCall> = DOT v:(FieldIdent / Funcop) { AST.OpCall(v) };
-
-If <AstValue> = IF LP v:Expression SEP w:OpenExpression SEP x:OpenExpression RPexp { AST.FunCall("if", v, w, x) };
-Fold <AstValue> = FOLD LPexp v:Foldableop SEP w:OpenExpression RPexp { AST.FunCall("fold", AST.FunCall(v), w) };
-Function <AstValue> = v:Funcop LP w:ExpressionList RPexp { AST.FunCall(v, w.ToArray()) };
-
 Where <AstValue> = QUERY LPexp v:LookupExpression RPexp { v };
 Order <IList<AstOrder>> = DOLLAR LPexp v:OrderTermList RPexp { v};
 OrderTermList = OrderTerm<0,,SEP>;
 OrderTerm <AstOrder> = v:MINUS? w: PERCENT? x:FieldIdent { AST.Order(x, v.Count > 0, w.Count > 0) };
 
-Typename = Ident;
-Foldableop = Binop;
-Binop = Funcop;
-//Unop = Funcop;
-Funcop = Ident / Operator;
-FieldIdent = Ident;
-VarIdent = Ident;   // defined as a variable/named value
-Definable = Ident;  // can be defined in the current scope
+DefinableExp = Definable 
+    / #STATE{ ParseError(state, "aleady defined"); } { null }
+FieldOrFuncExp = FieldIdent / Funcop
+    / #STATE{ ParseError(state, "field or function expected"); } { null }
+
+Typename = v:Ident &{ IsTypename(v) } { v };
+Foldableop = v:Funcop &{ IsFoldableop(v) } { v };
+Binop = v:Funcop &{ IsBinop(v) } { v };
+Unop = v:Funcop &{ IsUnop(v) } { v };
+Funcop = v:(Ident / Operator) &{ IsFuncop(v) } { v };
+FieldIdent = v:Ident &{ IsField(v) } { v };
+VarIdent = v:Ident &{ IsVariable(v) } { v };
+CatVar = v:Ident &{ IsCatVar(v) } { v };
+Definable = v:Ident &{ IsDefinable(v) } { v };
 
 // expecteds
 LCexp = (WSC LC / #STATE{ ParseError(state, "left brace expected"); } );
@@ -157,6 +190,7 @@ RBexp = (WSC RB / #STATE{ ParseError(state, "right bracket expected"); } );
 LPexp = (WSC LP / #STATE{ ParseError(state, "left parenthesis expected"); } );
 RPexp = (WSC RP / #STATE{ ParseError(state, "right parenthesis expected"); } );
 //LAexp = (WSC LA / #STATE{ ParseError(state, ":= expected"); } );
+SEPexp = (WSC LA / #STATE{ ParseError(state, "comma expected"); } );
 EOLexp = (&EOL / #STATE{ ParseError(state, "end of line expected"); } Skip );
 
 // Terminals -- each swallows following whitespace

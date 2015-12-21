@@ -15,7 +15,7 @@ using System.Text;
 //using System.Threading.Tasks;
 using Andl.Runtime;
 
-namespace Andl.Compiler {
+namespace Andl.Peg {
   /// <summary>
   /// Manages the information required to call a function (method/operator/etc)
   /// 

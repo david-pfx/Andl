@@ -4,13 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Pegasus.Common;
+using System.IO;
+using Andl.Runtime;
 
 namespace Andl.Peg {
-
-  public interface IParser {
-
-  }
-
   /// <summary>
   /// 
   /// </summary>
@@ -25,16 +22,20 @@ namespace Andl.Peg {
   /// 
   /// </summary>
   partial class PegParser {
-    public TypeSystem Types;
-    public SymbolTable SymbolTable;
-    public AstFactory AST;
-    public int Noisy = 1;
+    public TextWriter Output { get; set; }
+    public TypeSystem Types { get; set; }
+    public SymbolTable Symbols { get; set; }
+    public AstFactory AST { get; set; }
+    public Catalog Cat { get; set; }
+    //public int Noisy = 1;
     public int ErrorCount = 0;
+    public bool Done = false;
 
     List<int> _linestarts = new List<int>();
 
     public AstBlock Restart(ref Cursor state) {
       var cursor = state.WithMutability(mutable: false);
+      this.storage = new Dictionary<CacheKey, object>();
       Skip(ref cursor);
       var result = Main(ref cursor); // FIX: check for null?
       return result.Value;
@@ -46,17 +47,22 @@ namespace Andl.Peg {
     }
     public void PrintLine(Cursor state) {
       _linestarts.Add(state.Location);
-      if (Noisy > 0)
-        Console.WriteLine("{0,4}: {1}", state.Line, GetLine(state.Subject, state.Location));
+      if (Logger.Level > 0)
+        Output.WriteLine("{0,4}: {1}", state.Line, GetLine(state.Subject, state.Location));
     }
 
-    public void ParseError(Cursor state, string message = "unknown") {
+    public void ParseError(Cursor state, string message = "unknown", params object[] args) {
       var offset = state.Location - _linestarts.Last();
-      if (offset > 0) Console.WriteLine("      {0}^", new string(' ', offset));
-      Console.WriteLine("Error: {0}!", message);
+      if (offset > 0) Output.WriteLine("      {0}^", new string(' ', offset));
+      Output.WriteLine("Error: {0}!", String.Format(message, args));
       ErrorCount++;
       throw new ParseException(state, message);
     }
+
+    ///============================================================================================
+    ///
+    /// Handle directives
+    ///
 
     string CatalogDirective(IList<string> options) {
       //{ (CatalogOptions)Enum.Parse(typeof(CatalogOptions), v) }
@@ -66,28 +72,102 @@ namespace Andl.Peg {
       return "";
     }
     string NoisyDirective(string level) {
-      Noisy = int.Parse(level);
+      Logger.Level = int.Parse(level);
       return "";
     }
     string StopDirective(string level) {
-      if (level != "") Noisy = int.Parse(level);
-      return "";
+      if (level != "") Logger.Level = int.Parse(level);
+      Done = true;
+      throw new ParseException(null, null);
     }
 
-    // utility
+    ///============================================================================================
+    ///
+    /// scopes
+    /// 
+
+    bool DefScope(string ident, AstType rettype, IList<AstField> arguments) {
+      var args = arguments.Select(a => DataColumn.Create(a.Name, a.DataType)).ToArray();
+      var rtype = (rettype == null) ? DataTypes.Unknown : rettype.DataType;
+      Symbols.AddDeferred(ident, rtype, args);
+      Scope.Push();
+      foreach (var a in arguments)
+        Symbols.AddVariable(a.Name, a.DataType, SymKinds.PARAM);
+      return true;
+    }
+
+    bool PopScope() {
+      Scope.Pop();
+      return true;
+    }
+
+    ///============================================================================================
+    ///
+    /// utility and semantic functions
+    /// 
+
+    public bool PushRelScope(AstValue rel) {
+      Scope.Push(rel.DataType);
+      return true;
+    }
+
+    public bool PopRelScope() {
+      Scope.Pop();
+      return true;
+    }
+
+    public bool Check(bool condition, Cursor state, string message) {
+      if (!condition) ParseError(state, message);
+      return true;
+    }
+
+    public bool IsRel(AstValue rel) {
+      return rel.DataType is DataTypeRelation;
+    }
+
     T Single<T>(IList<T> list) where T : class {
       return list.Count > 0 ? list[0] : null;
     }
 
-    bool IsTypeName(string name) {
+    bool IsTypename(string name) {
       return Types.Find(name) != null;
     }
 
-    string[] source_names = new string[] {
-      "csv", "txt", "sql", "con", "file", "oledb", "odbc"
-      };
     bool IsSourceName(string name) {
-      return source_names.Contains(name);
+      return Symbols.IsSource(name);
+    }
+
+    bool IsDefinable(string name) {
+      return Symbols.IsDefinable(name);
+    }
+
+    bool IsField(string name) {
+      var sym = Symbols.FindIdent(name);
+      return sym != null && sym.IsField;
+    }
+    bool IsCatVar(string name) {
+      var sym = Symbols.FindIdent(name);
+      return sym != null && sym.IsCatVar;
+    }
+    bool IsVariable(string name) {
+      var sym = Symbols.FindIdent(name);
+      return sym != null && sym.IsVariable;
+    }
+    bool IsFuncop(string name) {
+      var sym = Symbols.FindIdent(name);
+      return sym != null && sym.IsCallable;
+    }
+    bool IsBinop(string name) {
+      var sym = Symbols.FindIdent(name);
+      return sym != null && sym.IsBinary;
+    }
+    bool IsUnop(string name) {
+      var sym = Symbols.FindIdent(name);
+      return sym != null && sym.IsUnary;
+    }
+    bool IsFoldableop(string name) {
+      var sym = Symbols.FindIdent(name);
+      return sym != null && sym.IsFoldable;
     }
 
   }
