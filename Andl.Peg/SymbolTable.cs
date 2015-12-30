@@ -193,6 +193,7 @@ namespace Andl.Peg {
     public bool IsDyadic { get { return IsCallable && MergeOp != MergeOps.Nul; } }
     public bool IsUnary { get { return IsOperator && NumArgs == 1; } }
     public bool IsBinary { get { return IsOperator && NumArgs == 2; } }
+    public bool IsCompareOp { get { return IsBinary && DataType == DataTypes.Bool && !IsFoldable; } }
 
     public DataType ReturnType { get { return CallInfo.ReturnType; } }
 
@@ -266,7 +267,8 @@ namespace Andl.Peg {
 
     // Find existing symbol by name
     public Symbol FindIdent(string name) {
-      return Scope.Current.FindAny(name);
+      var sym = Scope.Current.FindAny(name);
+      return (sym != null && sym.Kind == SymKinds.ALIAS) ? sym.Link : sym;
     }
 
     public bool IsDefinable(string name) {

@@ -256,6 +256,7 @@ namespace Andl.Runtime {
   /// Tuple subtype includes a Heading
   /// </summary>
   public class DataTypeTuple : DataType {
+    public static DataTypeTuple Empty { get { return Get(DataHeading.Empty); } }
     public override DataHeading Heading { get; protected set; }
     public int Ordinal { get; private set; }
     // A nice name that can be used for code generated from this type

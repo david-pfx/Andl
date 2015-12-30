@@ -9,12 +9,8 @@
 ///
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using Andl.Runtime;
 
 namespace Andl.Compiler {
@@ -24,7 +20,7 @@ namespace Andl.Compiler {
   /// Recursive descent parser.
   /// Each ParseXxx function tries to match a specific construct. It returns true if it matches, false if not.
   /// 
-  public class Parser : IDisposable {
+  public class Parser : IDisposable, IParser {
     // get whether error happened on this statement
     public bool Error { get; private set; }
     // get or set debug level

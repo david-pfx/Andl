@@ -85,17 +85,21 @@ namespace Andl.Peg {
       return _current;
     }
 
-    // Create a new tuple scope level
+    // Create a new scope level, possible empty
     public static Scope Push(DataType datatype) {
-      Logger.Assert(datatype is DataTypeRelation);
+      //Logger.Assert(datatype.HasHeading);
+      //Logger.Assert(datatype is DataTypeRelation);
       var scope = Push();
       Logger.WriteLine(4, "Add type {0}", datatype);
       scope._heading = datatype.Heading;
-      foreach (var c in scope._heading.Columns) {
-        scope.Add(new Symbol {
-          Kind = SymKinds.FIELD,
-          DataType = c.DataType,
-        }, c.Name);
+      if (datatype.HasHeading) {
+        foreach (var c in scope._heading.Columns) {
+          scope.Add(new Symbol {
+            Kind = (datatype is DataTypeRelation) ? SymKinds.FIELD : SymKinds.COMPONENT,
+            //Kind = SymKinds.FIELD,
+            DataType = c.DataType,
+          }, c.Name);
+        }
       }
       return scope;
     }

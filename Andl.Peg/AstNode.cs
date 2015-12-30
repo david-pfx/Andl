@@ -18,7 +18,9 @@ namespace Andl.Peg {
     public DataType DataType { get; set; }
   }
   // A statement also can be a define or a value/expression
-  public class AstStatement : AstNode { }
+  public class AstStatement : AstNode {
+    public DataType DataType { get; set; }
+  }
 
   /// <summary>
   /// Base class for AST definitions
@@ -43,14 +45,14 @@ namespace Andl.Peg {
     public DataType DataType { get; set; }
   }
   public class AstProject : AstField { }
-  public class AstRename : AstProject {
+  public class AstRename : AstField {
     public string OldName { get; set; }
   }
-  public class AstExtend : AstProject {
+  public class AstExtend : AstField {
     public AstValue Value { get; set; }
   }
   public class AstLift : AstExtend { }
-  public class AstOrder : AstProject {
+  public class AstOrder : AstField {
     public bool Desc { get; set; }
     public bool Group { get; set; }
   }
@@ -58,62 +60,88 @@ namespace Andl.Peg {
   /// <summary>
   /// Base class for AST values
   /// </summary>
-  public class AstValue : AstStatement {
-    public DataType DataType { get; set; }
-  }
+  public class AstValue : AstStatement { }
   public class AstOperator : AstValue {
     public Symbol Symbol { get; set; }
+    public override string ToString() {
+      return string.Format("{0}:{1}", Symbol.Name, DataType);
+    }
   }
   public class AstVariable : AstValue {
     public Symbol Variable { get; set; }
+    public override string ToString() {
+      return string.Format("{0}:{1}", Variable.Name, DataType);
+    }
   }
   public class AstLiteral<T> : AstValue {
     public T Value { get; set; }
+    public override string ToString() {
+      return Value.ToString();
+    }
   }
 
   public class AstBlock : AstValue {
     public AstStatement[] Statements { get; set; }
   }
-  public class AstExpression : AstValue {
+  public class AstWrap : AstValue {
     public AstValue Value { get; set; }
-    public AstOpCall[] OpCalls { get; set; }
+    public override string ToString() {
+      return string.Format("{0} => {1}", Value, DataType);
+    }
   }
   public class AstFunCall : AstValue {
     public Symbol Operator { get; set; }
     public AstValue[] Arguments { get; set; }
+    public override string ToString() {
+      return string.Format("{0}({1}) => {2}", Operator.Name, String.Join(", ", Arguments.Select(a => a.ToString())), DataType);
+    }
   }
-  public class AstOpCall : AstValue {
-    public Symbol Operator { get; set; }
-    public AstValue[] Arguments { get; set; }
-  }
+  public class AstOpCall : AstFunCall { }
+  public class AstTranCall : AstOpCall { }
+
   public class AstDefCall : AstValue {
     public Symbol Operator { get; set; }
-    public AstField[] Arguments { get; set; }
+    public AstField[] Fields { get; set; }
+    public override string ToString() {
+      return string.Format("{0} => {1}", Operator.Name, String.Join(", ", Fields.Select(f => f.ToString())));
+    }
   }
   public class AstOrderer : AstValue {
     public AstOrder[] Elements { get; set; }
-  }
-  public class AstProjector : AstValue {
-    public bool Allbut { get; set; }
-    public AstProject[] Elements { get; set; }
+    public override string ToString() {
+      return string.Format("{0}", String.Join(",", Elements.Select(e => e.ToString())));
+    }
   }
 
-  ///==============================================================================================
-  /// <summary>
-  /// Implement factory for AST nodes
-  /// </summary>
-  public class AstFactory {
+  public class AstTransformer : AstValue {
+    public bool Lift { get; set; }
+    //public bool Allbut { get; set; }
+    public AstField[] Elements { get; set; }
+    public override string ToString() {
+      return string.Format("{0}:{1}", Lift, String.Join(", ", Elements.Select(e => e.ToString())));
+      //return string.Format("{0}:{1}", Allbut, String.Join(", ", Elements.Select(e => e.ToString())));
+    }
+  }
+
+  public class AstAccumulator : AstValue {
+    public int Index { get; set; }
+  }
+
+    ///==============================================================================================
+    /// <summary>
+    /// Implement factory for AST nodes
+    /// </summary>
+    public class AstFactory {
     public TypeSystem Types { get; set; }
     public SymbolTable Syms { get; set; }
     public Catalog Cat { get; set; }
+    public PegParser Parser { get; set; }
 
     // just a set of statements
     public AstBlock Block(IList<AstStatement> statements) {
-      return new AstBlock { Statements = statements.ToArray() };
-    }
-
-    public AstValue DoBody(IList<AstStatement> statements) {
-      return new AstValue();
+      return new AstBlock {
+        Statements = statements.ToArray(),
+        DataType = (statements == null || statements.Count == 0) ? DataTypes.Void : statements.Last().DataType };
     }
 
     public AstDefine UserType(string ident, AstField[] fields) {
@@ -122,7 +150,8 @@ namespace Andl.Peg {
       Syms.AddUserType(ident, ut);
       return new AstUserType {
         Name = ident,
-        Fields = fields
+        Fields = fields,
+        DataType = DataTypes.Void,
       };
     }
     public AstDefine SubType(string ident, AstType super) {
@@ -131,7 +160,8 @@ namespace Andl.Peg {
       Syms.AddUserType(ident, ut);
       return new AstSubType {
         Name = ident,
-        Type = super.DataType
+        Type = super.DataType,
+        DataType = DataTypes.Void,
       };
     }
     public AstDefine Source(string ident, AstLiteral<string> value) {
@@ -140,6 +170,7 @@ namespace Andl.Peg {
       return new AstSource {
         Name = ident,
         Value = value,
+        DataType = DataTypes.Void,
       };
     }
     public AstDefine Deferred(string ident, AstType rettype, IList<AstField> arguments, AstStatement body) {
@@ -148,37 +179,39 @@ namespace Andl.Peg {
         Type = (rettype == null) ? null : rettype.DataType, // FIX
         Fields = (arguments == null) ? null : arguments.ToArray(),
         Value = body,
+        DataType = DataTypes.Void,
       };
     }
 
     public AstStatement Assignment(string ident, AstValue value) {
       Syms.AddVariable(ident, value.DataType, SymKinds.CATVAR);
-      return new AstAssign { Name = ident, Value = value };
+      return new AstAssign {
+        Name = ident,
+        Value = Wrap(value, "code"),
+        DataType = DataTypes.Void,
+      };
     }
     public AstStatement UpdateJoin(string ident, string op, AstValue expr) {
       return FunCall(":upjoin", OpCall(op, expr)); // FIX:
       //return FunCall(":upjoin", FindCatVar(ident), OpCall(op, expr)); // FIX:
     }
-    public AstStatement UpdateTransform(string ident, AstValue[] args) {
-      var argx = new List<AstValue>(args);
-      //argx.Insert(0, FindCatVar(ident));
-      return FunCall(":uptrans", argx.ToArray());
-      //return FunCall(":uptrans", Variable(ident), transform); // FIX:
-    }
-    public AstValue Transform(AstValue rel, AstValue[] args) {
-      var argx = new List<AstValue>(args);
-      argx.Insert(0, rel);
-      return FunCall("transform", argx.ToArray());
-    }
-    public AstValue[] TransformTail(AstValue where, IList<AstOrder> order, bool allbut, IList<AstProject> attrib) {
-      var args = new AstValue[] {
-          (where == null) ? null : where,
-          (order == null) ? null : Orderer(order.ToArray()),
-          (attrib == null) ? null : Projector(attrib.ToArray(), allbut),
-        };
-      return args;
+    public AstStatement UpdateTransform(string ident, AstTranCall arg) {
+      return FunCall(":uptrans", arg.Arguments);  // BUG:
     }
 
+    // Wrap transform tail for later handling
+    public AstTranCall TransformTail(AstValue where, AstOrderer order, AstTransformer trans) {
+      if (trans != null) {
+        //if (trans.Allbut) trans = Allbut(Scope.Current.Heading, trans);
+        Scope.Pop();
+        //Scope.Push(Typeof(trans.Elements));
+        Scope.Push(trans.DataType);
+      }
+      return new AstTranCall {
+        DataType = DataTypeRelation.Get(Scope.Current.Heading),
+        Arguments = new AstValue[] { where, order, trans }
+      };
+    }
 
     public AstField Field(string ident, AstType type) {
       return new AstField() {
@@ -186,8 +219,8 @@ namespace Andl.Peg {
         DataType = (type == null) ? Types.Find("text") : type.DataType
       };
     }
-    public AstProject Project(string name, string rename = null, AstValue value = null) {
-      if (name == null) return new AstLift { Value = value };
+    public AstField Transform(string name, string rename = null, AstValue value = null) {
+      if (name == null) return new AstLift { Value = value, DataType = value.DataType };
       if (rename != null) return new AstRename { Name = name, OldName = rename, DataType = FindField(rename).DataType };
       if (value != null) return new AstExtend { Name = name, Value = value, DataType = value.DataType };
       return new AstProject { Name = name, DataType = FindField(name).DataType };
@@ -196,26 +229,31 @@ namespace Andl.Peg {
       return new AstOrder { Name = name, Desc = desc, Group = group };
     }
 
-    public AstValue Row(IList<AstProject> fields) {
-      return FunCall(":rowf", Typeof(fields), Projector(fields.ToArray()));
+    public AstValue Row(AstTransformer transformer) {
+      //if (transformer.Allbut) transformer = Allbut(Scope.Current.Heading, transformer);
+      //return FunCall(FindOperator(SymNames.Row), Typeof(transformer.Elements), transformer);
+      return FunCall(FindOperator(SymNames.Row), transformer.DataType, transformer);
     }
-    public AstValue Row(IList<AstValue> values) {
-      return FunCall(":rowv", Types.Find("tuple"), values.ToArray());  // FIX: requires inherited heading
-    }
-    public AstValue RowStar() {
-      return FunCall(":rowstar", Types.Find("tuple"));  // FIX: requires inherited heading
+    public AstValue RowValues(IList<AstValue> values) {
+      return FunCall(FindOperator(SymNames.Row), DataTypeTuple.Empty, values.ToArray()); //FIX:
     }
 
-    public AstValue Table(IList<AstField> header, IList<AstValue> rows) {
-      var type = (header != null) ? Typeof(header)
-        : rows != null ? Types.Relof(rows[0].DataType)
-        : DataTypeRelation.Empty;
-      if (header != null)
-        foreach (var r in rows) r.DataType = Types.Tupof(type);
-      return FunCall(":table", type, rows == null ? null : rows.ToArray());
+    public AstValue Table(AstValue heading, IList<AstValue> rows) {
+      var rowtype = (heading != null) ? heading.DataType 
+        : rows.Count > 0 ? rows[0].DataType
+        : DataTypeTuple.Empty;
+      if (heading != null)
+        foreach (var r in rows) r.DataType = rowtype;
+      return FunCall(FindOperator(SymNames.Table), Types.Relof(rowtype), rows == null ? null : rows.ToArray());
     }
+
+    public AstValue Heading(IList<AstField> fields) {
+      var type = (fields == null) ? DataTypeRelation.Empty : Typeof(fields);
+      return new AstValue { DataType = type };
+    }
+
     public AstValue Table(bool star) {
-      var ret = FunCall(":tablestar", DataTypeRelation.Empty); // FIX: requires inherited heading
+      var ret = FunCall(FindOperator(SymNames.Table), DataTypeRelation.Empty, Transformer(true, null)); //FIX:
       return ret;
     }
 
@@ -223,45 +261,135 @@ namespace Andl.Peg {
     /// Headings etc
     /// 
 
-    public AstValue Orderer(AstOrder[] args) {
-      return new AstOrderer { Elements = args, DataType = Typeof(args) };
+    public AstOrderer Orderer(IList<AstOrder> argslist) {
+      var args = argslist.ToArray();
+      return new AstOrderer { Elements = args, DataType = DataTypes.Find("code[]") };
+      //return new AstOrderer { Elements = args, DataType = Typeof(args) };
     }
-    public AstValue Projector(AstProject[] args, bool allbut = false) {
-      return new AstProjector { Elements = args, Allbut = allbut, DataType = Typeof(args) };
+
+    public AstTransformer Transformer(bool allbut, IList<AstField> argslist = null) {
+      var args = (argslist == null) ? new AstField[0] : argslist.ToArray();
+      var lift = args.Any(a => a is AstLift);
+      if (lift) {
+        if (allbut || argslist.Count != 1) Parser.ParseError("invalid lift");
+        return new AstTransformer { Elements = args, Lift = true, DataType = argslist[0].DataType };
+      }
+      if (allbut) args = Allbut(Scope.Current.Heading, args);
+      return new AstTransformer { Elements = args, DataType = Typeof(args) };
+      //return new AstTransformer { Elements = args, Allbut = allbut, DataType = Typeof(args) };
     }
 
     ///--------------------------------------------------------------------------------------------
     /// Calls with arguments
     /// 
     public AstValue Expression(AstValue value, IList<AstOpCall> ops) {
-      if (ops.Count == 0) return value;
-      var opa = ops.ToArray(); // needs to be sorted by precedence
-      var dt = opa.Last().DataType;
-      return new AstExpression {
-        Value = value,
-        OpCalls = opa, 
-        DataType = dt
-      };
+      var ret = Expression(value, ops.ToArray());
+      if (Logger.Level >= 4) Logger.WriteLine("Expression {0}", ret);
+      return ret;
+    }
+    public AstValue Expression(AstValue value, AstOpCall[] ops) {
+      if (ops.Length == 0) return value;
+      if (ops.Length == 1) return FunCall(ops[0].Operator, value, ops[0].Arguments[0]);
+      if (ops[0].Operator.Precedence >= ops[1].Operator.Precedence)
+        return Expression(FunCall(ops[0].Operator, value, ops[0].Arguments[0]), ops.Skip(1).ToArray());
+      return FunCall(ops[0].Operator, value, Expression(ops[0].Arguments[0], ops.Skip(1).ToArray()));
+    }
+    //public AstValue Code(AstValue value) {
+    //  return new AstWrap { Value = value, DataType = DataTypes.Code };
+    //}
+
+    public AstValue Wrap(AstValue value, string datatype) {
+      return new AstWrap { Value = value, DataType = DataTypes.Find(datatype) };
     }
 
-    public AstValue FunCall(string name, DataType type, params AstValue[] args) {
-      var op = FindOperator(name);
+    // construct a FunCall from the first OpCall, then invoke tail on result
+    public AstValue PostFix(AstValue value, IList<AstOpCall> ops) {
+      if (ops.Count == 0) return value;
+      var newvalue = value;
+      if (ops[0] is AstTranCall) {
+        if (ops[0].Arguments[0] != null)
+          newvalue = FunCall(FindOperator(SymNames.Restrict), value, Wrap(ops[0].Arguments[0], "code[]"));
+        if (ops[0].Arguments[1] != null) {
+          var args = ops[0].Arguments[1] as AstOrderer;
+          Logger.Assert(args != null);
+          newvalue = FunCall(FindOperator(SymNames.TransOrd), ops[0].DataType, value, args);
+          //newvalue = FunCall(FindOperator(SymNames.TransOrd), value, Wrap(args, "code[]"));
+        }
+        if (ops[0].Arguments[2] != null) {
+          var args = ops[0].Arguments[2] as AstTransformer;
+          //Logger.Assert(args != null && !args.Allbut);
+          newvalue = FunCall(FindOperator(SymNames.Transform), ops[0].DataType, value, args);
+          //newvalue = FunCall(FindOperator(SymNames.Transform), value, Wrap(args, "code[]"));
+        }
+      } else
+        newvalue = FunCall(ops[0].Operator, new AstValue[] { value }.Concat(ops[0].Arguments).ToArray()); // cons
+      return PostFix(newvalue, ops.Skip(1).ToList()); // tail
+    }
+
+    public AstOpCall Recurse(AstValue arg) {
+      return OpCall("recurse", arg);
+    }
+
+    public AstOpCall Dot(string arg) {
+      // FIX: scope
+      return OpCall(arg);
+    }
+
+    public AstFunCall If(AstValue condition, AstValue iftrue, AstValue iffalse) {
+      Types.CheckTypeMatch(iftrue.DataType, iffalse.DataType);
+      return FunCall(FindOperator("if"), iftrue.DataType, condition, Wrap(iftrue, "code"), Wrap(iffalse, "code"));
+    }
+
+    public AstFunCall Fold(string oper, AstValue expression) {
+      var op = FindOperator(oper);
+      var acc = new AstAccumulator { DataType = expression.DataType, Index = -1 };
+      var folded = FunCall(op, acc, expression); // FIX: first s/b seed
+      return FunCall(FindOperator("cfold"), expression.DataType, acc, Wrap(folded, "code"));
+      //return FunCall(FindOperator("fold"), Wrap(folded, "code"));
+    }
+
+    AstField[] Allbut(DataHeading heading, AstField[] fields) {
+      var proj = fields.Where(e => e is AstProject)
+        .Select(e => e.Name);
+      var newproj = heading.Columns.Where(c => !(proj.Contains(c.Name)))
+        .Select(c => new AstProject { Name = c.Name, DataType = c.DataType });
+      var neweles = fields.Where(e => !(e is AstProject))
+        .Union(newproj);
+      return neweles.ToArray();
+    }
+
+    //AstTransformer Allbut(DataHeading heading, AstTransformer fields) {
+    //  var proj = fields.Elements.Where(e => e is AstProject)
+    //    .Select(e => e.Name);
+    //  var newproj = heading.Columns.Where(c => !(proj.Contains(c.Name)))
+    //    .Select(c => new AstProject { Name = c.Name, DataType = c.DataType });
+    //  var neweles = fields.Elements.Where(e => !(e is AstProject))
+    //    .Union(newproj);
+    //  return Transformer(false, neweles.ToArray());
+    //}
+
+    public AstFunCall FunCall(string name, params AstValue[] args) {
+      return FunCall(FindOperator(name), args);
+    }
+    public AstFunCall FunCall(Symbol op, params AstValue[] args) {
+      DataType datatype;
+      CallInfo callinfo;
+      Types.CheckTypeError(op, out datatype, out callinfo, args.Select(a => a.DataType).ToArray());
+      return FunCall(op, datatype, args);
+    }
+    public AstFunCall FunCall(Symbol op, DataType type, params AstValue[] args) {
       return new AstFunCall { Operator = op, Arguments = args, DataType = type };
     }
-    public AstValue FunCall(string name, params AstValue[] args) {
-      var op = FindOperator(name);
-      var type = (args.Length > 0) ? args[0].DataType : op.DataType;
-      return new AstFunCall { Operator = op, Arguments = args, DataType = type };
-    }
+
     public AstOpCall OpCall(string name, params AstValue[] args) {
       var op = FindOperator(name);
-      var type = (args.Length > 0) ? args[0].DataType : op.DataType;
+      var type = op.DataType;
       return new AstOpCall() { Operator = op, Arguments = args, DataType = type };
     }
-    public AstDefCall DefCall(string name, params AstField[] args) {
+    public AstDefCall DefCall(string name, params AstField[] fields) {
       var op = FindOperator(name);
-      var type = (args.Length > 0) ? args[0].DataType : op.DataType;
-      return new AstDefCall { Operator = op, Arguments = args, DataType = type };
+      var type = op.DataType;
+      return new AstDefCall { Operator = op, Fields = fields, DataType = type };
     }
     public AstValue[] ValueList(params AstValue[] args) {
       return args;
@@ -319,11 +447,6 @@ namespace Andl.Peg {
       return new AstType { DataType = value.DataType };
     }
 
-    //public bool IsCatVar(string name) { return FindCatVar(name) != null; }
-    //public bool IsField(string name) { return FindField(name) != null; }
-    //public bool IsVariable(string name) { return FindVariable(name) != null; }
-    //public bool IOperator(string name) { return FindOperator(name) != null; }
-
     public Symbol FindCatVar(string name) {
       var ret = Syms.FindIdent(name);
       return ret != null && ret.IsCatVar ? ret : null;
@@ -340,9 +463,6 @@ namespace Andl.Peg {
       var ret = Syms.FindIdent(name);
       return ret != null && ret.IsCallable ? ret : null;
     }
-    //public AstType Typeof(DataType type) {
-    //  return new AstType { DataType = type };
-    //}
     // get a heading type
     public DataType Typeof(IEnumerable<AstField> fields) {
       var typelist = fields.Select(f => new Field { Name = f.Name, Type = f.DataType });

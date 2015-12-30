@@ -28,6 +28,7 @@ namespace Andl.Main {
     static bool _tsw = false; // Thrift IDL
     static bool _usw = false; // update catalog
     static bool _ssw = false; // sql
+    static bool _psw = false; // PEG
     static string _defaultinput = @"test.andl";
 
     static Catalog _catalog;
@@ -92,6 +93,8 @@ namespace Andl.Main {
         _ssw = true;
       else if (arg == "t")
         _tsw = true;
+      else if (arg == "p")
+        _psw = true;
       else if (Regex.IsMatch(arg, "[0-9]+"))
         Logger.Level = int.Parse(arg);
       else {
@@ -135,11 +138,9 @@ namespace Andl.Main {
 
     static bool Compile(string path) {
       Logger.WriteLine("*** Compiling: {0} ***", path);
-#if true // PEG
-      var parser = PegCompiler.Create(_catalog);
-#else
-      var parser = Parser.Create(_catalog);
-#endif
+      IParser parser = (_psw) ? 
+        PegCompiler.Create(_catalog) : 
+        Parser.Create(_catalog);
       using (StreamReader input = File.OpenText(path)) {
         var ret = parser.Process(input, Console.Out, _evaluator, path);
         Logger.WriteLine("*** Compiled {0} {1} ***", path, ret ? "OK"

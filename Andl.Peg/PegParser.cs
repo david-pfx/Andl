@@ -25,19 +25,26 @@ namespace Andl.Peg {
     public TextWriter Output { get; set; }
     public TypeSystem Types { get; set; }
     public SymbolTable Symbols { get; set; }
-    public AstFactory AST { get; set; }
+    public AstFactory Factory { get; set; }
     public Catalog Cat { get; set; }
     //public int Noisy = 1;
     public int ErrorCount = 0;
     public bool Done = false;
 
+    public AstFactory AST(Cursor state) {
+      _aststate = state;
+      return Factory;
+    }
+
+    Cursor _aststate;
     List<int> _linestarts = new List<int>();
 
     public AstBlock Restart(ref Cursor state) {
       var cursor = state.WithMutability(mutable: false);
-      this.storage = new Dictionary<CacheKey, object>();
+      // next line on needed if memoize active
+      //this.storage = new Dictionary<CacheKey, object>();
       Skip(ref cursor);
-      var result = Main(ref cursor); // FIX: check for null?
+      var result = MainRestart(ref cursor); // FIX: check for null?
       return result.Value;
     }
 
@@ -59,12 +66,16 @@ namespace Andl.Peg {
       throw new ParseException(state, message);
     }
 
-    ///============================================================================================
-    ///
-    /// Handle directives
-    ///
+    public void ParseError(string message = "unknown", params object[] args) {
+      ParseError(_aststate, message, args);
+    }
 
-    string CatalogDirective(IList<string> options) {
+      ///============================================================================================
+      ///
+      /// Handle directives
+      ///
+
+      string CatalogDirective(IList<string> options) {
       //{ (CatalogOptions)Enum.Parse(typeof(CatalogOptions), v) }
       return "";
     }
@@ -87,12 +98,18 @@ namespace Andl.Peg {
     /// 
 
     bool DefScope(string ident, AstType rettype, IList<AstField> arguments) {
-      var args = arguments.Select(a => DataColumn.Create(a.Name, a.DataType)).ToArray();
+      var args = (arguments == null) ? new DataColumn[0] : arguments.Select(a => DataColumn.Create(a.Name, a.DataType)).ToArray();
       var rtype = (rettype == null) ? DataTypes.Unknown : rettype.DataType;
       Symbols.AddDeferred(ident, rtype, args);
       Scope.Push();
-      foreach (var a in arguments)
+      foreach (var a in args)
         Symbols.AddVariable(a.Name, a.DataType, SymKinds.PARAM);
+      return true;
+    }
+
+    public bool PushScope(AstValue value) {
+      Scope.Push(value.DataType);
+      //if (value.DataType.HasHeading) Scope.Push(value.DataType);
       return true;
     }
 
@@ -106,15 +123,11 @@ namespace Andl.Peg {
     /// utility and semantic functions
     /// 
 
-    public bool PushRelScope(AstValue rel) {
-      Scope.Push(rel.DataType);
-      return true;
-    }
-
-    public bool PopRelScope() {
-      Scope.Pop();
-      return true;
-    }
+    //public bool PopScope(AstValue value) {
+    //  Scope.Pop();
+    //  //if (value.DataType.HasHeading) Scope.Pop();
+    //  return true;
+    //}
 
     public bool Check(bool condition, Cursor state, string message) {
       if (!condition) ParseError(state, message);
@@ -168,6 +181,11 @@ namespace Andl.Peg {
     bool IsFoldableop(string name) {
       var sym = Symbols.FindIdent(name);
       return sym != null && sym.IsFoldable;
+    }
+
+    public string NumToStr(IList<string> strs, int radix) {
+      var nums = strs.Select(s => Int32.Parse(s, radix == 16 ? System.Globalization.NumberStyles.AllowHexSpecifier : System.Globalization.NumberStyles.None));
+      return string.Concat(nums.Select(n => Char.ConvertFromUtf32(n)));
     }
 
   }
