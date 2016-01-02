@@ -60,7 +60,7 @@ namespace Andl.Peg {
   /// <summary>
   /// Base class for AST values
   /// </summary>
-  public class AstValue : AstStatement { }
+  public class AstValue : AstStatement { } // FIX: probably wrong
   public class AstOperator : AstValue {
     public Symbol Symbol { get; set; }
     public override string ToString() {
@@ -115,11 +115,9 @@ namespace Andl.Peg {
 
   public class AstTransformer : AstValue {
     public bool Lift { get; set; }
-    //public bool Allbut { get; set; }
     public AstField[] Elements { get; set; }
     public override string ToString() {
       return string.Format("{0}:{1}", Lift, String.Join(", ", Elements.Select(e => e.ToString())));
-      //return string.Format("{0}:{1}", Allbut, String.Join(", ", Elements.Select(e => e.ToString())));
     }
   }
 
@@ -187,24 +185,25 @@ namespace Andl.Peg {
       Syms.AddVariable(ident, value.DataType, SymKinds.CATVAR);
       return new AstAssign {
         Name = ident,
-        Value = Wrap(value, "code"),
+        Value = Code(value),
         DataType = DataTypes.Void,
       };
     }
-    public AstStatement UpdateJoin(string ident, string op, AstValue expr) {
-      return FunCall(":upjoin", OpCall(op, expr)); // FIX:
-      //return FunCall(":upjoin", FindCatVar(ident), OpCall(op, expr)); // FIX:
+    public AstStatement UpdateJoin(string ident, string joinop, AstValue expr) {
+      var joinsym = FindOperator(joinop);
+      var joinnum = Literal("number", (int)joinsym.JoinOp);
+      return FunCall(FindOperator(":upjoin"), DataTypes.Void, Variable(ident), expr, joinnum);
     }
+
     public AstStatement UpdateTransform(string ident, AstTranCall arg) {
-      return FunCall(":uptrans", arg.Arguments);  // BUG:
+      // FIX: should not need code[]
+      return FunCall(FindOperator(":uptrans"), DataTypes.Void, Code(arg.Arguments[0]), Code(arg.Arguments[2], "code[]"));
     }
 
     // Wrap transform tail for later handling
     public AstTranCall TransformTail(AstValue where, AstOrderer order, AstTransformer trans) {
       if (trans != null) {
-        //if (trans.Allbut) trans = Allbut(Scope.Current.Heading, trans);
         Scope.Pop();
-        //Scope.Push(Typeof(trans.Elements));
         Scope.Push(trans.DataType);
       }
       return new AstTranCall {
@@ -231,7 +230,6 @@ namespace Andl.Peg {
 
     public AstValue Row(AstTransformer transformer) {
       //if (transformer.Allbut) transformer = Allbut(Scope.Current.Heading, transformer);
-      //return FunCall(FindOperator(SymNames.Row), Typeof(transformer.Elements), transformer);
       return FunCall(FindOperator(SymNames.Row), transformer.DataType, transformer);
     }
     public AstValue RowValues(IList<AstValue> values) {
@@ -294,13 +292,13 @@ namespace Andl.Peg {
         return Expression(FunCall(ops[0].Operator, value, ops[0].Arguments[0]), ops.Skip(1).ToArray());
       return FunCall(ops[0].Operator, value, Expression(ops[0].Arguments[0], ops.Skip(1).ToArray()));
     }
-    //public AstValue Code(AstValue value) {
-    //  return new AstWrap { Value = value, DataType = DataTypes.Code };
-    //}
-
-    public AstValue Wrap(AstValue value, string datatype) {
-      return new AstWrap { Value = value, DataType = DataTypes.Find(datatype) };
+    public AstValue Code(AstValue value, string type = "code") {
+      return new AstWrap { Value = value, DataType = DataTypes.Find(type) };
     }
+
+    //public AstValue Wrap(AstValue value, string datatype) {
+    //  return new AstWrap { Value = value, DataType = DataTypes.Find(datatype) };
+    //}
 
     // construct a FunCall from the first OpCall, then invoke tail on result
     public AstValue PostFix(AstValue value, IList<AstOpCall> ops) {
@@ -308,76 +306,69 @@ namespace Andl.Peg {
       var newvalue = value;
       if (ops[0] is AstTranCall) {
         if (ops[0].Arguments[0] != null)
-          newvalue = FunCall(FindOperator(SymNames.Restrict), value, Wrap(ops[0].Arguments[0], "code[]"));
+          newvalue = FunCall(FindOperator(SymNames.Restrict), value, Code(ops[0].Arguments[0], "code[]"));
         if (ops[0].Arguments[1] != null) {
           var args = ops[0].Arguments[1] as AstOrderer;
           Logger.Assert(args != null);
-          newvalue = FunCall(FindOperator(SymNames.TransOrd), ops[0].DataType, value, args);
-          //newvalue = FunCall(FindOperator(SymNames.TransOrd), value, Wrap(args, "code[]"));
+          newvalue = FunCall(FindOperator(SymNames.TransOrd), ops[0].DataType, value, Code(args));
         }
         if (ops[0].Arguments[2] != null) {
           var args = ops[0].Arguments[2] as AstTransformer;
           //Logger.Assert(args != null && !args.Allbut);
-          newvalue = FunCall(FindOperator(SymNames.Transform), ops[0].DataType, value, args);
-          //newvalue = FunCall(FindOperator(SymNames.Transform), value, Wrap(args, "code[]"));
+          newvalue = FunCall(FindOperator(SymNames.Transform), ops[0].DataType, value, Code(args));
         }
       } else
         newvalue = FunCall(ops[0].Operator, new AstValue[] { value }.Concat(ops[0].Arguments).ToArray()); // cons
       return PostFix(newvalue, ops.Skip(1).ToList()); // tail
     }
 
+    // TODO: 
     public AstOpCall Recurse(AstValue arg) {
       return OpCall("recurse", arg);
     }
 
+    // TODO: scope
     public AstOpCall Dot(string arg) {
-      // FIX: scope
       return OpCall(arg);
     }
 
     public AstFunCall If(AstValue condition, AstValue iftrue, AstValue iffalse) {
       Types.CheckTypeMatch(iftrue.DataType, iffalse.DataType);
-      return FunCall(FindOperator("if"), iftrue.DataType, condition, Wrap(iftrue, "code"), Wrap(iffalse, "code"));
+      return FunCall(FindOperator("if"), iftrue.DataType, condition, Code(iftrue), Code(iffalse));
     }
 
     public AstFunCall Fold(string oper, AstValue expression) {
       var op = FindOperator(oper);
       var acc = new AstAccumulator { DataType = expression.DataType, Index = -1 };
       var folded = FunCall(op, acc, expression); // FIX: first s/b seed
-      return FunCall(FindOperator("cfold"), expression.DataType, acc, Wrap(folded, "code"));
-      //return FunCall(FindOperator("fold"), Wrap(folded, "code"));
+      return FunCall(FindOperator("cfold"), expression.DataType, acc, Code(folded)); //TODO:
     }
 
     AstField[] Allbut(DataHeading heading, AstField[] fields) {
-      var proj = fields.Where(e => e is AstProject)
-        .Select(e => e.Name);
-      var newproj = heading.Columns.Where(c => !(proj.Contains(c.Name)))
+      var newcols = heading.Columns.Select(c => c.Name)
+        .Except(fields.Select(f => f.Name))
+        .Except(fields.Where(f => f is AstRename).Select(f => (f as AstRename).OldName));
+      var newproj = heading.Columns.Where(c => newcols.Contains(c.Name))
         .Select(c => new AstProject { Name = c.Name, DataType = c.DataType });
       var neweles = fields.Where(e => !(e is AstProject))
         .Union(newproj);
       return neweles.ToArray();
     }
 
-    //AstTransformer Allbut(DataHeading heading, AstTransformer fields) {
-    //  var proj = fields.Elements.Where(e => e is AstProject)
-    //    .Select(e => e.Name);
-    //  var newproj = heading.Columns.Where(c => !(proj.Contains(c.Name)))
-    //    .Select(c => new AstProject { Name = c.Name, DataType = c.DataType });
-    //  var neweles = fields.Elements.Where(e => !(e is AstProject))
-    //    .Union(newproj);
-    //  return Transformer(false, neweles.ToArray());
-    //}
-
-    public AstFunCall FunCall(string name, params AstValue[] args) {
-      return FunCall(FindOperator(name), args);
+    public AstFunCall Function(string name, params AstValue[] args) {
+      var op = FindOperator(name);
+//      if (op.FuncKind == FuncKinds.VALUE)
+//        return FunCall(op, Code(args[0]), Code(args[0]), args);
+      return FunCall(op, args);
     }
-    public AstFunCall FunCall(Symbol op, params AstValue[] args) {
+    AstFunCall FunCall(Symbol op, params AstValue[] args) {
       DataType datatype;
       CallInfo callinfo;
       Types.CheckTypeError(op, out datatype, out callinfo, args.Select(a => a.DataType).ToArray());
       return FunCall(op, datatype, args);
     }
-    public AstFunCall FunCall(Symbol op, DataType type, params AstValue[] args) {
+    AstFunCall FunCall(Symbol op, DataType type, params AstValue[] args) {
+      Logger.Assert(type.IsVariable || type == DataTypes.Void, type);
       return new AstFunCall { Operator = op, Arguments = args, DataType = type };
     }
 

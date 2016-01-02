@@ -140,6 +140,7 @@ namespace Andl.Runtime {
 
     // from existing columns, with normalisation by default
     public static DataHeading Create(IEnumerable<DataColumn> columns, bool istuple = true) {
+      Logger.Assert(columns.All(c => c.DataType.IsVariable));
       var dh = new DataHeading() {
         _columns = columns.ToArray(),
         IsTuple = istuple,

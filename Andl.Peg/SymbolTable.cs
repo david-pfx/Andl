@@ -32,6 +32,18 @@ namespace Andl.Peg {
   }
 
   /// <summary>
+  /// Categories of special function
+  /// </summary>
+  public enum FuncKinds {
+    NUL,
+    IF,
+    FOLD,
+    RECURSE,
+    VALUE,
+    RANK,
+  }
+
+  /// <summary>
   /// Define how this function should be called
   /// </summary>
   public enum CallKinds {
@@ -131,6 +143,7 @@ namespace Andl.Peg {
     public FoldSeeds FoldSeed { get; set; }
     public JoinOps JoinOp { get; set; }
     public CallKinds CallKind { get; set; }
+    public FuncKinds FuncKind { get; set; }
     public FoldableFlags Foldable { get; set; }
     public Symbol Link { get; set; }
     public int Level { get; set; }
@@ -438,17 +451,17 @@ namespace Andl.Peg {
 
       AddFunction("max", 2, DataTypes.Ordered, CallKinds.FUNC, "Max", FoldableFlags.ANY, FoldSeeds.MIN);
       AddFunction("min", 2, DataTypes.Ordered, CallKinds.FUNC, "Min", FoldableFlags.ANY, FoldSeeds.MAX);
-      AddFunction("fold", 0, DataTypes.Unknown, CallKinds.FUNC, "Fold");
-      AddFunction("cfold", 2, DataTypes.Unknown, CallKinds.FUNC, "CumFold");
-      AddFunction("if", 3, DataTypes.Unknown, CallKinds.FUNC, "If");
-      AddFunction("recurse", 2, DataTypes.Unknown, CallKinds.FUNC, "Recurse");
+      AddFunction("fold", 0, DataTypes.Unknown, CallKinds.FUNC, "Fold", FuncKinds.FOLD);
+      AddFunction("cfold", 2, DataTypes.Unknown, CallKinds.FUNC, "CumFold", FuncKinds.FOLD);
+      AddFunction("if", 3, DataTypes.Unknown, CallKinds.FUNC, "If", FuncKinds.IF);
+      AddFunction("recurse", 2, DataTypes.Unknown, CallKinds.FUNC, "Recurse", FuncKinds.RECURSE);
 
       AddFunction("ord", 0, DataTypes.Number, CallKinds.LFUNC, "Ordinal");
       AddFunction("ordg", 0, DataTypes.Number, CallKinds.LFUNC, "OrdinalGroup");
-      AddFunction("lead", 0, DataTypes.Unknown, CallKinds.LFUNC, "ValueLead");
-      AddFunction("lag", 0, DataTypes.Unknown, CallKinds.LFUNC, "ValueLag");
-      AddFunction("nth", 0, DataTypes.Unknown, CallKinds.LFUNC, "ValueNth");
-      AddFunction("rank", 0, DataTypes.Unknown, CallKinds.LFUNC, "Rank");
+      AddFunction("lead", 2, DataTypes.Unknown, CallKinds.LFUNC, "ValueLead", FuncKinds.VALUE);
+      AddFunction("lag", 2, DataTypes.Unknown, CallKinds.LFUNC, "ValueLag", FuncKinds.VALUE);
+      AddFunction("nth", 2, DataTypes.Unknown, CallKinds.LFUNC, "ValueNth", FuncKinds.VALUE);
+      AddFunction("rank", 2, DataTypes.Number, CallKinds.LFUNC, "Rank", FuncKinds.RANK);
 
       AddDyadic("join", 2, 4, JoinOps.JOIN, "DyadicJoin");
       AddDyadic("compose", 2, 4, JoinOps.COMPOSE, "DyadicJoin");
@@ -533,6 +546,17 @@ namespace Andl.Peg {
         DataType = type,
         Foldable = foldable,
         FoldSeed = seed,
+        CallInfo = CallInfo.Get(method),
+      });
+    }
+
+    Symbol AddFunction(string name, int numargs, DataType type, CallKinds callkind, string method, FuncKinds funckind) {
+      return Add(name, new Symbol {
+        Kind = SymKinds.FUNC,
+        CallKind = callkind,
+        NumArgs = numargs,
+        DataType = type,
+        FuncKind = funckind,
         CallInfo = CallInfo.Get(method),
       });
     }

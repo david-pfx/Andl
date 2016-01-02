@@ -12,8 +12,8 @@ MainRestart <AstBlock> = WSE* v:MainBodyLine* WSO EOF { AST(state).Block(v) } ;
 MainBodyLine <AstStatement> = !(WSO EOF) v:Statement EOLexp WSE+ { v };
 
 DoBody <AstValue> = LC RC { AST(state).Block(null) }
-    / LCexp WSC v:DoBodyLine+ RCexp { AST(state).Block(v) };
-DoBodyLine <AstStatement> = !RC v:Statement (&RC / EOLexp WSE+) { v };
+    / LCexp WSC v:DoBodyLine+ WSO RCexp { AST(state).Block(v) };
+DoBodyLine <AstStatement> = WSO !RC v:Statement (&RC / EOLexp WSE+) { v };
 
 // directives
 Directive = "#" (CatalogDirective / IncludeDirective / NoisyDirective / StopDirective / PanicDirective / BadDirective);
@@ -57,8 +57,12 @@ DeferredBody <AstStatement> =
     / BadStatement);
 
 // prefer: &{ w.IsJoinOp() } 
-UpdateJoin <AstStatement> = v:CatVar LA &("union" / "minus") w:Funcop x:ExpressionExp { AST(state).UpdateJoin(v,w,x) };
-UpdateTransform <AstStatement> = v:CatVar LA &LB w:TransformTailExp { AST(state).UpdateTransform(v,w) };
+UpdateJoin <AstStatement> = 
+    v:CatVar LA &("union" / "minus") w:Funcop x:ExpressionExp
+    { AST(state).UpdateJoin(v,w,x) };
+UpdateTransform <AstStatement> = 
+    v:CatVar LA &LB &{ PushScope(AST(state).Variable(v)) } w:TransformTailExp &{ PopScope() } 
+    { AST(state).UpdateTransform(v,w) };
 BadStatement <AstStatement> = #STATE{ ParseError(state, "bad statement");} Skip { null };
 
 TransformTailExp = TransformTail
@@ -97,7 +101,7 @@ ExpressionList = v:Expression<0,,SEP>;
 Expression <AstValue> = v:Primary w:BinopTail* { AST(state).Expression(v,w) } 
 BinopTail <AstOpCall> = v:Binop WSC w:Primary { AST(state).OpCall(v,w) } 
 
-Primary <AstValue> = v:Unop w:Primary { AST(state).FunCall(v,w) }
+Primary <AstValue> = v:Unop w:Primary { AST(state).Function(v,w) }
     / v:SimplePrimary &{ PushScope(v) } w:PostFixTail* &{ PopScope() } { AST(state).PostFix(v,w) };
 
 PostFixTail <AstOpCall> = RECURSE LPexp v:OpenExpressionExp RPexp { AST(state).Recurse(v) }
@@ -121,7 +125,7 @@ Fold <AstValue> = FOLD LPexp v:Foldableop SEPexp w:OpenExpression RPexp { AST(st
 
 DoBlock <AstValue> = DO v:DoBody { v }
 
-Function <AstValue> = v:Funcop LP w:ExpressionList RPexp { AST(state).FunCall(v, w.ToArray()) };
+Function <AstValue> = v:Funcop LP w:ExpressionList RPexp { AST(state).Function(v, w.ToArray()) };
 
 Table <AstValue> = (TableBody 
     / LC LC #STATE{ ParseError(state, "invalid table body"); } { null } );
@@ -215,8 +219,7 @@ MINUS = '-' !OpChar WSO;
 
 IDX = !ID WS*;              // end of ident possibly followed by WS
 
-Skip = (!EOL .)* WSE;       // take EOL here to avoid printing line twice
-//Skip = (!EOL .)* EOL;       // take EOL here to avoid printing line twice
+Skip = (!EOL .)* WSE;       // skip the rest of the line and hope it then makes sense
 WSC = WSO (EOLX WSO)?;      // continuation, take just one eol if found, plus WS
 WSE = WSO EOLX ( Directive EOLexp EOLX)*;             // whitespace and take eol, leave at start of line
 WSO = WS*;                  // optional whitespace between tokens

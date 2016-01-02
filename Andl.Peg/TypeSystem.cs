@@ -50,7 +50,8 @@ namespace Andl.Peg {
       var hasoverloads = symbol.CallInfo.OverLoad != null;
       for (var cinf = symbol.CallInfo; cinf != null && !match; cinf = cinf.OverLoad) {
         var argts = cinf.Arguments;
-        match = Enumerable.Range(0, nargs).All(x => argts[x].DataType.IsTypeMatch(datatypes[x]));
+        match = Enumerable.Range(0, nargs).All(x => TypeMatch(argts[x].DataType, datatypes[x]));
+        //match = Enumerable.Range(0, nargs).All(x => argts[x].DataType.IsTypeMatch(datatypes[x]));
         if (match) {
           callinfo = cinf;
           if (hasoverloads)   // assume symbol table correct unless using overloads
@@ -63,11 +64,14 @@ namespace Andl.Peg {
         Parser.ParseError("'{0}' type mismatch", symbol.Name);
       if (symbol.IsDyadic)
         CheckDyadicType(symbol.MergeOp, datatypes[0], datatypes[1], ref datatype);
-      if (datatype == DataTypes.Table && nargs >= 1 && datatypes[0] is DataTypeRelation)
+      if (nargs >= 1 && (datatype == DataTypes.Table && datatypes[0] is DataTypeRelation
+                         || datatype == DataTypes.Unknown))
         datatype = datatypes[0];
-      Logger.Assert(datatype.Flags.HasFlag(TypeFlags.Variable) || datatype == DataTypes.Unknown || datatype == DataTypes.Void, datatype.Name);
+      if (datatype == DataTypes.Table || datatype == DataTypes.Unknown) Parser.ParseError("cannot determine return type: {0}", symbol.Name);
+      Logger.Assert(datatype.Flags.HasFlag(TypeFlags.Variable) || datatype == DataTypes.Void, datatype.Name);
     }
 
+    // check dyadic ops and compute result type
     void CheckDyadicType(MergeOps mops, DataType reltype1, DataType reltype2, ref DataType datatype) {
       if (!(reltype1 is DataTypeRelation && reltype2 is DataTypeRelation))
         Parser.ParseError("relational arguments expected");
@@ -78,9 +82,25 @@ namespace Andl.Peg {
       datatype = DataTypeRelation.Get(DataHeading.Create(cols));
     }
 
+    // check single type match
     public void CheckTypeMatch(DataType type1, DataType type2) {
-      if (!type1.IsTypeMatch(type2)) Parser.ParseError("type mismatch");
+      if (!TypeMatch(type1, type2)) Parser.ParseError("type mismatch");
     }
+
+    // Is type2 a type match where type1 is what is needed?
+    public bool TypeMatch(DataType type1, DataType type2) {
+      var ok = type1 == type2
+        || type1 == DataTypes.Any  // runtime to handle
+        || type1 == DataTypes.Code  // runtime to handle
+        || type1 == DataTypes.CodeArray  // runtime to handle
+        || type2.IsSubtype(type1)
+        || type1 == DataTypes.Table && type2 is DataTypeRelation
+        || type1 == DataTypes.Row && type2 is DataTypeTuple
+        || type1 == DataTypes.Ordered && type2.IsOrdered
+        || type1 == DataTypes.Ordinal && type2.IsOrdinal;
+      return ok;
+    }
+
 
   }
 }
