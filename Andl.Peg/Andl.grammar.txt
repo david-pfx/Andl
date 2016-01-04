@@ -7,9 +7,10 @@
 
 
 // start rule
-Main <AstBlock> = #STATE{ PrintLine(state); } v:MainRestart { v };
-MainRestart <AstBlock> = WSE* v:MainBodyLine* WSO EOF { AST(state).Block(v) } ;
-MainBodyLine <AstStatement> = !(WSO EOF) v:Statement EOLexp WSE+ { v };
+MainStart <AstStatement> = Init v:MainRestart { v };
+MainRestart <AstStatement> = WSE* v:MainStatement { AST(state).Node(v) };
+MainStatement <AstStatement> = WSO EOF { null }
+    / v:Statement EOLexp { v };
 
 DoBody <AstValue> = LC RC { AST(state).Block(null) }
     / LCexp WSC v:DoBodyLine+ WSO RCexp { AST(state).Block(v) };
@@ -45,7 +46,7 @@ Assignment <AstStatement> = &(Ident LA) v:DefinableExp LA w:OpenExpression { AST
     / Definable LA #STATE{ ParseError(state, "expression expected"); } { null };
 
 // must be able to backtrack from RA to pick up function call
-Deferred <AstDefine> = v:Definable 
+Deferred <AstStatement> = v:Definable 
     w:(<AstType> COLON a:Type { a } / { null }) 
     x:(<IList<AstField>> LP b:FieldList RP { b })? RA 
     &{ DefScope(v, w, Single(x)) } y:DeferredBody &{ PopScope() } { AST(state).Deferred(v,w,Single(x),y) };
@@ -219,9 +220,10 @@ MINUS = '-' !OpChar WSO;
 
 IDX = !ID WS*;              // end of ident possibly followed by WS
 
+Init <AstNode> = #STATE{ PrintLine(state); } { AST(state).Node<AstNode>(null) }
 Skip = (!EOL .)* WSE;       // skip the rest of the line and hope it then makes sense
 WSC = WSO (EOLX WSO)?;      // continuation, take just one eol if found, plus WS
-WSE = WSO EOLX ( Directive EOLexp EOLX)*;             // whitespace and take eol, leave at start of line
+WSE = WSO EOLX ( Directive EOLexp EOLX)*;   // end of line, take it and any following directives
 WSO = WS*;                  // optional whitespace between tokens
 WS = (SP / Comment) { "" };
 SP = [ \t];

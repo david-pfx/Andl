@@ -142,6 +142,13 @@ namespace Andl.Runtime {
       };
     }
 
+    public VoidValue Assign2(TextValue name, TypedValue value) {
+      return null;
+    }
+    public VoidValue Defer2(TextValue name, CodeValue value) {
+      return null;
+    }
+
     ///=================================================================
     ///
     /// Special operations
@@ -292,6 +299,10 @@ namespace Andl.Runtime {
       var value = attribute.AsEval.EvalOpen(row);
       var offset = row.Heading.FindIndex(attribute.AsEval.Name);
       return NumberValue.Create(index.Value + 1);
+    }
+
+    public TypedValue Fold2(TypedValue defarg, CodeValue expr, PointerValue accblkarg, NumberValue accidarg) {
+      return null;
     }
 
     // Fold an operation and one argument over a set of tuples

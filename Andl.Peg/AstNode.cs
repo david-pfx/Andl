@@ -21,21 +21,9 @@ namespace Andl.Peg {
   public class AstStatement : AstNode {
     public DataType DataType { get; set; }
   }
-
-  /// <summary>
-  /// Base class for AST definitions
-  /// </summary>
-  public class AstDefine : AstStatement {
-    public string Name { get; set; }
-    public DataType Type { get; set; }
-    public AstField[] Fields { get; set; }
-    public AstStatement Value { get; set; }
-  }
+  public class AstDefine : AstStatement { }
   public class AstUserType : AstDefine { }
   public class AstSubType : AstDefine { }
-  public class AstDefer : AstDefine { }
-  public class AstSource : AstDefine { }
-  public class AstAssign : AstDefine { }
 
   /// <summary>
   /// Base class for AST field info
@@ -44,35 +32,48 @@ namespace Andl.Peg {
     public string Name { get; set; }
     public DataType DataType { get; set; }
   }
-  public class AstProject : AstField { }
+  public class AstProject : AstField {
+    public override string ToString() {
+      return string.Format("{0}", Name);
+    }
+  }
   public class AstRename : AstField {
     public string OldName { get; set; }
+    public override string ToString() {
+      return string.Format("{0}:={1}", Name, OldName);
+    }
   }
   public class AstExtend : AstField {
     public AstValue Value { get; set; }
+    public override string ToString() {
+      return string.Format("{0}:={1}", Name, Value);
+    }
   }
-  public class AstLift : AstExtend { }
+  public class AstLift : AstExtend {
+    public override string ToString() {
+      return string.Format("Lift({0})", Value);
+    }
+  }
   public class AstOrder : AstField {
     public bool Desc { get; set; }
     public bool Group { get; set; }
+    public override string ToString() {
+      return string.Format("{0}{1}{2}", Desc ? "-" :"", Group ? "%" : "", Name);
+    }
   }
 
   /// <summary>
   /// Base class for AST values
   /// </summary>
   public class AstValue : AstStatement { } // FIX: probably wrong
-  public class AstOperator : AstValue {
-    public Symbol Symbol { get; set; }
-    public override string ToString() {
-      return string.Format("{0}:{1}", Symbol.Name, DataType);
-    }
-  }
+
   public class AstVariable : AstValue {
     public Symbol Variable { get; set; }
     public override string ToString() {
       return string.Format("{0}:{1}", Variable.Name, DataType);
     }
   }
+
   public class AstLiteral<T> : AstValue {
     public T Value { get; set; }
     public override string ToString() {
@@ -82,11 +83,14 @@ namespace Andl.Peg {
 
   public class AstBlock : AstValue {
     public AstStatement[] Statements { get; set; }
+    public override string ToString() {
+      return string.Format("[{0}]", String.Join("; ", Statements.Select(s => s.ToString())));
+    }
   }
   public class AstWrap : AstValue {
     public AstValue Value { get; set; }
     public override string ToString() {
-      return string.Format("{0} => {1}", Value, DataType);
+      return string.Format("{0} =>> {1}", Value, DataType);
     }
   }
   public class AstFunCall : AstValue {
@@ -99,17 +103,10 @@ namespace Andl.Peg {
   public class AstOpCall : AstFunCall { }
   public class AstTranCall : AstOpCall { }
 
-  public class AstDefCall : AstValue {
-    public Symbol Operator { get; set; }
-    public AstField[] Fields { get; set; }
-    public override string ToString() {
-      return string.Format("{0} => {1}", Operator.Name, String.Join(", ", Fields.Select(f => f.ToString())));
-    }
-  }
   public class AstOrderer : AstValue {
     public AstOrder[] Elements { get; set; }
     public override string ToString() {
-      return string.Format("{0}", String.Join(",", Elements.Select(e => e.ToString())));
+      return string.Format("$({0})", String.Join(",", Elements.Select(e => e.ToString())));
     }
   }
 
@@ -117,23 +114,31 @@ namespace Andl.Peg {
     public bool Lift { get; set; }
     public AstField[] Elements { get; set; }
     public override string ToString() {
-      return string.Format("{0}:{1}", Lift, String.Join(", ", Elements.Select(e => e.ToString())));
+      return string.Format("{0}({1})", Lift ? "lift" : "tran", String.Join(",", Elements.Select(e => e.ToString())));
     }
   }
 
   public class AstAccumulator : AstValue {
     public int Index { get; set; }
+    public override string ToString() {
+      return string.Format("Ac~{0}", Index);
+    }
   }
 
-    ///==============================================================================================
-    /// <summary>
-    /// Implement factory for AST nodes
-    /// </summary>
-    public class AstFactory {
-    public TypeSystem Types { get; set; }
-    public SymbolTable Syms { get; set; }
-    public Catalog Cat { get; set; }
+  ///==============================================================================================
+  /// <summary>
+  /// Implement factory for AST nodes
+  /// </summary>
+  public class AstFactory {
+    public TypeSystem Types { get { return Parser.Types; } }
+    public SymbolTable Syms { get { return Parser.Symbols; } }
+    public Catalog Cat { get { return Parser.Cat; } }
     public PegParser Parser { get; set; }
+
+    // Do nothing method to allow state to be marked
+    public T Node<T> (T node) {
+      return node;
+    }
 
     // just a set of statements
     public AstBlock Block(IList<AstStatement> statements) {
@@ -146,58 +151,43 @@ namespace Andl.Peg {
       var ff = fields.Select(a => DataColumn.Create(a.Name, a.DataType)).ToArray();
       var ut = DataTypeUser.Get(ident, ff);
       Syms.AddUserType(ident, ut);
-      return new AstUserType {
-        Name = ident,
-        Fields = fields,
-        DataType = DataTypes.Void,
-      };
+      return new AstUserType();
     }
+
     public AstDefine SubType(string ident, AstType super) {
       var cols = new DataColumn[] { DataColumn.Create("super", super.DataType) };
       var ut = DataTypeUser.Get(ident, cols);
       Syms.AddUserType(ident, ut);
-      return new AstSubType {
-        Name = ident,
-        Type = super.DataType,
-        DataType = DataTypes.Void,
-      };
+      return new AstSubType();
     }
-    public AstDefine Source(string ident, AstLiteral<string> value) {
+
+    public AstStatement Source(string ident, AstLiteral<string> value) {
       var datatype = Cat.GetRelvarType(ident, value.Value);
       Syms.AddVariable(ident, datatype, SymKinds.CATVAR);
-      return new AstSource {
-        Name = ident,
-        Value = value,
-        DataType = DataTypes.Void,
-      };
+      return FunCall(FindOperator(SymNames.Import), value, Text(ident), Text(Parser.Cat.SourcePath));
     }
-    public AstDefine Deferred(string ident, AstType rettype, IList<AstField> arguments, AstStatement body) {
-      return new AstDefer {
-        Name = ident,
-        Type = (rettype == null) ? null : rettype.DataType, // FIX
-        Fields = (arguments == null) ? null : arguments.ToArray(),
-        Value = body,
-        DataType = DataTypes.Void,
-      };
+
+    public AstStatement Deferred(string ident, AstType rettype, IList<AstField> arguments, AstStatement body) {
+      var op = FindDefFunc(ident);
+      if (op.DataType == DataTypes.Unknown) op.DataType = body.DataType;
+      Types.CheckTypeMatch(body.DataType, op.DataType);
+      return FunCall(FindOperator(SymNames.Defer), Text(ident), body as AstValue);
     }
 
     public AstStatement Assignment(string ident, AstValue value) {
       Syms.AddVariable(ident, value.DataType, SymKinds.CATVAR);
-      return new AstAssign {
-        Name = ident,
-        Value = Code(value),
-        DataType = DataTypes.Void,
-      };
+      return FunCall(FindOperator(SymNames.Assign), Text(ident), value);
     }
+
     public AstStatement UpdateJoin(string ident, string joinop, AstValue expr) {
       var joinsym = FindOperator(joinop);
-      var joinnum = Literal("number", (int)joinsym.JoinOp);
-      return FunCall(FindOperator(":upjoin"), DataTypes.Void, Variable(ident), expr, joinnum);
+      var joinnum = Number((int)joinsym.JoinOp);
+      return FunCall(FindOperator(SymNames.UpdateJoin), DataTypes.Void, Variable(ident), expr, joinnum);
     }
 
     public AstStatement UpdateTransform(string ident, AstTranCall arg) {
       // FIX: should not need code[]
-      return FunCall(FindOperator(":uptrans"), DataTypes.Void, Code(arg.Arguments[0]), Code(arg.Arguments[2], "code[]"));
+      return FunCall(FindOperator(SymNames.UpdateTransform), DataTypes.Void, Code(arg.Arguments[0]), Code(arg.Arguments[2], "code[]"));
     }
 
     // Wrap transform tail for later handling
@@ -229,7 +219,6 @@ namespace Andl.Peg {
     }
 
     public AstValue Row(AstTransformer transformer) {
-      //if (transformer.Allbut) transformer = Allbut(Scope.Current.Heading, transformer);
       return FunCall(FindOperator(SymNames.Row), transformer.DataType, transformer);
     }
     public AstValue RowValues(IList<AstValue> values) {
@@ -274,7 +263,6 @@ namespace Andl.Peg {
       }
       if (allbut) args = Allbut(Scope.Current.Heading, args);
       return new AstTransformer { Elements = args, DataType = Typeof(args) };
-      //return new AstTransformer { Elements = args, Allbut = allbut, DataType = Typeof(args) };
     }
 
     ///--------------------------------------------------------------------------------------------
@@ -296,10 +284,6 @@ namespace Andl.Peg {
       return new AstWrap { Value = value, DataType = DataTypes.Find(type) };
     }
 
-    //public AstValue Wrap(AstValue value, string datatype) {
-    //  return new AstWrap { Value = value, DataType = DataTypes.Find(datatype) };
-    //}
-
     // construct a FunCall from the first OpCall, then invoke tail on result
     public AstValue PostFix(AstValue value, IList<AstOpCall> ops) {
       if (ops.Count == 0) return value;
@@ -314,7 +298,6 @@ namespace Andl.Peg {
         }
         if (ops[0].Arguments[2] != null) {
           var args = ops[0].Arguments[2] as AstTransformer;
-          //Logger.Assert(args != null && !args.Allbut);
           newvalue = FunCall(FindOperator(SymNames.Transform), ops[0].DataType, value, Code(args));
         }
       } else
@@ -334,14 +317,15 @@ namespace Andl.Peg {
 
     public AstFunCall If(AstValue condition, AstValue iftrue, AstValue iffalse) {
       Types.CheckTypeMatch(iftrue.DataType, iffalse.DataType);
-      return FunCall(FindOperator("if"), iftrue.DataType, condition, Code(iftrue), Code(iffalse));
+      return FunCall(FindOperator(SymNames.If), iftrue.DataType, condition, Code(iftrue), Code(iffalse));
     }
 
     public AstFunCall Fold(string oper, AstValue expression) {
       var op = FindOperator(oper);
+      if (!op.IsFoldable) Parser.ParseError("not foldable");
       var acc = new AstAccumulator { DataType = expression.DataType, Index = -1 };
       var folded = FunCall(op, acc, expression); // FIX: first s/b seed
-      return FunCall(FindOperator("cfold"), expression.DataType, acc, Code(folded)); //TODO:
+      return FunCall(FindOperator(SymNames.Fold), expression.DataType, Number((int)op.FoldSeed), Code(folded)); //TODO:
     }
 
     AstField[] Allbut(DataHeading heading, AstField[] fields) {
@@ -357,8 +341,6 @@ namespace Andl.Peg {
 
     public AstFunCall Function(string name, params AstValue[] args) {
       var op = FindOperator(name);
-//      if (op.FuncKind == FuncKinds.VALUE)
-//        return FunCall(op, Code(args[0]), Code(args[0]), args);
       return FunCall(op, args);
     }
     AstFunCall FunCall(Symbol op, params AstValue[] args) {
@@ -376,11 +358,6 @@ namespace Andl.Peg {
       var op = FindOperator(name);
       var type = op.DataType;
       return new AstOpCall() { Operator = op, Arguments = args, DataType = type };
-    }
-    public AstDefCall DefCall(string name, params AstField[] fields) {
-      var op = FindOperator(name);
-      var type = op.DataType;
-      return new AstDefCall { Operator = op, Fields = fields, DataType = type };
     }
     public AstValue[] ValueList(params AstValue[] args) {
       return args;
@@ -412,10 +389,13 @@ namespace Andl.Peg {
     public AstValue Bool(string value) {
       return Literal("bool", value[0] == 't');
     }
+    public AstValue Number(decimal value) {
+      return Literal("number", value);
+    }
     public AstValue Number(string value) {
       decimal dret;
       if (Decimal.TryParse(value, out dret))
-        return Literal("number", dret);
+        return Number(dret);
       return null;
     }
     public AstLiteral<string> Text(string value) {
@@ -441,6 +421,10 @@ namespace Andl.Peg {
     public Symbol FindCatVar(string name) {
       var ret = Syms.FindIdent(name);
       return ret != null && ret.IsCatVar ? ret : null;
+    }
+    public Symbol FindDefFunc(string name) {
+      var ret = Syms.FindIdent(name);
+      return ret != null && ret.IsDefFunc ? ret : null;
     }
     public Symbol FindField(string name) {
       var ret = Syms.FindIdent(name);

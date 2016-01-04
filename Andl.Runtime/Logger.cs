@@ -64,7 +64,8 @@ namespace Andl.Runtime {
               _tws[i].WriteLine();
             _neednl = false;
           }
-          if (!_neednl) _tws[i].Write(Pad(level, msg.StartsWith(">>>")));
+          if (!_neednl) _tws[i].Write(Pad(level, msg));
+          //if (!_neednl) _tws[i].Write(Pad(level, msg.StartsWith(">>>")));
           _tws[i].Write(msg);
           if (newline) _tws[i].WriteLine();
           else _tws[i].Write("; ");
@@ -94,13 +95,16 @@ namespace Andl.Runtime {
     static DateTime FirstTime = DateTime.Now;
     static DateTime LastTime = DateTime.Now;
 
-    static string Pad(int level, bool timeit) {
+    static string Pad(int level, string msg) {
+      bool timeit = msg.StartsWith(">>>");
+      bool nopad = msg.StartsWith(">");
       string ret;
       if (timeit) {
         var now = DateTime.Now;
         ret = String.Format(@"{0:mm\:ss\.fff} {1,3:N0}ms : ", now - FirstTime, (now - LastTime).TotalMilliseconds);
         LastTime = now;
-      } else ret = new string(' ', 2 * level);
+      } else if (nopad) ret = "";
+      else ret = new string(' ', 2 * level);
       return ret;
     }
 

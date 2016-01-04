@@ -274,7 +274,8 @@ namespace Andl.Runtime {
     }
 
     public override string ToString() {
-      return base.ToString() + ":" + Heading.ToString();
+      return "tup" + Heading.ToString();
+      //return base.ToString() + ":" + Heading.ToString();
     }
 
     public override DataType BaseType { get { return DataTypes.Row; } }
@@ -347,7 +348,8 @@ namespace Andl.Runtime {
     }
 
     public override string ToString() {
-      return base.ToString() + ":" + Heading.ToString();
+      return "rel" + Heading.ToString();
+      //return base.ToString() + ":" + Heading.ToString();
     }
 
     public override DataType BaseType { get { return DataTypes.Table; } }
@@ -421,7 +423,8 @@ namespace Andl.Runtime {
     }
 
     public override string ToString() {
-      return Name + ":" + Heading.ToString();
+      return Name + Heading.ToString();
+      //return Name + ":" + Heading.ToString();
     }
 
     public override DataType BaseType { get { return DataTypes.User; } }

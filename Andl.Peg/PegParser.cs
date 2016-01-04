@@ -30,16 +30,21 @@ namespace Andl.Peg {
     //public int Noisy = 1;
     public int ErrorCount = 0;
     public bool Done = false;
+    public Cursor State { get; private set; }
+
+    public PegParser() {
+      Factory = new AstFactory { Parser = this };
+      Types = new TypeSystem { Parser = this };
+    }
 
     public AstFactory AST(Cursor state) {
-      _aststate = state;
+      State = state;
       return Factory;
     }
 
-    Cursor _aststate;
     List<int> _linestarts = new List<int>();
 
-    public AstBlock Restart(ref Cursor state) {
+    public AstStatement Restart(ref Cursor state) {
       var cursor = state.WithMutability(mutable: false);
       // next line on needed if memoize active
       //this.storage = new Dictionary<CacheKey, object>();
@@ -67,7 +72,7 @@ namespace Andl.Peg {
     }
 
     public void ParseError(string message = "unknown", params object[] args) {
-      ParseError(_aststate, message, args);
+      ParseError(State, message, args);
     }
 
       ///============================================================================================

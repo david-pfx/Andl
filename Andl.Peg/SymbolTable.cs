@@ -107,8 +107,11 @@ namespace Andl.Peg {
   public class SymNames {
     public const string Assign = ":assign";
     public const string Defer = ":defer";
-    public const string DoBlock = ":doblock";
-    public const string Invoke = ":invoke";
+    //public const string DoBlock = ":doblock";
+    public const string Fold = ":fold";
+    public const string If = ":if";
+    //public const string Invoke = ":invoke";
+    public const string Import = ":import";
     public const string Lift = ":lift";
     public const string Project = ":project";
     public const string Rename = ":rename";
@@ -119,7 +122,7 @@ namespace Andl.Peg {
     public const string TransAgg = ":transagg";
     public const string TransOrd = ":transord";
     public const string UpdateJoin = ":upjoin";
-    public const string UpdateTransform = ":uptransform";
+    public const string UpdateTransform = ":uptrans";
     public const string UserSelector = ":userselector";
   }
 
@@ -150,22 +153,22 @@ namespace Andl.Peg {
 
     public MergeOps MergeOp { get { return (MergeOps)(JoinOp & JoinOps.MERGEOPS); } }
     
-    public const string Assign = ":assign";
-    public const string Defer = ":defer";
-    public const string DoBlock = ":doblock";
-    public const string Invoke = ":invoke";
-    public const string Lift = ":lift";
-    public const string Project = ":project";
-    public const string Rename = ":rename"; 
-    public const string Restrict = ":restrict";
-    public const string Row = ":row";
-    public const string Table = ":table";
-    public const string Transform = ":transform";
-    public const string TransAgg = ":transagg";
-    public const string TransOrd = ":transord";
-    public const string UpdateJoin = ":upjoin";
-    public const string UpdateTransform = ":uptransform";
-    public const string UserSelector = ":userselector";
+    //public const string Assign = ":assign";
+    //public const string Defer = ":defer";
+    //public const string DoBlock = ":doblock";
+    //public const string Invoke = ":invoke";
+    //public const string Lift = ":lift";
+    //public const string Project = ":project";
+    //public const string Rename = ":rename"; 
+    //public const string Restrict = ":restrict";
+    //public const string Row = ":row";
+    //public const string Table = ":table";
+    //public const string Transform = ":transform";
+    //public const string TransAgg = ":transagg";
+    //public const string TransOrd = ":transord";
+    //public const string UpdateJoin = ":upjoin";
+    //public const string UpdateTransform = ":uptransform";
+    //public const string UserSelector = ":userselector";
     
     public override string ToString() {
       return String.Format("{0}:{1}:{2}", Name, Kind, Level);
@@ -432,10 +435,11 @@ namespace Andl.Peg {
       AddOperator("sup", 2, 4, DataTypes.Bool, "Superset");
       AddOperator("sep", 2, 4, DataTypes.Bool, "Separate");
 
-      AddFunction(SymNames.Assign, 1, DataTypes.Void, CallKinds.FUNC, "Assign");
-      AddFunction(SymNames.Defer, 1, DataTypes.Void, CallKinds.FUNC, "Defer");
-      AddFunction(SymNames.DoBlock, 1, DataTypes.Any, CallKinds.FUNC, "DoBlock");
-      AddFunction(SymNames.Invoke, 2, DataTypes.Any, CallKinds.VFUNCT, "Invoke");
+      AddFunction(SymNames.Assign, 2, DataTypes.Void, CallKinds.FUNC, "Assign2");
+      AddFunction(SymNames.Defer, 2, DataTypes.Void, CallKinds.FUNC, "Defer2");
+      AddFunction(SymNames.Import, 3, DataTypes.Void, CallKinds.FUNC, "Import");
+      //AddFunction(SymNames.DoBlock, 1, DataTypes.Any, CallKinds.FUNC, "DoBlock");
+      //AddFunction(SymNames.Invoke, 2, DataTypes.Any, CallKinds.VFUNCT, "Invoke");
       AddFunction(SymNames.Lift, 1, DataTypes.Void, CallKinds.FUNC, "Lift");
       AddFunction(SymNames.Project, 2, DataTypes.Table, CallKinds.VFUNC, "Project");
       AddFunction(SymNames.Rename, 2, DataTypes.Table, CallKinds.VFUNC, "Rename");
@@ -451,9 +455,10 @@ namespace Andl.Peg {
 
       AddFunction("max", 2, DataTypes.Ordered, CallKinds.FUNC, "Max", FoldableFlags.ANY, FoldSeeds.MIN);
       AddFunction("min", 2, DataTypes.Ordered, CallKinds.FUNC, "Min", FoldableFlags.ANY, FoldSeeds.MAX);
-      AddFunction("fold", 0, DataTypes.Unknown, CallKinds.FUNC, "Fold", FuncKinds.FOLD);
+      AddFunction(SymNames.Fold, 2, DataTypes.Unknown, CallKinds.FUNC, "Fold2", FuncKinds.FOLD);
+      //AddFunction("fold", 0, DataTypes.Unknown, CallKinds.FUNC, "Fold", FuncKinds.FOLD);
       AddFunction("cfold", 2, DataTypes.Unknown, CallKinds.FUNC, "CumFold", FuncKinds.FOLD);
-      AddFunction("if", 3, DataTypes.Unknown, CallKinds.FUNC, "If", FuncKinds.IF);
+      AddFunction(SymNames.If, 3, DataTypes.Unknown, CallKinds.FUNC, "If", FuncKinds.IF);
       AddFunction("recurse", 2, DataTypes.Unknown, CallKinds.FUNC, "Recurse", FuncKinds.RECURSE);
 
       AddFunction("ord", 0, DataTypes.Number, CallKinds.LFUNC, "Ordinal");
