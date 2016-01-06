@@ -60,7 +60,7 @@ namespace Andl.Peg {
     public void PrintLine(Cursor state) {
       _linestarts.Add(state.Location);
       if (Logger.Level > 0)
-        Output.WriteLine("{0,4}: {1}", state.Line, GetLine(state.Subject, state.Location));
+        Output.WriteLine("{0,3}: {1}", state.Line, GetLine(state.Subject, state.Location));
     }
 
     public void ParseError(Cursor state, string message = "unknown", params object[] args) {

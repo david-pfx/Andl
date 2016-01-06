@@ -110,7 +110,7 @@ namespace Andl.Peg {
     //public const string DoBlock = ":doblock";
     public const string Fold = ":fold";
     public const string If = ":if";
-    //public const string Invoke = ":invoke";
+    public const string Invoke = ":invoke";
     public const string Import = ":import";
     public const string Lift = ":lift";
     public const string Project = ":project";
@@ -436,10 +436,10 @@ namespace Andl.Peg {
       AddOperator("sep", 2, 4, DataTypes.Bool, "Separate");
 
       AddFunction(SymNames.Assign, 2, DataTypes.Void, CallKinds.FUNC, "Assign2");
-      AddFunction(SymNames.Defer, 2, DataTypes.Void, CallKinds.FUNC, "Defer2");
+      AddFunction(SymNames.Defer, 1, DataTypes.Void, CallKinds.FUNC, "Defer");
       AddFunction(SymNames.Import, 3, DataTypes.Void, CallKinds.FUNC, "Import");
       //AddFunction(SymNames.DoBlock, 1, DataTypes.Any, CallKinds.FUNC, "DoBlock");
-      //AddFunction(SymNames.Invoke, 2, DataTypes.Any, CallKinds.VFUNCT, "Invoke");
+      AddFunction(SymNames.Invoke, 2, DataTypes.Any, CallKinds.VFUNCT, "Invoke");
       AddFunction(SymNames.Lift, 1, DataTypes.Void, CallKinds.FUNC, "Lift");
       AddFunction(SymNames.Project, 2, DataTypes.Table, CallKinds.VFUNC, "Project");
       AddFunction(SymNames.Rename, 2, DataTypes.Table, CallKinds.VFUNC, "Rename");
@@ -455,7 +455,7 @@ namespace Andl.Peg {
 
       AddFunction("max", 2, DataTypes.Ordered, CallKinds.FUNC, "Max", FoldableFlags.ANY, FoldSeeds.MIN);
       AddFunction("min", 2, DataTypes.Ordered, CallKinds.FUNC, "Min", FoldableFlags.ANY, FoldSeeds.MAX);
-      AddFunction(SymNames.Fold, 2, DataTypes.Unknown, CallKinds.FUNC, "Fold2", FuncKinds.FOLD);
+      AddFunction(SymNames.Fold, 2, DataTypes.Unknown, CallKinds.FUNC, "Fold", FuncKinds.FOLD);
       //AddFunction("fold", 0, DataTypes.Unknown, CallKinds.FUNC, "Fold", FuncKinds.FOLD);
       AddFunction("cfold", 2, DataTypes.Unknown, CallKinds.FUNC, "CumFold", FuncKinds.FOLD);
       AddFunction(SymNames.If, 3, DataTypes.Unknown, CallKinds.FUNC, "If", FuncKinds.IF);

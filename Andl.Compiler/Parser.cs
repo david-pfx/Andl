@@ -1142,7 +1142,7 @@ namespace Andl.Compiler {
     bool ParseOpenExpression(out ExprInfo expr) {
       var ret = false;
       var marker = _emitter.GetMarker();
-      Logger.WriteLine(3, "OpenExp marker={0} scope={1} -->", marker, Scope.Current.Level);
+      Logger.WriteLine(4, "OpenExp marker={0} scope={1} -->", marker, Scope.Current.Level);
       DataType datatype;
       if (ParseExpression(out datatype)) {
         var code = _emitter.GetSeg(marker);
@@ -1150,7 +1150,7 @@ namespace Andl.Compiler {
           Code = code,
           DataType = datatype,
         };
-        Logger.WriteLine(3, "[OE expr {0}]", expr);
+        Logger.WriteLine(4, "[OE expr {0}]", expr);
         ret = true;
       } else expr = new ExprInfo();
       return ret;

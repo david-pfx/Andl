@@ -68,8 +68,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AstFactory.cs" />
     <Compile Include="AstNode.cs" />
     <Compile Include="CallInfo.cs" />
+    <Compile Include="Decoder.cs" />
+    <Compile Include="Emitter.cs" />
     <Compile Include="PegCompiler.cs" />
     <Compile Include="PegParser.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

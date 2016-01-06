@@ -33,7 +33,7 @@ Typedef <AstDefine> = DEF v:(UserType / Subtype) { v };
 UserType <AstDefine> = v:DefinableExp LP w:FieldList RPexp { AST(state).UserType(v, w.ToArray()) } ;
 Subtype <AstDefine> = v:DefinableExp COLON w:Type { AST(state).SubType(v, w) };
 Type <AstType> = v:Typename &{ IsTypename(v) } { AST(state).FindType(v) }
-    / v:SimplePrimary { AST(state).Typeof(v) }
+    / v:SimplePrimary { AST(state).GetType(v) }
     / #STATE{ ParseError(state, "type expected"); } { null };
 
 Import <AstBlock> = DB v:ImportSource<0,,SEP> { AST(state).Block(v) };
@@ -105,7 +105,7 @@ BinopTail <AstOpCall> = v:Binop WSC w:Primary { AST(state).OpCall(v,w) }
 Primary <AstValue> = v:Unop w:Primary { AST(state).Function(v,w) }
     / v:SimplePrimary &{ PushScope(v) } w:PostFixTail* &{ PopScope() } { AST(state).PostFix(v,w) };
 
-PostFixTail <AstOpCall> = RECURSE LPexp v:OpenExpressionExp RPexp { AST(state).Recurse(v) }
+PostFixTail <AstCall> = RECURSE LPexp v:OpenExpressionExp RPexp { AST(state).Recurse(v) }
     / DOT v:FieldOrFuncExp { AST(state).Dot(v) }
     / &LB v:TransformTailExp { v };
 
@@ -133,7 +133,7 @@ Table <AstValue> = (TableBody
 TableBody <AstValue> = LC LC STAR RCexp RCexp  { AST(state).Table(true) }
     / LC &LC v:TableHeading w:RowValueList RCexp { AST(state).Table(v,w) }
     / LC &LC v:RowList RCexp { AST(state).Table(null, v) };
-TableHeading <AstValue> = LC COLON? RC { null }
+TableHeading <AstValue> = LC COLON? RC { AST(state).Heading(null) }
     / LC &(Ident !LA (COLON / SEP)) v:FieldList RCexp { AST(state).Heading(v) };
 RowValueList = v:RowValue<0,,SEP>;
 RowValue <AstValue> = LP v:OpenExpressionList RPexp { AST(state).RowValues(v) };

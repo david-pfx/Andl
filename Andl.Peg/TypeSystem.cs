@@ -6,10 +6,10 @@ using System.Threading.Tasks;
 using Andl.Runtime;
 
 namespace Andl.Peg {
-  public class Field {
-    public string Name;
-    public DataType Type;
-  }
+  //public class Field {
+  //  public string Name;
+  //  public DataType Type;
+  //}
 
   /// <summary>
   /// Type system for parser: a layer over the Runtime type system
@@ -22,10 +22,13 @@ namespace Andl.Peg {
       return dt != null && dt.IsVariable ? dt : null;
     }
 
-    internal DataType Find(IEnumerable<Field> typelist) {
-      var heading = DataHeading.Create(typelist.Select(f => DataColumn.Create(f.Name, f.Type)));
-      return DataTypeTuple.Get(heading);
+    internal DataType Find(IEnumerable<DataColumn> columns) {
+      return DataTypeTuple.Get(DataHeading.Create(columns));
     }
+    //internal DataType Find(IEnumerable<Field> typelist) {
+    //  var heading = DataHeading.Create(typelist.Select(f => DataColumn.Create(f.Name, f.Type)));
+    //  return DataTypeTuple.Get(heading);
+    //}
 
     internal DataType Tupof(DataType type) {
       return DataTypeTuple.Get(type.Heading);
