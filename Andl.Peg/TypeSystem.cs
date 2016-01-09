@@ -86,21 +86,22 @@ namespace Andl.Peg {
     }
 
     // check single type match
-    public void CheckTypeMatch(DataType type1, DataType type2) {
-      if (!TypeMatch(type1, type2)) Parser.ParseError("type mismatch");
+    public void CheckTypeMatch(DataType typeexp, DataType typeis) {
+      if (!TypeMatch(typeexp, typeis)) Parser.ParseError("type mismatch");
     }
 
     // Is type2 a type match where type1 is what is needed?
-    public bool TypeMatch(DataType type1, DataType type2) {
-      var ok = type1 == type2
-        || type1 == DataTypes.Any  // runtime to handle
-        || type1 == DataTypes.Code  // runtime to handle
-        || type1 == DataTypes.CodeArray  // runtime to handle
-        || type2.IsSubtype(type1)
-        || type1 == DataTypes.Table && type2 is DataTypeRelation
-        || type1 == DataTypes.Row && type2 is DataTypeTuple
-        || type1 == DataTypes.Ordered && type2.IsOrdered
-        || type1 == DataTypes.Ordinal && type2.IsOrdinal;
+    public bool TypeMatch(DataType typeexp, DataType typeis) {
+      var ok = typeexp == typeis
+        || typeexp == DataTypes.Any  // runtime to handle
+        || typeexp == DataTypes.Code  // runtime to handle
+        || typeexp == DataTypes.CodeArray  // runtime to handle
+        || typeis.IsSubtype(typeexp)
+        || typeexp == DataTypes.Table && typeis is DataTypeRelation
+        || typeexp == DataTypes.Row && typeis is DataTypeTuple
+        || typeexp == DataTypes.User && typeis is DataTypeUser
+        || typeexp == DataTypes.Ordered && typeis.IsOrdered
+        || typeexp == DataTypes.Ordinal && typeis.IsOrdinal;
       return ok;
     }
 

@@ -30,7 +30,10 @@ namespace Andl.Peg {
     //public int Noisy = 1;
     public int ErrorCount = 0;
     public bool Done = false;
+    public string InputText { get; private set; }
     public Cursor State { get; private set; }
+
+    Stack<string> _inputpaths = new Stack<string>();
 
     public PegParser() {
       Factory = new AstFactory { Parser = this };
@@ -75,23 +78,57 @@ namespace Andl.Peg {
       ParseError(State, message, args);
     }
 
-      ///============================================================================================
-      ///
-      /// Handle directives
-      ///
+    ///============================================================================================
+    ///
+    /// Handle input files
+    ///
 
-      string CatalogDirective(IList<string> options) {
-      //{ (CatalogOptions)Enum.Parse(typeof(CatalogOptions), v) }
+    // Load up the first source file
+    public void Start(TextReader input, string filename) {
+      Symbols.FindIdent("$filename$").Value = TextValue.Create(filename);
+      _inputpaths.Push(filename);
+      InputText = input.ReadToEnd();
+    }
+
+    // Insert a file into this one
+    public bool Include(string input) {
+      if (!File.Exists(input)) return false;
+      ParseError("#include not supported");
+      using (StreamReader sr = File.OpenText(input)) {
+        Symbols.FindIdent("$filename$").Value = TextValue.Create(input);
+        _inputpaths.Push(input);
+        InputText = InputText.Insert(State.Location, sr.ReadToEnd());
+        //State.Subject = InputText; <<-- no can do
+        _inputpaths.Pop();
+        Symbols.FindIdent("$filename$").Value = TextValue.Create(_inputpaths.Peek());
+      }
+      return true;
+    }
+
+    ///============================================================================================
+    ///
+    /// Handle directives
+    ///
+
+    string CatalogDirective(Cursor state, IList<string> options) {
+      State = state;
+      Cat.LoadFlag = !options.Any(o => o == "new");
+      Cat.SaveFlag = options.Any(o => o == "update");
       return "";
     }
-    string IncludeDirective(string path) {
+    string IncludeDirective(Cursor state, string path) {
+      State = state;
+      if (!Include(path))
+        ParseError("cannot include '{0}'", path);
       return "";
     }
-    string NoisyDirective(string level) {
+    string NoisyDirective(Cursor state, string level) {
+      State = state;
       Logger.Level = int.Parse(level);
       return "";
     }
-    string StopDirective(string level) {
+    string StopDirective(Cursor state, string level) {
+      State = state;
       if (level != "") Logger.Level = int.Parse(level);
       Done = true;
       throw new ParseException(null, null);
@@ -112,9 +149,9 @@ namespace Andl.Peg {
       return true;
     }
 
-    public bool PushScope(AstValue value) {
-      Scope.Push(value.DataType);
-      //if (value.DataType.HasHeading) Scope.Push(value.DataType);
+    public bool PushScope(AstValue value = null) {
+      if (value == null) Scope.Push();
+      else Scope.Push(value.DataType);
       return true;
     }
 
@@ -134,6 +171,22 @@ namespace Andl.Peg {
     //  return true;
     //}
 
+    public bool SetState(Cursor state) {
+      State = state;
+      return true;
+    }
+
+    // Initialise catalog and import symbols, but not until parse has started
+    bool _started = false;
+    public bool Start() {
+      if (_started) return false;
+      Cat.Start();
+      Symbols.Import(Cat.GlobalVars);
+      Symbols.Import(Cat.PersistentVars);
+      _started = true;
+      return true;
+    }
+
     public bool Check(bool condition, Cursor state, string message) {
       if (!condition) ParseError(state, message);
       return true;
@@ -148,7 +201,8 @@ namespace Andl.Peg {
     }
 
     bool IsTypename(string name) {
-      return Types.Find(name) != null;
+      var sym = Symbols.FindIdent(name);
+      return (sym != null && sym.IsUserType) || Types.Find(name) != null;
     }
 
     bool IsSourceName(string name) {
@@ -162,6 +216,10 @@ namespace Andl.Peg {
     bool IsField(string name) {
       var sym = Symbols.FindIdent(name);
       return sym != null && sym.IsField;
+    }
+    bool IsComponent(string name) {
+      var sym = Symbols.FindIdent(name);
+      return sym != null && sym.IsComponent;
     }
     bool IsCatVar(string name) {
       var sym = Symbols.FindIdent(name);

@@ -85,7 +85,7 @@ namespace Andl.Runtime {
     }
 
     // Create new table as a copy (the other might be a different kind)
-    public static DataTableLocal Create(DataHeading heading, IEnumerable<DataRow> rows) {
+    public new static DataTableLocal Create(DataHeading heading, IEnumerable<DataRow> rows) {
       DataTableLocal newtable = DataTableLocal.Create(heading);
       foreach (var row in rows)
         newtable.AddRow(row);

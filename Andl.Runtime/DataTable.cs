@@ -63,6 +63,10 @@ namespace Andl.Runtime {
       return DataTableLocal.Create(heading, exprs);
     }
 
+    public static DataTable Create(DataHeading heading, IEnumerable<DataRow> rows) {
+      return DataTableLocal.Create(heading, rows);
+    }
+
     public static MixedDyadics CheckDyadic(DataTable rel1, DataTable rel2) {
       if (rel1.IsLocal  && !rel2.IsLocal) return MixedDyadics.LeftLocal;
       if (!rel1.IsLocal && rel2.IsLocal) return MixedDyadics.RightLocal;

@@ -241,7 +241,7 @@ namespace Andl.Runtime {
     // Entry previously created by peeking
     public bool ImportRelvar(string source, string name, string locator) {
       var entry = GlobalVars.FindEntry(name);
-      Logger.Assert(entry != null);
+      Logger.Assert(entry != null, name);
       var heading = entry.DataType.Heading;
       var table = DataSourceStream.Create(source, locator).Input(name, InputMode.Import);
       if (table == null || !heading.Equals(table.Heading))

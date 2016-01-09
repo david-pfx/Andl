@@ -8,10 +8,7 @@
 /// explicit written permission.
 ///
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
 using Andl.Runtime;
 
 namespace Andl.Peg {
@@ -140,7 +137,7 @@ namespace Andl.Peg {
     }
 
     public void Out(Opcodes opcode) {
-      Logger.WriteLine(4, "{0,-4}: {1}", _mstream.Position, opcode);
+      Logger.WriteLine(5, "{0,-4}: {1}", _mstream.Position, opcode);
       _out.Write((byte)opcode);
     }
 

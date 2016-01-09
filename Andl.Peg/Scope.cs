@@ -34,12 +34,6 @@ namespace Andl.Peg {
       foreach (var col in cols)
         _lookupitems.Add(col);
     }
-
-    //// Add one or more lookup symbols
-    //public void Add(params Symbol[] syms) {
-    //  foreach (var sym in syms)
-    //    _lookupsyms.Add(sym);
-    //}
   }
   
   ///-------------------------------------------------------------------
@@ -59,9 +53,11 @@ namespace Andl.Peg {
     }
     DataHeading _heading;
 
-    // Symbols used for lookup
-    public LookupItems LookupItems { get { return _lookupsyms; } } 
-    LookupItems _lookupsyms = new LookupItems();
+    // Used to track accumulators within scope
+    public int Accums = 0;
+    // Used to track lookup within scope
+    public LookupItems LookupItems { get { return _lookupitems; } } 
+    LookupItems _lookupitems = new LookupItems();
 
     // Link to parent
     Scope _parent = null;
@@ -78,29 +74,23 @@ namespace Andl.Peg {
     public static Scope Push() {
       _current = new Scope() {
         Dict = new Dictionary<string, Symbol>(),
-        _lookupsyms = new LookupItems(),
+        //_lookupitems = new LookupItems(),
         _parent = _current,
       };
       Logger.WriteLine(4, "Push scope {0}", _current.Level);
       return _current;
     }
 
+    // Reset scope variables but keep symbols
+    public void Reset() {
+      _lookupitems = new LookupItems();
+      Accums = 0;
+    }
+
     // Create a new scope level, possible empty
-    public static Scope Push(DataType datatype) {
-      //Logger.Assert(datatype.HasHeading);
-      //Logger.Assert(datatype is DataTypeRelation);
+    public static Scope Push(DataType datatype = null) {
       var scope = Push();
-      Logger.WriteLine(4, "Add type {0}", datatype);
-      scope._heading = datatype.Heading;
-      if (datatype.HasHeading) {
-        foreach (var c in scope._heading.Columns) {
-          scope.Add(new Symbol {
-            Kind = (datatype is DataTypeRelation) ? SymKinds.FIELD : SymKinds.COMPONENT,
-            //Kind = SymKinds.FIELD,
-            DataType = c.DataType,
-          }, c.Name);
-        }
-      }
+      if (datatype != null) scope.SetHeading(datatype);
       return scope;
     }
 
@@ -120,6 +110,17 @@ namespace Andl.Peg {
       _current = _current._parent;
       Logger.Assert(_current != null);
       return _current;
+    }
+
+    void SetHeading(DataType datatype) {
+      _heading = datatype.Heading ?? DataHeading.Empty;
+      Logger.WriteLine(4, "Set heading {0}", _heading);
+      foreach (var c in _heading.Columns) {
+        Add(new Symbol {
+          Kind = (datatype is DataTypeRelation) ? SymKinds.FIELD : SymKinds.COMPONENT,
+          DataType = c.DataType,
+        }, c.Name);
+      }
     }
 
     // Add a symbol -- all go through here

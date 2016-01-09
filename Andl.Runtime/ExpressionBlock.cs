@@ -110,7 +110,7 @@ namespace Andl.Runtime {
     public static ExpressionBlock Create(string name, ExpressionKinds kind, ByteCode code, DataType type, 
                                          int accums = 0, DataHeading lookup = null, bool lazy = false, int serial = 0) {
       return new ExpressionBlock { 
-        Name = name, 
+        Name = name ?? "!", 
         Kind = kind,
         Serial = serial == 0 ? ++_serialcounter : serial,
         DataType = type, 

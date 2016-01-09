@@ -116,7 +116,8 @@ namespace Andl.Peg {
     public const string Project = ":project";
     public const string Rename = ":rename";
     public const string Restrict = ":restrict";
-    public const string Row = ":row";
+    public const string RowE = ":rowe";
+    public const string RowV = ":rowv";
     public const string Table = ":table";
     public const string Transform = ":transform";
     public const string TransAgg = ":transagg";
@@ -153,55 +154,21 @@ namespace Andl.Peg {
 
     public MergeOps MergeOp { get { return (MergeOps)(JoinOp & JoinOps.MERGEOPS); } }
     
-    //public const string Assign = ":assign";
-    //public const string Defer = ":defer";
-    //public const string DoBlock = ":doblock";
-    //public const string Invoke = ":invoke";
-    //public const string Lift = ":lift";
-    //public const string Project = ":project";
-    //public const string Rename = ":rename"; 
-    //public const string Restrict = ":restrict";
-    //public const string Row = ":row";
-    //public const string Table = ":table";
-    //public const string Transform = ":transform";
-    //public const string TransAgg = ":transagg";
-    //public const string TransOrd = ":transord";
-    //public const string UpdateJoin = ":upjoin";
-    //public const string UpdateTransform = ":uptransform";
-    //public const string UserSelector = ":userselector";
-    
     public override string ToString() {
       return String.Format("{0}:{1}:{2}", Name, Kind, Level);
     }
 
     // series of tests used by parser
-    //public bool Is(Atoms atom) { return Atom == atom; }
-    //public bool IsLiteral { get { return Atom == Atoms.LITERAL; } }
-    //public bool IsIdent { get { return Atom == Atoms.IDENT; } }
-    //public bool IsDefinable { get { return Atom == Atoms.IDENT && Level != Scope.Current.Level; } }
-    //public bool IsUndefIdent { get { return Atom == Atoms.IDENT && Kind == SymKinds.UNDEF; } }
-    //public bool IsField { get { return Kind == SymKinds.FIELD; } }
-    //public bool IsLookup { get { return Kind == SymKinds.FIELD || Kind == SymKinds.PARAM; } }
-    //public bool IsFoldable { get { return Foldable != FoldableFlags.NUL; } }
-    //public bool IsDyadic { get { return MergeOp != MergeOps.Nul; } }
-    //public bool IsUnary { get { return Kind == SymKinds.UNOP || Atom == Atoms.MINUS; } }
-    //public bool IsBinary { get { return Kind == SymKinds.BINOP; } }
-    //public bool IsOperator { get { return IsBinary || IsUnary; } }
-    //public bool IsFunction { get { return CallKind != CallKinds.NUL && !IsOperator; } }
-    //public bool IsBuiltIn { get { return CallInfo != null; } }
-    //public bool IsCompareOp { get { return IsBinary && DataType == DataTypes.Bool && !IsFoldable; } }
-    //public bool IsGlobal { get { return Level == 1; } }
-
     public bool IsConst { get { return Kind == SymKinds.CONST; } }
     public bool IsCatVar { get { return Kind == SymKinds.CATVAR; } }
     public bool IsField { get { return Kind == SymKinds.FIELD; } }
     public bool IsParam { get { return Kind == SymKinds.PARAM; } }
+    public bool IsComponent { get { return Kind == SymKinds.COMPONENT; } }
+    public bool IsUserType { get { return Kind == SymKinds.SELECTOR; } }
     // Variable means a name bound to a value
     public bool IsVariable { get { return IsConst || IsCatVar || IsField || IsParam; } }
 
-    public bool IsComponent { get { return Kind == SymKinds.COMPONENT; } }
-    public bool IsUserType { get { return Kind == SymKinds.SELECTOR; } }
-
+    public bool IsUserSel { get { return CallKind == CallKinds.SFUNC; } }
     public bool IsDefFunc { get { return CallKind == CallKinds.EFUNC; } }
     public bool IsCallable { get { return CallKind != CallKinds.NUL; } }
     public bool IsOperator { get { return IsCallable && Precedence != 0; } }
@@ -212,6 +179,7 @@ namespace Andl.Peg {
     public bool IsCompareOp { get { return IsBinary && DataType == DataTypes.Bool && !IsFoldable; } }
 
     public DataType ReturnType { get { return CallInfo.ReturnType; } }
+    public DataColumn AsColumn() { return DataColumn.Create(Name, DataType); }
 
     public TypedValue GetSeed(DataType datatype) {
       if (datatype is DataTypeRelation)
@@ -443,12 +411,13 @@ namespace Andl.Peg {
       AddFunction(SymNames.Lift, 1, DataTypes.Void, CallKinds.FUNC, "Lift");
       AddFunction(SymNames.Project, 2, DataTypes.Table, CallKinds.VFUNC, "Project");
       AddFunction(SymNames.Rename, 2, DataTypes.Table, CallKinds.VFUNC, "Rename");
-      AddFunction(SymNames.Row, 2, DataTypes.Row, CallKinds.VFUNC, "Row");
+      AddFunction(SymNames.RowE, 2, DataTypes.Row, CallKinds.VFUNC, "Row");
+      AddFunction(SymNames.RowV, 2, DataTypes.Row, CallKinds.VFUNCT, "Row2");
       AddFunction(SymNames.Restrict, 2, DataTypes.Table, CallKinds.VFUNC, "Restrict");
       AddFunction(SymNames.Transform, 2, DataTypes.Table, CallKinds.VFUNC, "Transform");
       AddFunction(SymNames.TransAgg, 2, DataTypes.Table, CallKinds.VFUNC, "TransAgg");
       AddFunction(SymNames.TransOrd, 2, DataTypes.Table, CallKinds.VFUNC, "TransOrd");
-      AddFunction(SymNames.Table, 2, DataTypes.Table, CallKinds.VFUNC, "Table");
+      AddFunction(SymNames.Table, 2, DataTypes.Table, CallKinds.VFUNCT, "Table2");
       AddFunction(SymNames.UpdateJoin, 3, DataTypes.Bool, CallKinds.FUNC, "UpdateJoin");
       AddFunction(SymNames.UpdateTransform, 3, DataTypes.Bool, CallKinds.VFUNC, "UpdateTrans");
       AddFunction(SymNames.UserSelector, 2, DataTypes.User, CallKinds.VFUNCT, "UserSelector");

@@ -143,7 +143,10 @@ namespace Andl.Runtime {
     }
 
     public VoidValue Assign2(TextValue name, TypedValue value) {
-      return null;
+      Logger.WriteLine(3, "Assign {0}", name);
+      _catalog.SetValue(name.Value, value);
+      Logger.WriteLine(3, "[Ass]");
+      return VoidValue.Default;
     }
     public VoidValue Defer2(TextValue name, CodeValue value) {
       return null;
@@ -214,6 +217,22 @@ namespace Andl.Runtime {
         ret = RelationValue.Create(DataTableLocal.Convert(ret.AsTable(), args));
       Logger.WriteLine(3, "[Inv {0}]", ret);
       return ret;
+    }
+
+    // Create a row from values and a heading
+    public TupleValue Row2(TypedValue hdgarg, params TypedValue[] valueargs) {
+      var heading = hdgarg.AsHeading();
+      var newrow = DataRow.Create(heading, valueargs);
+      Logger.WriteLine(3, "[Row={0}]", newrow);
+      return TupleValue.Create(newrow);
+    }
+
+    // Create a Table from row values and a heading
+    // Each row has its own heading, which must match.
+    public RelationValue Table2(HeadingValue hdgarg, params TypedValue[] rowargs) {
+      var newtable = DataTable.Create(hdgarg.Value, rowargs.Select(r => r.AsRow()));
+      Logger.WriteLine(3, "[Table={0}]", newtable);
+      return RelationValue.Create(newtable);
     }
 
     // Create a row by evaluating named expressions against a heading
