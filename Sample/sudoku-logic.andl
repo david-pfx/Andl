@@ -41,10 +41,10 @@ solution := knowns recurse(
     do {
         // start with the 729 possiblities, progressively remove conflicts with knowns
         knownsu := knowns join units
-        allowedu := possu ajoin knownsu[{ index }]
-                    ajoin knownsu[{ row, ndigit }]
-                    ajoin knownsu[{ col, ndigit }]
-                    ajoin knownsu[{ box, ndigit }]
+        allowedu := possu ajoin knownsu[{ index }
+                    ] ajoin knownsu[{ row, ndigit }
+                    ] ajoin knownsu[{ col, ndigit }
+                    ] ajoin knownsu[{ box, ndigit } ]
 
         // algorithm 1 - a cell with only one possible digit must be that digit
         new1 := allowedu [{ index, tot:=fold(+,1) }] [?(tot=1)] join allowedu

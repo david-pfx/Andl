@@ -91,13 +91,12 @@ namespace Andl.Compiler {
       if (!ParseMain() || ErrorCount > 0) return ErrorCount == 0;
 
       var code = _emitter.GetCode();
-      // decode if didn't already
-      if (Logger.Level >= 3 && !Catalog.InteractiveFlag)
+      if (Logger.Level >= 4)
         Decoder.Create(code).Decode();
 
       // batch execution
       if (Catalog.ExecuteFlag) {
-        Logger.WriteLine(3, "Begin execution");
+        Logger.WriteLine("*** Begin execution");
         try {
           _evaluator.Exec(code);
         } catch (ProgramException ex) {

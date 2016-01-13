@@ -53,8 +53,6 @@ namespace Andl.Peg {
     }
     DataHeading _heading;
 
-    // Used to track accumulators within scope
-    public int Accums = 0;
     // Used to track lookup within scope
     public LookupItems LookupItems { get { return _lookupitems; } } 
     LookupItems _lookupitems = new LookupItems();
@@ -74,7 +72,7 @@ namespace Andl.Peg {
     public static Scope Push() {
       _current = new Scope() {
         Dict = new Dictionary<string, Symbol>(),
-        //_lookupitems = new LookupItems(),
+        _heading = null,
         _parent = _current,
       };
       Logger.WriteLine(4, "Push scope {0}", _current.Level);
@@ -84,13 +82,13 @@ namespace Andl.Peg {
     // Reset scope variables but keep symbols
     public void Reset() {
       _lookupitems = new LookupItems();
-      Accums = 0;
     }
 
     // Create a new scope level, possible empty
+    // Note that null heading means look at parent
     public static Scope Push(DataType datatype = null) {
       var scope = Push();
-      if (datatype != null) scope.SetHeading(datatype);
+      if (datatype != null && datatype.HasHeading) scope.SetHeading(datatype);
       return scope;
     }
 
@@ -113,11 +111,12 @@ namespace Andl.Peg {
     }
 
     void SetHeading(DataType datatype) {
-      _heading = datatype.Heading ?? DataHeading.Empty;
+      Logger.Assert(datatype != null);
+      _heading = datatype.Heading;
       Logger.WriteLine(4, "Set heading {0}", _heading);
       foreach (var c in _heading.Columns) {
         Add(new Symbol {
-          Kind = (datatype is DataTypeRelation) ? SymKinds.FIELD : SymKinds.COMPONENT,
+          Kind = (datatype is DataTypeUser) ? SymKinds.COMPONENT : SymKinds.FIELD,
           DataType = c.DataType,
         }, c.Name);
       }

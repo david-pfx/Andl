@@ -9,10 +9,9 @@ sum(n:0) => fold(+,n)
 //--- nested relation
 nr1 := {{ name := 'S', contents := S }}
 nr1
-nr2 := {
-    { name := 'S1', contents := S [?( CITY = 'London')] },
-    { name := 'S2', contents := S [?( CITY = 'Paris')] },
-    { name := 'S2', contents := S [?( CITY = 'Athens')] } }
+nr2 := { { name := 'S1', contents := S [?( CITY = 'London')] },
+         { name := 'S2', contents := S [?( CITY = 'Paris')] },
+         { name := 'S2', contents := S [?( CITY = 'Athens')] } }
 nr2
 // retrieve one row as relation
 nr2 [?(name='S1') { contents }]
@@ -31,7 +30,8 @@ ES2
 
 // --- Unnest: using fold union and lift -- advanced usage!
 // Embedded tuple as a relation for union
-ES1 [{ fold(union,{{embed}}) }]
+ES1 [{ fold(union,{{ embed := embed }}) }]
+//ES1 [{ fold(union,{{embed}}) }]
 // Embedded relation as is
 ES2 [{ fold(union,embed) }]
 

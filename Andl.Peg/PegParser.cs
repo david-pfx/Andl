@@ -136,40 +136,8 @@ namespace Andl.Peg {
 
     ///============================================================================================
     ///
-    /// scopes
-    /// 
-
-    bool DefScope(string ident, AstType rettype, IList<AstField> arguments) {
-      var args = (arguments == null) ? new DataColumn[0] : arguments.Select(a => DataColumn.Create(a.Name, a.DataType)).ToArray();
-      var rtype = (rettype == null) ? DataTypes.Unknown : rettype.DataType;
-      Symbols.AddDeferred(ident, rtype, args);
-      Scope.Push();
-      foreach (var a in args)
-        Symbols.AddVariable(a.Name, a.DataType, SymKinds.PARAM);
-      return true;
-    }
-
-    public bool PushScope(AstValue value = null) {
-      if (value == null) Scope.Push();
-      else Scope.Push(value.DataType);
-      return true;
-    }
-
-    bool PopScope() {
-      Scope.Pop();
-      return true;
-    }
-
-    ///============================================================================================
-    ///
     /// utility and semantic functions
     /// 
-
-    //public bool PopScope(AstValue value) {
-    //  Scope.Pop();
-    //  //if (value.DataType.HasHeading) Scope.Pop();
-    //  return true;
-    //}
 
     public bool SetState(Cursor state) {
       State = state;

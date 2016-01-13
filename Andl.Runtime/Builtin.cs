@@ -142,16 +142,6 @@ namespace Andl.Runtime {
       };
     }
 
-    public VoidValue Assign2(TextValue name, TypedValue value) {
-      Logger.WriteLine(3, "Assign {0}", name);
-      _catalog.SetValue(name.Value, value);
-      Logger.WriteLine(3, "[Ass]");
-      return VoidValue.Default;
-    }
-    public VoidValue Defer2(TextValue name, CodeValue value) {
-      return null;
-    }
-
     ///=================================================================
     ///
     /// Special operations
@@ -164,6 +154,15 @@ namespace Andl.Runtime {
       var name = exprarg.Value.Name;
       var value = exprarg.AsEval.Evaluate();
       _catalog.SetValue(name, value);
+      Logger.WriteLine(3, "[Ass]");
+      return VoidValue.Default;
+    }
+
+    // Assign a value to a variable 
+    // The variable is identified by name, a value is stored
+    public VoidValue Assign2(TextValue name, TypedValue value) {
+      Logger.WriteLine(3, "Assign {0}:={1}", name, value);
+      _catalog.SetValue(name.Value, value);
       Logger.WriteLine(3, "[Ass]");
       return VoidValue.Default;
     }
@@ -356,23 +355,29 @@ namespace Andl.Runtime {
     // Create new table with less columns and perhaps less rows; can also rename
     // TODO: optimise one pass
     public RelationValue Project(RelationValue relarg, params CodeValue[] exprargs) {
+      Logger.WriteLine(3, "Project {0} {1}", relarg, exprargs.Select(e => e.AsEval.Kind.ToString()).ToArray());
       var rel = relarg.Value;
       var exprs = exprargs.Select(e => (e as CodeValue).AsEval).ToArray();
       var relnew = rel.Project(exprs);
+      Logger.WriteLine(3, "[Pr {0}]", relnew);
       return RelationValue.Create(relnew);
     }
 
     // Rename by applying rename expressions
     // Just switch heading
-    public RelationValue Rename(RelationValue relarg, params CodeValue[] renargs) {
-      var renames = renargs.Select(r => (r as CodeValue).AsEval).ToArray();
+    public RelationValue Rename(RelationValue relarg, params CodeValue[] exprargs) {
+      Logger.WriteLine(3, "Rename {0} {1}", relarg, exprargs.Select(e => e.AsEval.Kind.ToString()).ToArray());
+      var renames = exprargs.Select(r => (r as CodeValue).AsEval).ToArray();
       var relnew = relarg.Value.Rename(renames);
+      Logger.WriteLine(3, "[Rn {0}]", relnew);
       return RelationValue.Create(relnew);
     }
 
     // Create new table filtered by evaluating a predicate expressions
-    public RelationValue Restrict(RelationValue relarg, params CodeValue[] expr) {
-      var relnew = relarg.Value.Restrict(expr[0].AsEval);
+    public RelationValue Restrict(RelationValue relarg, params CodeValue[] exprargs) {
+      Logger.WriteLine(3, "Restrict {0} {1}", relarg, exprargs.Select(e => e.AsEval.Kind.ToString()).ToArray());
+      var relnew = relarg.Value.Restrict(exprargs[0].AsEval);
+      Logger.WriteLine(3, "[Rs {0}]", relnew);
       return RelationValue.Create(relnew);
     }
 
@@ -389,7 +394,7 @@ namespace Andl.Runtime {
 
     // Transform plus aggregation
     public RelationValue TransAgg(RelationValue relarg, params CodeValue[] exprargs) {
-      Logger.WriteLine(3, "TransAgg {0} {1}", relarg, exprargs.Select(e => e.AsEval.Kind.ToString()));
+      Logger.WriteLine(3, "TransAgg {0} {1}", relarg, exprargs.Select(e => e.AsEval.Kind.ToString()).ToArray());
       var rel = relarg.Value;
       var exprs = exprargs.Select(e => e.AsEval).ToArray();
       var heading = DataHeading.Create(exprs);
@@ -400,7 +405,7 @@ namespace Andl.Runtime {
 
     // Transform plus ordering
     public RelationValue TransOrd(RelationValue relarg, params CodeValue[] exprargs) {
-      Logger.WriteLine(3, "TransOrd {0} {1}", relarg, exprargs.Select(e => e.AsEval.Kind.ToString()));
+      Logger.WriteLine(3, "TransOrd {0} {1}", relarg, exprargs.Select(e => e.AsEval.Kind.ToString()).ToArray());
       var rel = relarg.Value;
       var exprs = exprargs.Select(e => (e as CodeValue).AsEval).ToArray();
       var tranexprs = exprs.Where(e => !e.IsOrder).ToArray();

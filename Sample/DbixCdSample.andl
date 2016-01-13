@@ -43,12 +43,12 @@ get_artist_by_cd(t) => (cd [?(title = t) { cdid }] join cd) [{ artistid }] join 
 // first show the raw data
 
 crlf := h'd a'
-output := crlf & "=== Sample data ===" & crlf
-output := artist.pp
-output := crlf.pp
-output := cd.pp
-output := crlf.pp
-output := track.pp
+write(crlf & "=== Sample data ===" & crlf)
+write(artist.pp)
+write(crlf.pp)
+write(cd.pp)
+write(crlf.pp)
+write(track.pp)
 
 // now do the queries
 

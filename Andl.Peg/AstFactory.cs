@@ -10,11 +10,51 @@ namespace Andl.Peg {
   /// Implement factory for AST nodes
   /// </summary>
   public class AstFactory {
+    class AccumCounter {
+      public bool Enabled { get; set; }
+      public int Total { get; set; }
+      public int Count { get; set; }
+      AccumCounter _parent = null;
+
+      public AccumCounter Push() {
+        var ret = new AccumCounter { _parent = this, Enabled = true };
+        Logger.WriteLine(4, "Push {0} => {1}", this, ret);
+        return ret;
+      }
+      public AccumCounter Pop() {
+        Logger.WriteLine(4, "Pop {0} => {1}", this, _parent);
+        return _parent;
+      }
+      public void Add(int num) {
+        Count += num;
+        Total += num;
+        Logger.WriteLine(4, "Add {0} {1}", num, this);
+      }
+      public void Reset(bool all) {
+        Count = 0;
+        if (all) Total = 0;
+        Logger.WriteLine(4, "Reset {0} {1}", all, this);
+      }
+      public override string ToString() {
+        return string.Format("Accum:{0} c={1} t={2}", Enabled, Count, Total);
+      }
+    }
+
     public TypeSystem Types { get { return Parser.Types; } }
-    public SymbolTable Syms { get { return Parser.Symbols; } }
+    public SymbolTable Symbols { get { return Parser.Symbols; } }
     public Catalog Cat { get { return Parser.Cat; } }
     public PegParser Parser { get; set; }
 
+    AccumCounter _accum = new AccumCounter();
+
+    // A set of statements inside a do scope
+    public AstValue DoBlock(IList<AstStatement> statements) {
+      var datatype = (statements == null || statements.Count == 0) ? DataTypes.Void : statements.Last().DataType;
+      var block = new AstBlock { Statements = statements.ToArray(), DataType = datatype };
+      return new AstDoBlock {
+        Func = FindFunc(SymNames.DoBlock), DataType = datatype, Value = block,
+      };
+    }
 
     // just a set of statements
     public AstBlock Block(IList<AstStatement> statements) {
@@ -24,39 +64,45 @@ namespace Andl.Peg {
       };
     }
 
+    public AstDefine DefBlock(IList<AstDefine> defines) {
+      return new AstDefine { DataType = DataTypes.Void };
+    }
+
     public AstDefine UserType(string ident, AstField[] fields) {
       var ff = fields.Select(a => DataColumn.Create(a.Name, a.DataType)).ToArray();
       var ut = DataTypeUser.Get(ident, ff);
-      Syms.AddUserType(ident, ut);
-      Syms.AddCatalog(Syms.FindIdent(ident));
+      Symbols.AddUserType(ident, ut);
+      Symbols.AddCatalog(Symbols.FindIdent(ident));
       return new AstUserType { DataType = DataTypes.Void };
     }
 
     public AstDefine SubType(string ident, AstType super) {
       var cols = new DataColumn[] { DataColumn.Create("super", super.DataType) };
       var ut = DataTypeUser.Get(ident, cols);
-      Syms.AddUserType(ident, ut);
+      Symbols.AddUserType(ident, ut);
       return new AstSubType { DataType = DataTypes.Void };
     }
 
     public AstStatement Source(string ident, AstLiteral value) {
-      var datatype = Cat.GetRelvarType(ident, value.Value.ToString());  //FIX: better to be literal to here
-      Syms.AddVariable(ident, datatype, SymKinds.CATVAR);
-      Syms.AddCatalog(Syms.FindIdent(ident));
+      var datatype = Cat.GetRelvarType(ident, value.ToString());  //FIX: better to be literal to here
+      if (datatype == null) Parser.ParseError("cannot find '{0}' as '{1}'", ident, value);
+      Symbols.AddVariable(ident, datatype, SymKinds.CATVAR);
+      Symbols.AddCatalog(Symbols.FindIdent(ident));
       return FunCall(FindFunc(SymNames.Import), Args(value, Text(ident), Text(Parser.Cat.SourcePath)));
     }
 
-    public AstStatement Deferred(string ident, AstType rettype, IList<AstField> arguments, AstStatement body) {
+    public AstStatement Deferred(string ident, AstType rettype, IList<AstField> arguments, AstBodyStatement body) {
       var op = FindDefFunc(ident);
       if (op.DataType == DataTypes.Unknown) op.DataType = body.DataType;
-      Syms.AddCatalog(op);
+      op.CallInfo.AccumCount = body.AccumCount;
+      Symbols.AddCatalog(op);
       Types.CheckTypeMatch(body.DataType, op.DataType);
-      return FunCall(FindFunc(SymNames.Defer), Args(Code(body as AstValue, Headingof(arguments), ident, -1, true))); //FIX: accum
+      return FunCall(FindFunc(SymNames.Defer), Args(Code(body.Statement as AstValue, Headingof(arguments), ident, body.AccumCount, true)));
     }
 
     public AstStatement Assignment(string ident, AstValue value) {
-      Syms.AddVariable(ident, value.DataType, SymKinds.CATVAR);
-      Syms.AddCatalog(Syms.FindIdent(ident));
+      Symbols.AddVariable(ident, value.DataType, SymKinds.CATVAR);
+      Symbols.AddCatalog(Symbols.FindIdent(ident));
       return FunCall(FindFunc(SymNames.Assign), Args(Text(ident), value));
     }
 
@@ -67,22 +113,38 @@ namespace Andl.Peg {
     }
 
     public AstStatement UpdateTransform(string ident, AstTranCall arg) {
-      return FunCall(FindFunc(SymNames.UpdateTransform), DataTypes.Void,
-        Args(arg.Where, Code(arg.Transformer, Scope.Current.Heading)));
+      var tran = arg.Transformer ?? Transformer(false, null);
+      return FunCall(FindFunc(SymNames.UpdateTransform), DataTypes.Void, tran.Elements.Length,
+        Args(Variable(ident), Args(arg.Where, tran.Elements)));
     }
 
-    // Wrap transform tail for later handling, update scope for type inference
-    public AstTranCall TransformTail(AstValue where, AstOrderer order, AstTransformer trans) {
-      if (trans != null) {
-        Scope.Pop();
-        Scope.Push(trans.DataType);
-      }
-      return new AstTranCall {
-        DataType = DataTypeRelation.Get(Scope.Current.Heading),
-        Where = where, Transformer = trans, Orderer = order,
+    // body statement in deferred might need an accumulator
+    public AstBodyStatement BodyStatement(AstStatement value) {
+      return new AstBodyStatement {
+        DataType = value.DataType, Statement = value, AccumCount = _accum.Total
+        //DataType = value.DataType, Statement = value, AccumCount = _accum.Count
       };
     }
 
+    // Wrap transform tail for later handling
+    // update scope for type inference, and to lose any defined symbols
+    public AstTranCall TransformTail(AstValue where, AstOrderer order, AstTransformer trans) {
+      Reenter(trans == null ? null : trans.DataType);
+      return new AstTranCall {
+        DataType = DataTypeRelation.Get(CurrentHeading()),
+        Where = where, Orderer = order, Transformer = trans,
+      };
+    }
+
+    // handle a Where rule simply as code (may have fold)
+    public AstValue Where(AstValue value) {
+      var lookup = DataHeading.Create(Scope.Current.LookupItems.Items);
+      var accums = _accum.Total;
+      _accum = _accum.Push();
+      return Code(value, lookup, "?", accums);
+    }
+
+    // create ordering node
     public AstOrderer Orderer(IList<AstOrder> argslist) {
       var args = argslist.ToArray();
       return new AstOrderer { Elements = args, DataType = Typeof(args) };
@@ -96,16 +158,16 @@ namespace Andl.Peg {
         if (allbut || argslist.Count != 1) Parser.ParseError("invalid lift");
         return new AstTransformer { Elements = args, Lift = true, DataType = argslist[0].DataType };
       }
-      if (allbut) args = Allbut(Scope.Current.Heading, args);
+      if (allbut) args = Allbut(CurrentHeading(), args);
       return new AstTransformer { Elements = args, DataType = Typeof(args) };
     }
 
-    // take generic transform element and create specific type of AST with all required info
-    // each element uses the same scope, but tracks individual lookup items and folds
-    public AstField Transform(string name, string rename = null, AstValue value = null) {
+    // handle generic transform rule and create specific node with all required info
+    // each element tracks lookup items and folds
+    public AstField Transfield(string name, string rename = null, AstValue value = null) {
       var lookup = DataHeading.Create(Scope.Current.LookupItems.Items);
-      var accums = Scope.Current.Accums;
-      Scope.Current.Reset();
+      var accums = _accum.Count;
+      _accum.Reset(false);
       if (name == null) return new AstLift {
         Name = "^", Value = value, DataType = value.DataType, Lookup = lookup, Accums = accums,
       };
@@ -120,20 +182,14 @@ namespace Andl.Peg {
       };
     }
 
-    public AstValue Where(AstValue value) {
-      var lookup = DataHeading.Create(Scope.Current.LookupItems.Items);
-      var accums = Scope.Current.Accums;
-      Scope.Current.Reset();
-      return Code(value, lookup, "?");
-    }
-
+    // handle an Order rule
     public AstOrder Order(string name, bool desc, bool group) {
-      return new AstOrder { Name = name, Descending = desc, Grouped = group };
+      return new AstOrder { Name = name, DataType = FindField(name).DataType, Descending = desc, Grouped = group };
     }
 
     public AstValue Row(AstTransformer transformer) {
       return new AstTabCall {
-        Func = FindFunc(SymNames.RowE), DataType = transformer.DataType, Arguments = transformer.Elements,
+        Func = FindFunc(SymNames.RowE), DataType = Types.Tupof(transformer.DataType), Arguments = transformer.Elements,
       };
     }
     public AstValue RowValues(IList<AstValue> values) {
@@ -160,9 +216,18 @@ namespace Andl.Peg {
       return new AstValue { DataType = type };
     }
 
-    public AstValue Table(bool star) {
-      var ret = FunCall(FindFunc(SymNames.Table), DataTypeRelation.Empty, Args(Transformer(true, null))); //FIX:
-      return ret;
+    public AstValue Table() {
+      var row = Row();
+      return new AstTabCall {
+        Func = FindFunc(SymNames.Table), DataType = Types.Relof(row.DataType), Arguments = Args(row),
+      };
+    }
+
+    public AstValue Row() {
+      var trans = Transformer(true, null);
+      return new AstTabCall {
+        Func = FindFunc(SymNames.RowE), DataType = Types.Tupof(trans.DataType), Arguments = trans.Elements,
+      };
     }
 
     ///--------------------------------------------------------------------------------------------
@@ -179,17 +244,28 @@ namespace Andl.Peg {
     ///--------------------------------------------------------------------------------------------
     /// Calls with arguments
     /// 
-    public AstValue Expression(AstValue value, IList<AstOpCall> ops) {
-      var ret = Expression(value, ops.ToArray());
-      if (Logger.Level >= 4) Logger.WriteLine("Expression {0}", ret);
+    public AstValue Binop(AstValue value, IList<AstOpCall> ops) {
+      var ret = Binop(value, ops.ToArray());
+      if (Logger.Level >= 4) Logger.WriteLine("Binop {0}", ret);
       return ret;
     }
-    public AstValue Expression(AstValue value, AstOpCall[] ops) {
+
+    public AstValue Binop(AstValue value, AstOpCall[] ops) {
+      Logger.WriteLine(4, "expr {0} op={1}", value, String.Join(",", ops.Select(o => o.ToString())));
       if (ops.Length == 0) return value;
-      if (ops.Length == 1) return FunCall(ops[0].Func, Args(value, ops[0].Arguments[0]));
-      if (ops[0].Func.Precedence >= ops[1].Func.Precedence)
-        return Expression(FunCall(ops[0].Func, Args(value, ops[0].Arguments[0])), ops.Skip(1).ToArray());
-      return FunCall(ops[0].Func, Args(value, Expression(ops[0].Arguments[0] as AstValue, ops.Skip(1).ToArray())));
+      var op = ops[0];
+      if (ops.Length == 1) return FunCall(op.Func, Args(value, op.Arguments));
+      var opnext = ops[1];
+      var optail = ops.Skip(1);
+      //Func<AstCall, AstCall, bool> op high = (op1, op2) => !op1.Func.IsOperator || op1.Func.Precedence >= op2.Func.Precedence;
+      if (!op.Func.IsOperator || op.Func.Precedence >= opnext.Func.Precedence)
+        return Binop(FunCall(op.Func, Args(value, op.Arguments)), optail.ToArray());
+      // The hard case -- rewrite the tree
+      // extract higher precedence ops and do those first; then lower
+      var hiprec = optail.TakeWhile(o => !o.Func.IsOperator || o.Func.Precedence > op.Func.Precedence);
+      var hivalue = Binop(op.Arguments[0] as AstValue, hiprec.ToArray());
+      var loprec = optail.SkipWhile(o => !o.Func.IsOperator || o.Func.Precedence > op.Func.Precedence);
+      return Binop(FunCall(op.Func, Args(value, hivalue)), loprec.ToArray());
     }
 
     // construct a FunCall from the first OpCall, then invoke tail on result
@@ -202,33 +278,29 @@ namespace Andl.Peg {
     }
 
     // translate set of transform calls into a function call (or two)
-    public AstValue PostFix(AstValue value, AstTranCall tran) {
+    AstValue PostFix(AstValue value, AstTranCall tran) {
       var newvalue = value;
       if (tran.Where != null)
         newvalue = FunCall(FindFunc(SymNames.Restrict), value.DataType, 1, Args(value, tran.Where));
       var args = new List<AstNode> { newvalue };
       if (tran.Orderer != null) args.AddRange(tran.Orderer.Elements);
       if (tran.Transformer != null) args.AddRange(tran.Transformer.Elements);
+      else if (tran.Orderer != null) args.AddRange(Allbut(value.DataType.Heading, new AstField[0]));
       if (args.Count > 1) {
         var opname = (tran.Orderer != null) ? SymNames.TransOrd
           : tran.Transformer.Elements.Any(e => e is AstExtend && (e as AstExtend).Accums > 0) ? SymNames.TransAgg
           : tran.Transformer.Elements.Any(e => e is AstExtend) ? SymNames.Transform
-          : tran.Transformer.Elements.Any(e => e is AstRename) ? SymNames.Rename
+          : tran.Transformer.Elements.All(e => e is AstRename) && tran.Transformer.Elements.Length == value.DataType.Heading.Degree ? SymNames.Rename
           : SymNames.Project;
         newvalue = FunCall(FindFunc(opname), tran.DataType, args.Count - 1, args.ToArray());
         if (tran.Transformer != null && tran.Transformer.Lift)
-          newvalue = FunCall(FindFunc(SymNames.Lift), newvalue.DataType, Args(newvalue));
+          newvalue = FunCall(FindFunc(SymNames.Lift), tran.Transformer.DataType, Args(newvalue));
       }
       return newvalue;
     }
 
-    public AstValue PostFix(AstValue value, AstOpCall op) {
+    AstValue PostFix(AstValue value, AstOpCall op) {
       return FunCall(op.Func, new AstValue[] { value }.Concat(op.Arguments).ToArray()); // cons
-    }
-
-    // TODO: 
-    public AstOpCall Recurse(AstValue arg) {
-      return OpCall("recurse", arg);
     }
 
     // Dot that is a function call
@@ -250,9 +322,10 @@ namespace Andl.Peg {
     public AstFoldCall Fold(string oper, AstValue expression) {
       var op = FindFunc(oper);
       if (!op.IsFoldable) Parser.ParseError("not foldable");
-      var accum = Scope.Current.Accums++;
+      var accum = _accum.Total;
+      _accum.Add(1);
       return new AstFoldCall {
-        Func = FindFunc(SymNames.Fold), FoldedOp = op, Accum = accum, DataType = expression.DataType, FoldedExpr = expression,
+        Func = FindFunc(SymNames.Fold), FoldedOp = op, AccumIndex = accum, DataType = expression.DataType, FoldedExpr = expression,
       };
     }
 
@@ -272,20 +345,22 @@ namespace Andl.Peg {
     ///
     AstValue Code(AstValue value, DataHeading lookup = null, string name = "?", int accums = -1, bool defer = false) {
       return new AstCode {
-        Name = name, Value = value, DataType = DataTypes.Code, Accum = accums, Lookup = lookup, Defer = defer,
+        Name = name, Value = value, DataType = DataTypes.Code, Accums = accums, Lookup = lookup, Defer = defer,
       };
     }
 
+    // implement allbut: remove projects, add renames, extends and other columns as projects
     AstField[] Allbut(DataHeading heading, AstField[] fields) {
-      var newcols = heading.Columns.Select(c => c.Name)
-        .Except(fields.Select(f => f.Name))
-        .Except(fields.Where(f => f is AstRename).Select(f => (f as AstRename).OldName));
-      var newproj = heading.Columns.Where(c => newcols.Contains(c.Name))
-        .Select(c => new AstProject { Name = c.Name, DataType = c.DataType });
-      var neweles = fields.Where(e => !(e is AstProject))
-        .Union(newproj);
-      return neweles.ToArray();
-    }
+      // deletions first -- remove all columns matching a project
+      var newcols = heading.Columns.Where(c => !fields.Any(f => f is AstProject && (f as AstProject).Name == c.Name));
+      // changes
+      var newfields = newcols.Select(c => {
+        var field = fields.FirstOrDefault(f => (f is AstRename) ? (f as AstRename).OldName == c.Name : f.Name == c.Name);
+        return field ?? new AstProject { Name = c.Name, DataType = c.DataType };
+      });
+      // additions
+      var newext = fields.Where(f => f is AstExtend && !newcols.Any(c => c.Name == f.Name));
+      return newfields.Concat(newext).ToArray();
 
     // Generic function call, handles type checking, overloads and def funcs
     AstFunCall FunCall(Symbol op, AstNode[] args) {
@@ -300,14 +375,29 @@ namespace Andl.Peg {
       DataType datatype;
       CallInfo callinfo;
       Types.CheckTypeError(op, out datatype, out callinfo, args.Select(a => a.DataType).ToArray());
-      if (op.IsDefFunc) return new AstDefCall {
-        Func = FindFunc(SymNames.Invoke), DataType = datatype, DefFunc = op, Arguments = args,
-        NumVarArgs = args.Length, CallInfo = callinfo,
-      };
+      if (op.IsDefFunc) {
+        var accbase = _accum.Total;
+        _accum.Add(callinfo.AccumCount);
+        return new AstDefCall {
+          Func = FindFunc(SymNames.Invoke), DataType = datatype, DefFunc = op, Arguments = args,
+          NumVarArgs = args.Length, CallInfo = callinfo, AccumBase = accbase,
+        };
+      }
       if (op.IsUserSel) return new AstUserCall {
         Func = FindFunc(SymNames.UserSelector), UserFunc = op, DataType = op.DataType,
         Arguments = args, NumVarArgs = args.Length,
       };
+      if (op.IsOrdFunc) {
+        return new AstFunCall {
+          Func = op, DataType = datatype, Arguments = Args(Code(args[0] as AstValue, CurrentHeading()), args.Skip(1).ToArray()),
+        };
+      }
+      if (op.IsRecurse) {
+        return new AstFunCall {
+          Func = op, DataType = datatype,
+          Arguments = Args(args[0], args[1], Code(args[2] as AstValue, CurrentHeading())),
+        };
+      }
       return new AstFunCall {
         Func = op, DataType = datatype, Arguments = args, CallInfo = callinfo,
       };
@@ -397,31 +487,31 @@ namespace Andl.Peg {
     }
 
     public Symbol FindCatVar(string name) {
-      var ret = Syms.FindIdent(name);
+      var ret = Symbols.FindIdent(name);
       return ret != null && ret.IsCatVar ? ret : null;
     }
     public Symbol FindDefFunc(string name) {
-      var ret = Syms.FindIdent(name);
+      var ret = Symbols.FindIdent(name);
       return ret != null && ret.IsDefFunc ? ret : null;
     }
     public Symbol FindField(string name) {
-      var ret = Syms.FindIdent(name);
+      var ret = Symbols.FindIdent(name);
       return ret != null && ret.IsField ? ret : null;
     }
     public Symbol FindVariable(string name) {
-      var ret = Syms.FindIdent(name);
+      var ret = Symbols.FindIdent(name);
       return ret != null && ret.IsVariable ? ret : null;
     }
     public Symbol FindFunc(string name) {
-      var ret = Syms.FindIdent(name);
+      var ret = Symbols.FindIdent(name);
       return ret != null && ret.IsCallable ? ret : null;
     }
     public Symbol FindComponent(string name) {
-      var ret = Syms.FindIdent(name);
+      var ret = Symbols.FindIdent(name);
       return ret != null && ret.IsComponent ? ret : null;
     }
     public Symbol FindUserType(string name) {
-      var ret = Syms.FindIdent(name);
+      var ret = Symbols.FindIdent(name);
       return ret != null && ret.IsUserType ? ret : null;
     }
     // get a heading type
@@ -435,6 +525,55 @@ namespace Andl.Peg {
       if (fields == null) return DataHeading.Empty;
       var typelist = fields.Select(f => DataColumn.Create(f.Name, f.DataType));
       return DataHeading.Create(typelist, false);
+    }
+
+    ///============================================================================================
+    ///
+    /// scopes
+    /// 
+
+    // Enter scope for a function definition, with accumulator tracking
+    public bool Enter(string ident, AstType rettype, IList<AstField> arguments) {
+      var args = (arguments == null) ? new DataColumn[0] : arguments.Select(a => DataColumn.Create(a.Name, a.DataType)).ToArray();
+      var rtype = (rettype == null) ? DataTypes.Unknown : rettype.DataType;
+      Symbols.AddDeferred(ident, rtype, args);
+      Scope.Push();
+      foreach (var a in args)
+        Symbols.AddVariable(a.Name, a.DataType, SymKinds.PARAM);
+      _accum = _accum.Push();
+      return true;
+    }
+
+    // Enter scope for a transform, with accumulator tracking
+    public bool Enter(AstValue value) {
+      Scope.Push(value.DataType);
+      _accum = _accum.Push();
+      return true;
+    }
+
+    // Continue scope but perhaps change heading, reset accumulators
+    public bool Reenter(DataType datatype) {
+      var dt = datatype ?? DataTypeRelation.Get(CurrentHeading()); // HACK:
+      Scope.Pop();
+      Scope.Push(dt);
+      _accum.Reset(true);
+      return true;
+    }
+
+    // Enter scope for a do block -- no accumulators
+    public bool Enter() {
+      Scope.Push();
+      return true;
+    }
+
+    public bool Exit(bool accums = false) {
+      Scope.Pop();
+      if (accums) _accum = _accum.Pop();
+      return true;
+    }
+
+    DataHeading CurrentHeading() {
+      return Scope.Current.Heading ?? DataHeading.Empty;
     }
   }
 }

@@ -19,8 +19,8 @@ db family_tree(csv)
 //def family_tree:db(csv)
 family_tree
 
-family_tree [ ?(id=1) { id, firstname, lastname, level:=0 }] 
-    recurse( {{ father_id:=id, level:=level+1 }} compose family_tree[{id, firstname, lastname,father_id}] )
+family_tree [ ?(id=1) { id, firstname, lastname, level:=0 }
+  ] recurse( {{ father_id:=id, level:=level+1 }} compose family_tree[{id, firstname, lastname,father_id}] )
 
 db MM(csv)
 //def MM:db(csv)

@@ -39,6 +39,11 @@ namespace Andl.Runtime {
   public struct ByteCode {
     public byte[] bytes;
     public int Length { get { return bytes == null ? 0 : bytes.Length; } }
+    public void Add(byte[] morecode) {
+      var temp = new List<byte>(bytes);
+      temp.AddRange(morecode);
+      bytes = temp.ToArray();
+    }
   }
 
   /// <summary>

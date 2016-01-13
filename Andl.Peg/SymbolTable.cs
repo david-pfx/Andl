@@ -107,7 +107,7 @@ namespace Andl.Peg {
   public class SymNames {
     public const string Assign = ":assign";
     public const string Defer = ":defer";
-    //public const string DoBlock = ":doblock";
+    public const string DoBlock = ":doblock";
     public const string Fold = ":fold";
     public const string If = ":if";
     public const string Invoke = ":invoke";
@@ -170,6 +170,8 @@ namespace Andl.Peg {
 
     public bool IsUserSel { get { return CallKind == CallKinds.SFUNC; } }
     public bool IsDefFunc { get { return CallKind == CallKinds.EFUNC; } }
+    public bool IsOrdFunc { get { return FuncKind == FuncKinds.VALUE || FuncKind == FuncKinds.RANK; } }
+    public bool IsRecurse { get { return FuncKind == FuncKinds.RECURSE; } }
     public bool IsCallable { get { return CallKind != CallKinds.NUL; } }
     public bool IsOperator { get { return IsCallable && Precedence != 0; } }
     public bool IsFoldable { get { return IsCallable && Foldable != FoldableFlags.NUL; } }
@@ -406,7 +408,7 @@ namespace Andl.Peg {
       AddFunction(SymNames.Assign, 2, DataTypes.Void, CallKinds.FUNC, "Assign2");
       AddFunction(SymNames.Defer, 1, DataTypes.Void, CallKinds.FUNC, "Defer");
       AddFunction(SymNames.Import, 3, DataTypes.Void, CallKinds.FUNC, "Import");
-      //AddFunction(SymNames.DoBlock, 1, DataTypes.Any, CallKinds.FUNC, "DoBlock");
+      AddFunction(SymNames.DoBlock, 1, DataTypes.Any, CallKinds.FUNC, "DoBlock");
       AddFunction(SymNames.Invoke, 2, DataTypes.Any, CallKinds.VFUNCT, "Invoke");
       AddFunction(SymNames.Lift, 1, DataTypes.Void, CallKinds.FUNC, "Lift");
       AddFunction(SymNames.Project, 2, DataTypes.Table, CallKinds.VFUNC, "Project");
@@ -428,7 +430,7 @@ namespace Andl.Peg {
       //AddFunction("fold", 0, DataTypes.Unknown, CallKinds.FUNC, "Fold", FuncKinds.FOLD);
       AddFunction("cfold", 2, DataTypes.Unknown, CallKinds.FUNC, "CumFold", FuncKinds.FOLD);
       AddFunction(SymNames.If, 3, DataTypes.Unknown, CallKinds.FUNC, "If", FuncKinds.IF);
-      AddFunction("recurse", 2, DataTypes.Unknown, CallKinds.FUNC, "Recurse", FuncKinds.RECURSE);
+      AddFunction("recurse", 3, DataTypes.Unknown, CallKinds.FUNC, "Recurse", FuncKinds.RECURSE);
 
       AddFunction("ord", 0, DataTypes.Number, CallKinds.LFUNC, "Ordinal");
       AddFunction("ordg", 0, DataTypes.Number, CallKinds.LFUNC, "OrdinalGroup");

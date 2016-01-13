@@ -487,6 +487,7 @@ namespace Andl.Runtime {
     // Rename some columns, data unchanged
     // It can be possible to copy and graft on new heading, but for now don't try
     public override DataTable Rename(ExpressionEval[] exprs) {
+      Logger.Assert(exprs.Length == Degree, "reorder mismatch");
       // note: this is an explicit heading. Order matters.
       var newheading = Heading.Rename(exprs);
       var newtable = DataTableLocal.Create(newheading);
@@ -802,12 +803,14 @@ namespace Andl.Runtime {
     public override DataTable UpdateTransform(ExpressionEval pred, ExpressionEval[] exprs) {
       Logger.WriteLine(4, "UpdateTransform {0}", Heading);
 
-      var newexprs = Heading.Reorder(exprs);
+      var updating = (exprs.Length > 0);  // false means this is just a delete
+      var newexprs =  (updating) ? Heading.Reorder(exprs) : null;
       // pass 1 - new rows
       var relins = DataTableLocal.Create(Heading);
       for (var ord = 0; ord < _rows.Count; ) { //TODO:Enumerable
         if (pred.EvalPred(_rows[ord]).Value) {
-          if (exprs.Length > 0)
+          if (updating)
+          //if (exprs.Length > 0)
             relins.AddRow(_rows[ord].Transform(Heading, newexprs));
           // deleting a row will replace row at ord with a different one, not yet tested
           DeleteRaw(ord);

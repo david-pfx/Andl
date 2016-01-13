@@ -126,19 +126,34 @@ namespace Andl.Peg {
     }
   }
 
+  public class AstDoBlock : AstValue {
+    public Symbol Func { get; set; }
+    public AstValue Value { get; set; }
+    public override void Emit(Emitter e) {
+      e.OutSeg(ExpressionBlock.Create(":d", ExpressionKinds.Closed, Value.Compile(), Value.DataType));
+      e.Out(Opcodes.LDACCBLK);
+      e.OutCall(Func);
+    }
+  }
+
+  public class AstBodyStatement : AstValue {
+    public AstStatement Statement { get; set; }
+    public int AccumCount { get; set; }
+  }
+
   public class AstCode : AstValue {
     public string Name { get; set; }
     public AstValue Value { get; set; }
     public DataHeading Lookup { get; set; }
-    public int Accum { get; set; }
+    public int Accums { get; set; }
     public bool Defer { get; set; }   // output as code value not seg
     public override string ToString() {
       return string.Format("{0}({1})[{2}] => {3}", Name, Lookup, Value, Value.DataType);
     }
     public override void Emit(Emitter e) {
-      var kind = (Accum >= 0) ? ExpressionKinds.IsFolded
+      var kind = (Accums > 0) ? ExpressionKinds.HasFold
         : (Lookup == null) ? ExpressionKinds.Closed : ExpressionKinds.Open;
-      var eb = ExpressionBlock.Create(Name, kind, Value.Compile(), Value.DataType, Accum, Lookup);
+      var eb = ExpressionBlock.Create(Name, kind, Value.Compile(), Value.DataType, Accums, Lookup);
       if (Defer) e.OutLoad(CodeValue.Create(eb));
       else e.OutSeg(eb);
     }
@@ -163,11 +178,12 @@ namespace Andl.Peg {
 
   public class AstDefCall : AstFunCall {
     public Symbol DefFunc { get; set; }
+    public int AccumBase { get; set; }
     public override void Emit(Emitter e) {
       Logger.Assert(DataType.IsVariable || DataType == DataTypes.Void, DataType);
       e.OutName(Opcodes.LDCATR, DefFunc);
       e.Out(Opcodes.LDACCBLK);
-      e.OutLoad(NumberValue.Default);
+      e.OutLoad(NumberValue.Create(AccumBase));
       foreach (var a in Arguments) a.Emit(e);
       e.OutCall(Func, NumVarArgs);
     }
@@ -177,17 +193,20 @@ namespace Andl.Peg {
   public class AstFoldCall : AstCall {
     public Symbol FoldedOp { get; set; }
     public AstValue FoldedExpr { get; set; }
-    public int Accum { get; set; }
+    public int AccumIndex { get; set; }
+    public override string ToString() {
+      return string.Format("{0}({1},{2})#[{3}] => {4}", Func.Name, FoldedOp.Name, FoldedExpr, AccumIndex , DataType);
+    }
 
     public override void Emit(Emitter e) {
       Logger.Assert(DataType.IsVariable || DataType == DataTypes.Void, DataType);
 
       e.Out(Opcodes.LDACCBLK);
-      e.OutLoad(NumberValue.Create(Accum));
+      e.OutLoad(NumberValue.Create(AccumIndex));
       e.OutLoad(DataType.DefaultValue());
       var seed = FoldedOp.GetSeed(DataType);
       var eb = ExpressionBlock.Create(":i", ExpressionKinds.IsFolded, 
-        FoldedExpr.Compile(FoldedOp, seed), FoldedExpr.DataType, Accum);
+        FoldedExpr.Compile(FoldedOp, seed), FoldedExpr.DataType, AccumIndex);
       e.OutSeg(eb);
       e.OutCall(Func);
     }

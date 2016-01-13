@@ -85,7 +85,7 @@ namespace Andl.Main {
       } else if (arg.StartsWith("c")) {
         _nsw = arg.Contains("n");
         _usw = arg.Contains("u");
-      } else if (arg == "x") {
+      } else if (arg.StartsWith("x")) {
         _csw = arg.Contains("n");
       }  else if (arg == "i")
         _isw = true;

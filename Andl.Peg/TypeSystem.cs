@@ -23,12 +23,8 @@ namespace Andl.Peg {
     }
 
     internal DataType Find(IEnumerable<DataColumn> columns) {
-      return DataTypeTuple.Get(DataHeading.Create(columns));
+      return DataTypeRelation.Get(DataHeading.Create(columns));
     }
-    //internal DataType Find(IEnumerable<Field> typelist) {
-    //  var heading = DataHeading.Create(typelist.Select(f => DataColumn.Create(f.Name, f.Type)));
-    //  return DataTypeTuple.Get(heading);
-    //}
 
     internal DataType Tupof(DataType type) {
       return DataTypeTuple.Get(type.Heading);

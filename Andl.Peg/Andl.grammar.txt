@@ -13,7 +13,7 @@ MainStatement <AstStatement> = WSO EOF { null }
     / v:Statement EOLexp { v };
 
 DoBody <AstValue> = LC RC { AST(state).Block(null) }
-    / LCexp &{ PushScope() } WSC v:DoBodyLine+ &{ PopScope() } WSO RCexp { AST(state).Block(v) };
+    / LCexp &{ AST(state).Enter() } WSC v:DoBodyLine+ &{ AST(state).Exit() } WSO RCexp { AST(state).DoBlock(v) };
 DoBodyLine <AstStatement> = WSO !RC v:Statement (&RC / EOLexp WSE+) { v };
 
 // directives
@@ -29,7 +29,7 @@ BadDirective = #STATE{ ParseError(state, "bad directive");} Skip;
 //--- statements
 Statement <AstStatement> = WSO &. v:(<AstStatement> Deferred / Typedef / Import / UpdateJoin / UpdateTransform / Assignment / Expression / BadStatement) { v };
 
-Typedef <AstDefine> = DEF v:(UserType / Subtype) { v };
+Typedef <AstDefine> = DEF v:(UserType / Subtype)<0,,SEP> { AST(state).DefBlock(v) };
 UserType <AstDefine> = v:DefinableExp LP w:FieldList RPexp { AST(state).UserType(v, w.ToArray()) } ;
 Subtype <AstDefine> = v:DefinableExp COLON w:Type { AST(state).SubType(v, w) };
 Type <AstType> = v:Typename &{ IsTypename(v) } { AST(state).FindType(v) }
@@ -49,45 +49,45 @@ Assignment <AstStatement> = &(Ident LA) v:DefinableExp LA w:Expression { AST(sta
 Deferred <AstStatement> = v:Definable 
     w:(<AstType> COLON a:Type { a } / { null }) 
     x:(<IList<AstField>> LP b:FieldList RP { b })? RA 
-    &{ DefScope(v, w, Single(x)) } y:DeferredBody &{ PopScope() } { AST(state).Deferred(v,w,Single(x),y) };
+    &{ AST(state).Enter(v, w, Single(x)) } y:DeferredBody &{ AST(state).Exit(true) } { AST(state).Deferred(v,w,Single(x),y) };
 
-DeferredBody <AstStatement> = 
-    (UpdateJoin 
+DeferredBody <AstBodyStatement> = 
+    v:(UpdateJoin 
     / UpdateTransform 
-    / OpenAttrExpression 
-    / BadStatement);
+    / OpenAttrExpr 
+    / BadStatement) { AST(state).BodyStatement(v) };
 
 // prefer: &{ w.IsJoinOp() } 
 UpdateJoin <AstStatement> = 
     v:CatVar LA &("union" / "minus") w:Funcop x:ExpressionExp
     { AST(state).UpdateJoin(v,w,x) };
 UpdateTransform <AstStatement> = 
-    v:CatVar LA &LB &{ PushScope(AST(state).Variable(v)) } w:TransformTailExp &{ PopScope() } 
+    v:CatVar LA &LB &{ AST(state).Enter(AST(state).Variable(v)) } w:TransformTailExp &{ AST(state).Exit(true) } 
     { AST(state).UpdateTransform(v,w) };
 BadStatement <AstStatement> = #STATE{ ParseError(state, "bad statement");} Skip { null };
 
 //----- expressions
-OpenAttrExprExp = (OpenAttrExpression 
+OpenAttrExprExp = (OpenAttrExpr 
     / #STATE{ ParseError(state, "invalid attribute expression"); } { null });
 ExpressionExp = Expression
     / #STATE{ ParseError(state, "expression expected"); } { null };
 
-OpenAttrExpression = OpenExpression; // may have a fold
+OpenAttrExpr = OpenExpression; // may have a fold
 OpenExpression = Expression;  // needs to do name lookup
 ExpressionList = v:Expression<0,,SEP>;
 
-Expression <AstValue> = v:Primary w:BinopTail* { AST(state).Expression(v,w) } 
+Expression <AstValue> = v:Primary w:BinopTail* { AST(state).Binop(v,w) } 
 BinopTail <AstOpCall> = v:Binop WSC w:Primary { AST(state).OpCall(v,w) } 
 
-Primary <AstValue> = v:Unop w:Primary { AST(state).Function(v,w) }
-    / v:SimplePrimary &{ PushScope(v) } w:PostFixTail* &{ PopScope() } { AST(state).PostFix(v,w) };
+Primary <AstValue> = "-" v:Primary { AST(state).Function("u-",v) }
+    / v:Unop w:Primary { AST(state).Function(v,w) }
+    / v:SimplePrimary &{ AST(state).Enter(v) } w:PostFixTail* &{ AST(state).Exit(true) } { AST(state).PostFix(v,w) };
 
-PostFixTail <AstCall> = RECURSE LPexp v:ExpressionExp RPexp { AST(state).Recurse(v) }
+PostFixTail <AstCall> = RECURSE LPexp v:ExpressionExp RPexp { AST(state).OpCall("recurse",AST(state).Number(0),v) }
     / &LB v:TransformTailExp { v }
     / DOT v:Funcop { AST(state).DotFunc(v) }
     / DOT v:Component { AST(state).DotComponent(v) }
     / DOT #STATE{ ParseError(state, "component or function expected"); } { null };
-//    / DOT v:DotIdentExp { AST(state).Dot(v) }
 
 //--- Transforms
 TransformTailExp = TransformTail
@@ -98,14 +98,14 @@ Where <AstValue> = QUERY LPexp v:OpenExpression RPexp { AST(state).Where(v) };
 
 Orderer <AstOrderer> = DOLLAR LPexp v:OrderTermList RPexp { AST(state).Orderer(v) };
 OrderTermList = OrderTerm<0,,SEP>;
-OrderTerm <AstOrder> = v:MINUS? w: PERCENT? x:FieldIdent { AST(state).Order(x, v.Count > 0, w.Count > 0) };
+OrderTerm <AstOrder> = w:PERCENT? v:MINUS? x:FieldIdent { AST(state).Order(x, v.Count > 0, w.Count > 0) };
 
-Transformer <AstTransformer> = LC WSC v:STAR? WSC w:TransformList RCexp { AST(state).Transformer(v.Count > 0, w) }
+Transformer <AstTransformer> = LC WSC v:STAR? WSC w:TransformList SEP? RCexp { AST(state).Transformer(v.Count > 0, w) }
 TransformList = Transform<0,,SEP>;
-Transform <AstField> = !RC v:FieldIdent &(SEP / RC) { AST(state).Transform(v) }
-    / !RC v:Ident LA w:FieldIdent &(SEP / RC) { AST(state).Transform(v, w) }
-    / !RC v:Ident LA w:OpenAttrExprExp { AST(state).Transform(v, null, w) }
-    / !RC v:OpenAttrExprExp { AST(state).Transform(null, null, v) };
+Transform <AstField> = !RC v:FieldIdent &(SEP / RC) { AST(state).Transfield(v) }
+    / !RC v:Ident LA WSC w:FieldIdent &(SEP / RC) { AST(state).Transfield(v, w) }
+    / !RC v:Ident LA WSC w:OpenAttrExprExp { AST(state).Transfield(v, null, w) }
+    / !RC v:OpenAttrExprExp { AST(state).Transfield(null, null, v) };
 
 //----- Primaries
 SimplePrimary = DoBlock 
@@ -127,19 +127,24 @@ DoBlock <AstValue> = DO v:DoBody { v }
 
 Function <AstValue> = v:Funcop LP w:ExpressionList RPexp { AST(state).Function(v, w.ToArray()) };
 
-Table <AstValue> = (TableBody 
-    / LC LC #STATE{ ParseError(state, "invalid table body"); } { null } );
-TableBody <AstValue> = LC LC STAR RCexp RCexp  { AST(state).Table(true) }
-    / LC &LC v:TableHeading WSC w:RowValueList RCexp { AST(state).Table(v,w) }
+Table <AstValue> = &(LC LC) &{ AST(state).Enter() } v:TableBody &{ AST(state).Exit() } { v }
+    / LC LC #STATE{ ParseError(state, "invalid table body"); } { null };
+
+TableBody <AstValue> = LC LC STAR RCexp RCexp  { AST(state).Table() }
+    / LC &LC v:TableHeading WSC w:RowValueList SEP? RCexp { AST(state).Table(v,w) }
     / LC &LC v:RowList RCexp { AST(state).Table(null, v) };
 TableHeading <AstValue> = LC COLON? RC { AST(state).Heading(null) }
-    / LC &(Ident !LA (COLON / SEP)) v:FieldList RCexp { AST(state).Heading(v) };
+    / LC &(Ident COLON) v:FieldList RCexp { AST(state).Heading(v) };
+
 RowValueList = v:RowValue<0,,SEP>;
-RowValue <AstValue> = LP v:ExpressionList RPexp { AST(state).RowValues(v) };
+RowValue <AstValue> = LP v:ExpressionList SEP? RPexp { AST(state).RowValues(v) };
 
 RowList = v:Row<0,,SEP>;
-Row <AstValue> = &LC v:Transformer { AST(state).Row(v) }
-    / LC #STATE{ ParseError(state, "invalid attribute list"); } RCexp { null };
+Row <AstValue> = LC STAR RCexp { AST(state).Row() }
+    / LC v:RowTransList RCexp { AST(state).Row(AST(state).Transformer(false, v)) }
+RowTransList = RowTrans<0,,SEP>;
+RowTrans <AstField> = v:FieldIdent &(SEP / RC) { AST(state).Transfield(v) }
+    / v:Ident LA w:Expression { AST(state).Transfield(v, null, w) }
 
 //----- definitions
 FieldList = v:FieldTerm<0,,SEP>;
@@ -221,7 +226,7 @@ IDX = !ID WS*;              // end of ident possibly followed by WS
 
 //Init <AstNode> = #STATE{ PrintLine(state); } { AST(state).Node<AstNode>(null) }
 Skip = (!EOL .)* WSE;       // skip the rest of the line and hope it then makes sense
-WSC = WSO (EOLX WSO)?;      // continuation, take just one eol if found, plus WS
+WSC = WSO (EOLX WSO)*;      // continuation, take eol if found, plus WS
 WSE = WSO EOLX ( Directive EOLexp EOLX)*;   // end of line, take it and any following directives
 WSO = WS*;                  // optional whitespace between tokens
 WS = (SP / Comment) { "" };

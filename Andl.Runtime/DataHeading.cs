@@ -123,7 +123,7 @@ namespace Andl.Runtime {
 
     // Reorder expressions to match heading
     public ExpressionEval[] Reorder(ExpressionEval[] exprs) {
-      Logger.Assert(exprs.All(e => FindIndex(e.Name) >= 0), "reorder mismatch");
+      Logger.Assert(exprs.Length == Degree && exprs.All(e => FindIndex(e.Name) >= 0), "reorder mismatch");
       var newexprs = new ExpressionEval[exprs.Length];
       foreach (var e in exprs)
         newexprs[FindIndex(e.Name)] = e;

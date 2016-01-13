@@ -9,6 +9,6 @@ wait => pause(prompt)
 // Load some data (courtesy Date & Darwen)
 // Supplier dataset in Andl format
 
-#include SupplierData.andl
+db S(csv), P(csv), SP(csv), J(csv), SPJ(csv)
 
 // end
