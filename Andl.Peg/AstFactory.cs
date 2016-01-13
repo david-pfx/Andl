@@ -361,6 +361,7 @@ namespace Andl.Peg {
       // additions
       var newext = fields.Where(f => f is AstExtend && !newcols.Any(c => c.Name == f.Name));
       return newfields.Concat(newext).ToArray();
+    }
 
     // Generic function call, handles type checking, overloads and def funcs
     AstFunCall FunCall(Symbol op, AstNode[] args) {
