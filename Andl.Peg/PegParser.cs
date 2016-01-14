@@ -46,26 +46,37 @@ namespace Andl.Peg {
     }
 
     List<int> _linestarts = new List<int>();
+    int _last_location = -1;
 
+    // Called to restart parse after error
     public AstStatement Restart(ref Cursor state) {
       var cursor = state.WithMutability(mutable: false);
-      // next line on needed if memoize active
+      // next line only needed if memoize active
       //this.storage = new Dictionary<CacheKey, object>();
       Skip(ref cursor);
       var result = MainRestart(ref cursor); // FIX: check for null?
       return result.Value;
     }
 
+    // Get a single line of source code from position
     string GetLine(string s, int pos) {
       var posx = s.IndexOf('\n', pos);
       return (posx == -1) ? "" : s.Substring(pos, posx - pos).Trim('\r', '\n');
     }
+
+    // print the line starting here
+    // due to backtracking may be called more than once, so just do once and not off end
     public void PrintLine(Cursor state) {
-      _linestarts.Add(state.Location);
-      if (Logger.Level > 0)
-        Output.WriteLine("{0,3}: {1}", state.Line, GetLine(state.Subject, state.Location));
+      if (state.Location > _last_location && state.Location < state.Subject.Length) {
+        _linestarts.Add(state.Location);
+        Symbols.FindIdent("$lineno$").Value = NumberValue.Create(state.Line);
+        if (Logger.Level > 0)
+          Output.WriteLine("{0,3}: {1}", state.Line, GetLine(state.Subject, state.Location));
+        _last_location = state.Location;
+      }
     }
 
+    // Output error message and throw
     public void ParseError(Cursor state, string message = "unknown", params object[] args) {
       var offset = state.Location - _linestarts.Last();
       if (offset > 0) Output.WriteLine("      {0}^", new string(' ', offset));
@@ -74,6 +85,7 @@ namespace Andl.Peg {
       throw new ParseException(state, message);
     }
 
+    // error message wrapper
     public void ParseError(string message = "unknown", params object[] args) {
       ParseError(State, message, args);
     }

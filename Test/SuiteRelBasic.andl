@@ -1,7 +1,6 @@
 ﻿// Test Suite 2 -- basic testing of relational features
 
-#include TestLib.andl
-#include SupplierData.andl
+#catalog
 
 start($filename$)
 

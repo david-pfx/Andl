@@ -113,9 +113,12 @@ namespace Andl.Peg {
         : symbol.IsField ? Opcodes.LDFIELD
         : symbol.IsParam ? Opcodes.LDFIELD
         : symbol.IsComponent ? Opcodes.LDCOMP
+        : symbol.IsConst ? Opcodes.LDVALUE
         : Opcodes.NOP;
       Logger.Assert(opcode != Opcodes.NOP, symbol);
-      OutName(opcode, symbol);
+      if (opcode == Opcodes.LDVALUE)
+        OutLoad(symbol.Value);
+      else OutName(opcode, symbol);
     }
 
     // Output a symbol as its name

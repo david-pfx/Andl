@@ -1,7 +1,6 @@
 // Test Suite 4 -- testing of aggregation
 
-#include TestLib.andl
-#include SupplierData.andl
+#catalog
 
 start($filename$)
 

@@ -1,6 +1,6 @@
 // Test Suite 1 -- basic testing of language features
 
-#include TestLib.andl
+#catalog
 
 start($filename$)
 

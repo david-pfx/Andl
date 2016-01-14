@@ -56,11 +56,11 @@ namespace Andl.Peg {
       };
     }
 
-    // just a set of statements
+    // just a set of statements (may be empty but not null)
     public AstBlock Block(IList<AstStatement> statements) {
       return new AstBlock {
         Statements = statements.ToArray(),
-        DataType = (statements == null || statements.Count == 0) ? DataTypes.Void : statements.Last().DataType
+        DataType = (statements.Count == 0) ? DataTypes.Void : statements.Last().DataType
       };
     }
 
@@ -95,6 +95,8 @@ namespace Andl.Peg {
       var op = FindDefFunc(ident);
       if (op.DataType == DataTypes.Unknown) op.DataType = body.DataType;
       op.CallInfo.AccumCount = body.AccumCount;
+      if (op.NumArgs == 2 && arguments[0].DataType == op.DataType && arguments[1].DataType == op.DataType)
+        op.Foldable = FoldableFlags.ANY;
       Symbols.AddCatalog(op);
       Types.CheckTypeMatch(body.DataType, op.DataType);
       return FunCall(FindFunc(SymNames.Defer), Args(Code(body.Statement as AstValue, Headingof(arguments), ident, body.AccumCount, true)));
@@ -114,8 +116,8 @@ namespace Andl.Peg {
 
     public AstStatement UpdateTransform(string ident, AstTranCall arg) {
       var tran = arg.Transformer ?? Transformer(false, null);
-      return FunCall(FindFunc(SymNames.UpdateTransform), DataTypes.Void, tran.Elements.Length,
-        Args(Variable(ident), Args(arg.Where, tran.Elements)));
+      return FunCall(FindFunc(SymNames.UpdateTransform), DataTypes.Void, Args(Variable(ident), Args(arg.Where, tran.Elements)),
+        tran.Elements.Length);
     }
 
     // body statement in deferred might need an accumulator
@@ -281,7 +283,7 @@ namespace Andl.Peg {
     AstValue PostFix(AstValue value, AstTranCall tran) {
       var newvalue = value;
       if (tran.Where != null)
-        newvalue = FunCall(FindFunc(SymNames.Restrict), value.DataType, 1, Args(value, tran.Where));
+        newvalue = FunCall(FindFunc(SymNames.Restrict), value.DataType, Args(value, tran.Where), 1);
       var args = new List<AstNode> { newvalue };
       if (tran.Orderer != null) args.AddRange(tran.Orderer.Elements);
       if (tran.Transformer != null) args.AddRange(tran.Transformer.Elements);
@@ -292,7 +294,7 @@ namespace Andl.Peg {
           : tran.Transformer.Elements.Any(e => e is AstExtend) ? SymNames.Transform
           : tran.Transformer.Elements.All(e => e is AstRename) && tran.Transformer.Elements.Length == value.DataType.Heading.Degree ? SymNames.Rename
           : SymNames.Project;
-        newvalue = FunCall(FindFunc(opname), tran.DataType, args.Count - 1, args.ToArray());
+        newvalue = FunCall(FindFunc(opname), tran.DataType, args.ToArray(), args.Count - 1);
         if (tran.Transformer != null && tran.Transformer.Lift)
           newvalue = FunCall(FindFunc(SymNames.Lift), tran.Transformer.DataType, Args(newvalue));
       }
@@ -322,10 +324,15 @@ namespace Andl.Peg {
     public AstFoldCall Fold(string oper, AstValue expression) {
       var op = FindFunc(oper);
       if (!op.IsFoldable) Parser.ParseError("not foldable");
+      DataType datatype;
+      CallInfo callinfo;
+      Types.CheckTypeError(op, out datatype, out callinfo, expression.DataType, expression.DataType); // as if there were two
       var accum = _accum.Total;
       _accum.Add(1);
       return new AstFoldCall {
-        Func = FindFunc(SymNames.Fold), FoldedOp = op, AccumIndex = accum, DataType = expression.DataType, FoldedExpr = expression,
+        Func = FindFunc(SymNames.Fold), FoldedOp = op, DataType = datatype,
+        AccumIndex = accum, FoldedExpr = expression, CallInfo = callinfo,
+        InvokeOp = (op.IsDefFunc) ? Symbols.FindIdent(SymNames.Invoke) : null,
       };
     }
 
@@ -365,53 +372,47 @@ namespace Andl.Peg {
 
     // Generic function call, handles type checking, overloads and def funcs
     AstFunCall FunCall(Symbol op, AstNode[] args) {
-      if (op.IsComponent) {
-        Logger.Assert(args.Length == 1);
-        Types.CheckTypeMatch(DataTypes.User, args[0].DataType);
-        // FIX: check if component of type?
-        return new AstComponent {
-          Func = op, DataType = op.DataType, Arguments = args,
-        };
-      }
+      if (op.IsComponent) return Component(op, args);
       DataType datatype;
       CallInfo callinfo;
       Types.CheckTypeError(op, out datatype, out callinfo, args.Select(a => a.DataType).ToArray());
-      if (op.IsDefFunc) {
-        var accbase = _accum.Total;
-        _accum.Add(callinfo.AccumCount);
-        return new AstDefCall {
-          Func = FindFunc(SymNames.Invoke), DataType = datatype, DefFunc = op, Arguments = args,
-          NumVarArgs = args.Length, CallInfo = callinfo, AccumBase = accbase,
-        };
-      }
-      if (op.IsUserSel) return new AstUserCall {
+      if (op.IsDefFunc) return DefCall(op, datatype, args, callinfo);
+      if (op.IsOrdFunc) return FunCall(op, datatype, Args(Code(args[0] as AstValue, CurrentHeading()), args.Skip(1).ToArray()));
+      if (op.IsRecurse) return FunCall(op, datatype, Args(args[0], args[1], Code(args[2] as AstValue, CurrentHeading())));
+      if (op.IsUserSel) return UserCall(op, args);
+      return FunCall(op, datatype, args, 0, callinfo);
+    }
+
+    // Call user function
+    AstDefCall DefCall(Symbol op, DataType datatype, AstNode[] args, CallInfo callinfo) {
+      var accbase = _accum.Total;
+      _accum.Add(callinfo.AccumCount);
+      return new AstDefCall {
+        Func = FindFunc(SymNames.Invoke), DataType = datatype, DefFunc = op, Arguments = args,
+        NumVarArgs = args.Length, CallInfo = callinfo, AccumBase = accbase,
+      };
+    }
+
+    AstComponent Component(Symbol op, AstNode[] args) {
+      Logger.Assert(args.Length == 1);
+      Types.CheckTypeMatch(DataTypes.User, args[0].DataType);
+      // FIX: check if component of type?
+      return new AstComponent {
+        Func = op, DataType = op.DataType, Arguments = args,
+      };
+    }
+
+    // Call selector for UDT
+    AstUserCall UserCall(Symbol op, AstNode[] args) {
+      return new AstUserCall {
         Func = FindFunc(SymNames.UserSelector), UserFunc = op, DataType = op.DataType,
         Arguments = args, NumVarArgs = args.Length,
-      };
-      if (op.IsOrdFunc) {
-        return new AstFunCall {
-          Func = op, DataType = datatype, Arguments = Args(Code(args[0] as AstValue, CurrentHeading()), args.Skip(1).ToArray()),
-        };
-      }
-      if (op.IsRecurse) {
-        return new AstFunCall {
-          Func = op, DataType = datatype,
-          Arguments = Args(args[0], args[1], Code(args[2] as AstValue, CurrentHeading())),
-        };
-      }
-      return new AstFunCall {
-        Func = op, DataType = datatype, Arguments = args, CallInfo = callinfo,
       };
     }
 
     // Internal function call, for known data type only
-    AstFunCall FunCall(Symbol op, DataType datatype, AstNode[] args) {
-      return new AstFunCall { Func = op, DataType = datatype, Arguments = args };
-    }
-
-    // Internal function call, for varargs and known data type only
-    AstFunCall FunCall(Symbol op, DataType datatype, int nvarargs, AstNode[] args) {
-      return new AstFunCall { Func = op, DataType = datatype, Arguments = args, NumVarArgs = nvarargs };
+    AstFunCall FunCall(Symbol op, DataType datatype, AstNode[] args, int nvarargs = 0, CallInfo callinfo = null) {
+      return new AstFunCall { Func = op, DataType = datatype, Arguments = args, NumVarArgs = nvarargs, CallInfo = callinfo };
     }
 
     // Arg array builder with variable args

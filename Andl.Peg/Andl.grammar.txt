@@ -12,8 +12,7 @@ MainRestart <AstStatement> = WSE* v:MainStatement &{ SetState(state) } { v };
 MainStatement <AstStatement> = WSO EOF { null }
     / v:Statement EOLexp { v };
 
-DoBody <AstValue> = LC RC { AST(state).Block(null) }
-    / LCexp &{ AST(state).Enter() } WSC v:DoBodyLine+ &{ AST(state).Exit() } WSO RCexp { AST(state).DoBlock(v) };
+DoBody <AstValue> = LCexp &{ AST(state).Enter() } WSC v:DoBodyLine* &{ AST(state).Exit() } WSO RCexp { AST(state).DoBlock(v) };
 DoBodyLine <AstStatement> = WSO !RC v:Statement (&RC / EOLexp WSE+) { v };
 
 // directives
@@ -133,7 +132,7 @@ Table <AstValue> = &(LC LC) &{ AST(state).Enter() } v:TableBody &{ AST(state).Ex
 TableBody <AstValue> = LC LC STAR RCexp RCexp  { AST(state).Table() }
     / LC &LC v:TableHeading WSC w:RowValueList SEP? RCexp { AST(state).Table(v,w) }
     / LC &LC v:RowList RCexp { AST(state).Table(null, v) };
-TableHeading <AstValue> = LC COLON? RC { AST(state).Heading(null) }
+TableHeading <AstValue> = LC COLON RC { AST(state).Heading(null) }
     / LC &(Ident COLON) v:FieldList RCexp { AST(state).Heading(v) };
 
 RowValueList = v:RowValue<0,,SEP>;

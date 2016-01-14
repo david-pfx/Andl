@@ -18,11 +18,23 @@ namespace Andl.Peg {
     }
 
     // create code segment wrapped for fold
-    public ByteCode Compile(Symbol op, TypedValue seed) {
+    public ByteCode Compile(Symbol op, TypedValue seed, CallInfo callinfo) {
       var e = new Emitter();
       e.Out(Opcodes.LDAGG, seed);
       Emit(e);
-      e.OutCall(op);
+      e.OutCall(op, 0, callinfo);
+      return e.GetCode();
+    }
+
+    // create code segment wrapped for fold and deffunc
+    public ByteCode Compile(Symbol invop, Symbol op, TypedValue seed) {
+      var e = new Emitter();
+      e.OutName(Opcodes.LDCATR, op);
+      e.Out(Opcodes.LDACCBLK);
+      e.OutLoad(NumberValue.Create(-1));
+      e.Out(Opcodes.LDAGG, seed);
+      Emit(e);
+      e.OutCall(invop, 2);   // no choice but two args
       return e.GetCode();
     }
   }
@@ -194,6 +206,7 @@ namespace Andl.Peg {
     public Symbol FoldedOp { get; set; }
     public AstValue FoldedExpr { get; set; }
     public int AccumIndex { get; set; }
+    public Symbol InvokeOp { get; set; }
     public override string ToString() {
       return string.Format("{0}({1},{2})#[{3}] => {4}", Func.Name, FoldedOp.Name, FoldedExpr, AccumIndex , DataType);
     }
@@ -206,7 +219,10 @@ namespace Andl.Peg {
       e.OutLoad(DataType.DefaultValue());
       var seed = FoldedOp.GetSeed(DataType);
       var eb = ExpressionBlock.Create(":i", ExpressionKinds.IsFolded, 
-        FoldedExpr.Compile(FoldedOp, seed), FoldedExpr.DataType, AccumIndex);
+        (FoldedOp.IsDefFunc) 
+          ? FoldedExpr.Compile(InvokeOp, FoldedOp, seed) 
+          : FoldedExpr.Compile(FoldedOp, seed, CallInfo),
+        FoldedExpr.DataType, AccumIndex);
       e.OutSeg(eb);
       e.OutCall(Func);
     }
