@@ -24,7 +24,7 @@ IncludeDirective = "include" IDX v:(!CC .)* { IncludeDirective(state, String.Con
 NoisyDirective = "noisy" IDX v:Integer { NoisyDirective(state, String.Concat(v)) };
 StopDirective = "stop" IDX v:Integer? { StopDirective(state, String.Concat(v)) };
 PanicDirective = "panic" IDX #ERROR{ "panic" };
-BadDirective = #STATE{ ParseError(state, "bad directive");} Skip;
+BadDirective = #STATE{ ParseError(state, "bad directive");};
 
 //--- statements
 Statement <AstStatement> = WSO &. v:(<AstStatement> Deferred / Typedef / Import / UpdateJoin / UpdateTransform / Assignment / Expression / BadStatement) { v };
@@ -46,7 +46,7 @@ Assignment <AstStatement> = &(Ident LA) v:DefinableExp LA w:Expression { AST(sta
     / Definable LA #STATE{ ParseError(state, "expression expected"); } { null };
 
 // must be able to backtrack from RA to pick up function call
-Deferred <AstStatement> = v:Definable 
+Deferred <AstStatement> = v:Ident 
     w:(<AstType> COLON a:Type { a } / { null }) 
     x:(<IList<AstField>> LP b:FieldList RP { b })? RA 
     &{ AST(state).Enter(v, w, Single(x)) } y:DeferredBody &{ AST(state).Exit(true) } { AST(state).Deferred(v,w,Single(x),y) };
@@ -64,7 +64,7 @@ UpdateJoin <AstStatement> =
 UpdateTransform <AstStatement> = 
     v:CatVar LA &LB &{ AST(state).Enter(AST(state).Variable(v)) } w:TransformTailExp &{ AST(state).Exit(true) } 
     { AST(state).UpdateTransform(v,w) };
-BadStatement <AstStatement> = #STATE{ ParseError(state, "bad statement");} Skip { null };
+BadStatement <AstStatement> = #STATE{ ParseError(state, "bad statement");}  { null };
 
 //----- expressions
 OpenAttrExprExp = (OpenAttrExpr 

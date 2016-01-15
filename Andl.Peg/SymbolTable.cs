@@ -122,6 +122,7 @@ namespace Andl.Peg {
     public const string Transform = ":transform";
     public const string TransAgg = ":transagg";
     public const string TransOrd = ":transord";
+    public const string TransTuple = ":transtup";
     public const string UpdateJoin = ":upjoin";
     public const string UpdateTransform = ":uptrans";
     public const string UserSelector = ":userselector";
@@ -419,6 +420,7 @@ namespace Andl.Peg {
       AddFunction(SymNames.Transform, 2, DataTypes.Table, CallKinds.VFUNC, "Transform");
       AddFunction(SymNames.TransAgg, 2, DataTypes.Table, CallKinds.VFUNC, "TransAgg");
       AddFunction(SymNames.TransOrd, 2, DataTypes.Table, CallKinds.VFUNC, "TransOrd");
+      AddFunction(SymNames.TransTuple, 2, DataTypes.Table, CallKinds.VFUNC, "TransTuple");
       AddFunction(SymNames.Table, 2, DataTypes.Table, CallKinds.VFUNCT, "Table2");
       AddFunction(SymNames.UpdateJoin, 3, DataTypes.Bool, CallKinds.FUNC, "UpdateJoin");
       AddFunction(SymNames.UpdateTransform, 3, DataTypes.Bool, CallKinds.VFUNC, "UpdateTrans");

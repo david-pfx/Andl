@@ -425,6 +425,17 @@ namespace Andl.Runtime {
       return RelationValue.Create(relnew);
     }
 
+    // Transform tuple
+    public TupleValue TransTuple(TupleValue tuparg, params CodeValue[] exprargs) {
+      Logger.WriteLine(3, "TransTuple {0} {1}", tuparg, exprargs.Select(e => e.AsEval.Kind.ToString()).ToArray());
+      var tup = tuparg.Value;
+      var exprs = exprargs.Select(e => (e as CodeValue).AsEval).ToArray();
+      var heading = DataHeading.Create(exprs);
+      var tupnew = tup.Transform(heading, exprs);
+      Logger.WriteLine(3, "[TrT {0}]", tupnew);
+      return TupleValue.Create(tupnew);
+    }
+    
     ///=================================================================
     ///
     /// Dyadic operations

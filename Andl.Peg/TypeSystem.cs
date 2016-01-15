@@ -83,7 +83,7 @@ namespace Andl.Peg {
 
     // check single type match
     public void CheckTypeMatch(DataType typeexp, DataType typeis) {
-      if (!TypeMatch(typeexp, typeis)) Parser.ParseError("type mismatch");
+      if (!TypeMatch(typeexp, typeis)) Parser.ParseError("type mismatch, expected '{0}'", typeexp);
     }
 
     // Is type2 a type match where type1 is what is needed?

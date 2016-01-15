@@ -255,9 +255,12 @@ namespace Andl.Peg {
     // construct a FunCall from the first OpCall, then invoke tail on result
     public AstValue PostFix(AstValue value, IList<AstCall> ops) {
       if (ops.Count == 0) return value;
-      var newvalue = (ops[0] is AstTranCall)
-        ? PostFix(value, ops[0] as AstTranCall)
-        : PostFix(value, ops[0] as AstOpCall);
+      var newvalue = value;
+      if (ops[0] is AstTranCall) {
+        if (value.DataType is DataTypeRelation) newvalue = PostFixTranRel(value, ops[0] as AstTranCall);
+        else if (value.DataType is DataTypeTuple) newvalue = PostFixTranTup(value, ops[0] as AstTranCall);
+        else Parser.ParseError("relation or tuple type expected");
+      } else newvalue = PostFix(value, ops[0] as AstOpCall);
       return PostFix(newvalue, ops.Skip(1).ToList()); // tail
     }
 
@@ -336,7 +339,8 @@ namespace Andl.Peg {
     }
 
     // translate set of transform calls into a function call (or two)
-    AstValue PostFix(AstValue value, AstTranCall tran) {
+    AstValue PostFixTranRel(AstValue value, AstTranCall tran) {
+      Types.CheckTypeMatch(DataTypes.Table, value.DataType);
       var newvalue = value;
       if (tran.Where != null)
         newvalue = FunCall(FindFunc(SymNames.Restrict), value.DataType, Args(value, tran.Where), 1);
@@ -355,6 +359,18 @@ namespace Andl.Peg {
           newvalue = FunCall(FindFunc(SymNames.Lift), tran.Transformer.DataType, Args(newvalue));
       }
       return newvalue;
+    }
+
+    // translate set of transform calls into a function call (or two)
+    AstValue PostFixTranTup(AstValue value, AstTranCall tran) {
+      Types.CheckTypeMatch(DataTypes.Row, value.DataType);
+      var newvalue = value;
+      if (tran.Where != null) Parser.ParseError("restrict not permitted");
+      if (tran.Orderer != null) Parser.ParseError("order not permitted");
+      if (tran.Transformer == null) return value;
+      if (tran.Transformer.Lift) Parser.ParseError("lift not permitted");
+      var args = Args(value, tran.Transformer.Elements);
+      return FunCall(FindFunc(SymNames.TransTuple), tran.DataType, args, args.Length - 1);
     }
 
     AstValue PostFix(AstValue value, AstOpCall op) {
@@ -560,6 +576,7 @@ namespace Andl.Peg {
 
     // Enter scope for a function definition, with accumulator tracking
     public bool Enter(string ident, AstType rettype, IList<AstField> arguments) {
+      if (!Symbols.IsDefinable(ident)) Parser.ParseError("already defined: {0}", ident);
       var args = (arguments == null) ? new DataColumn[0] : arguments.Select(a => DataColumn.Create(a.Name, a.DataType)).ToArray();
       var rtype = (rettype == null) ? DataTypes.Unknown : rettype.DataType;
       Symbols.AddDeferred(ident, rtype, args);
