@@ -170,7 +170,7 @@ namespace Andl.Runtime {
         if (!LinkRelvar(_catalogtablename))
           ProgramError.Fatal("Catalog", "cannot load catalog for '{0}'", DatabaseName);
         LoadFromTable();
-        Logger.WriteLine(1, "Loaded catalog for '{0}'", DatabaseName);
+        Logger.WriteLine(2, "Loaded catalog for '{0}'", DatabaseName);
       }
       _started = true;
       return true;
@@ -181,7 +181,7 @@ namespace Andl.Runtime {
       if (!_started) return false;
       if (SaveFlag) {
         StoreToTable();
-        Logger.WriteLine(1, "Updated catalog for '{0}'", DatabaseName);
+        Logger.WriteLine(2, "Saved catalog for '{0}'", DatabaseName);
       }
       _started = false;
       return true;

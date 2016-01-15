@@ -34,6 +34,7 @@ namespace Andl.Runtime {
     LDLOOKUP,   // load current lookup as object value
     LDSEG,      // load segment of code to be executed as arg
     LDVALUE,    // load actual value
+    LDFIELDT,   // load value from tuple by name
   };
 
   public struct ByteCode {
@@ -235,6 +236,11 @@ namespace Andl.Runtime {
           var udtval = _stack.Pop() as UserValue;
           var compval = udtval.GetComponentValue(reader.ReadString());
           PushStack(compval);
+          break;
+        case Opcodes.LDFIELDT:
+          var tupval = _stack.Pop() as TupleValue;
+          var fldval = tupval.GetFieldValue(reader.ReadString());
+          PushStack(fldval);
           break;
         // Call a function, fixed or variable arg count
         case Opcodes.CALL:

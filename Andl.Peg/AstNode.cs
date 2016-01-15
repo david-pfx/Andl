@@ -273,8 +273,17 @@ namespace Andl.Peg {
     public override void Emit(Emitter e) {
       Logger.Assert(DataType.IsVariable || DataType == DataTypes.Void, DataType);
       Logger.Assert(Arguments.Length == 1 && Arguments[0].DataType is DataTypeUser);
-      foreach (var a in Arguments) a.Emit(e);
+      Arguments[0].Emit(e);
       e.OutName(Opcodes.LDCOMP, Func);
+    }
+  }
+
+  public class AstFieldOf : AstFunCall {
+    public override void Emit(Emitter e) {
+      Logger.Assert(DataType.IsVariable || DataType == DataTypes.Void, DataType);
+      Logger.Assert(Arguments.Length == 1 && Arguments[0].DataType is DataTypeTuple);
+      Arguments[0].Emit(e);
+      e.OutName(Opcodes.LDFIELDT, Func);
     }
   }
 

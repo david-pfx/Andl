@@ -9,7 +9,7 @@ using Andl.Runtime;
 
 namespace Andl.Peg {
   /// <summary>
-  /// 
+  /// Special exception to handle parse errors and enable restart of parser
   /// </summary>
   public class ParseException : Exception {
     public Cursor State { get; set; }
@@ -19,7 +19,7 @@ namespace Andl.Peg {
   }
 
   /// <summary>
-  /// 
+  /// Additional parsing functions for Pegasus parser
   /// </summary>
   partial class PegParser {
     public TextWriter Output { get; set; }
@@ -27,7 +27,6 @@ namespace Andl.Peg {
     public SymbolTable Symbols { get; set; }
     public AstFactory Factory { get; set; }
     public Catalog Cat { get; set; }
-    //public int Noisy = 1;
     public int ErrorCount = 0;
     public bool Done = false;
     public string InputText { get; private set; }

@@ -39,7 +39,7 @@ namespace Andl.Main {
       + "\t\tDefault is compile and execute with new catalog and local database, no update.\n"
       + "\t\tDefault catalog is 'data', default database is 'data.sandl' or 'data.sqlite'.\n"
       + "\t/c[nu]\tUse existing catalog, n for new, u for update\n"
-      + "\t/i\tInteractive, execute one line at a time\n"
+      + "\t/i\tInteractive, using console screen and keyboard\n"
       + "\t/t\tOutput Thrift IDL file\n"
       + "\t/x[n]\tExecute after compilation, n for not\n"
       + "\t/s\tUse Sql to access the database\n"
@@ -59,11 +59,8 @@ namespace Andl.Main {
         } else _paths.Add(args[i]);
       }
       try {
-        if (!Start())
-          return;
-        if (!Compile(_paths[0]))
-          return;
-        Finish(_paths[0]);
+        var ok = Start() && Compile(_paths[0]);
+        if (ok && _catalog.ExecuteFlag) Finish(_paths[0]);
       } catch (Exception ex) {
         if (ex.GetBaseException() is ProgramException)
           Logger.WriteLine("*** {0} error ({1}): {2}", (ex as ProgramException).Kind, (ex as ProgramException).Source, ex.Message);
@@ -72,7 +69,7 @@ namespace Andl.Main {
         else {
           Logger.WriteLine("*** Unexpected exception: {0}", ex.ToString());
         }
-        Logger.WriteLine("*** Abort ***");
+        Logger.WriteLine("*** Abort");
       }
       Logger.WriteLine("");
     }
@@ -87,7 +84,7 @@ namespace Andl.Main {
         _usw = arg.Contains("u");
       } else if (arg.StartsWith("x")) {
         _csw = arg.Contains("n");
-      }  else if (arg == "i")
+      } else if (arg == "i")
         _isw = true;
       else if (arg == "s")
         _ssw = true;
@@ -117,7 +114,7 @@ namespace Andl.Main {
       if (_isw && Logger.Level == 0) Logger.Level = 1;
       _catalog = Catalog.Create();
       _catalog.InteractiveFlag = _isw;
-      _catalog.ExecuteFlag = !_csw && !_isw;
+      _catalog.ExecuteFlag = !_csw;
       _catalog.LoadFlag = !_nsw;
       _catalog.SaveFlag = _usw;
       _catalog.DatabaseSqlFlag = _ssw;
@@ -136,30 +133,34 @@ namespace Andl.Main {
       return true;
     }
 
+    // Compile using selected parser
+    // Code is (now) always executed as compiled unless or until there is an error
     static bool Compile(string path) {
-      Logger.WriteLine("*** Compiling: {0} ***", path);
-      IParser parser = (_psw) ? 
+      Logger.WriteLine("*** Compiling: {0}", path);
+      //IParser parser = (_psw) ?
+      IParser parser = (!_psw) ? 
         PegCompiler.Create(_catalog) : 
         Parser.Create(_catalog);
       using (StreamReader input = File.OpenText(path)) {
         var ret = parser.Process(input, Console.Out, _evaluator, path);
-        Logger.WriteLine("*** Compiled {0} {1} ***", path, ret ? "OK"
+        Logger.WriteLine("*** Compiled {0} {1} ", path, ret ? "OK"
           : "with error count = " + parser.ErrorCount.ToString());
         return parser.ErrorCount == 0;
       }
     }
 
+    // Write out Thrift and Catalog if required
     static void Finish(string path) {
       if (_tsw) {
         var thriftname = Path.ChangeExtension(path, ".thrift");
         using (StreamWriter sw = new StreamWriter(thriftname)) {
-          Logger.WriteLine("*** Writing: {0} ***", thriftname);
+          Logger.WriteLine("*** Writing: {0}", thriftname);
           (new CatalogInterfaceWriter()).WriteThrift(sw, _catalog.BaseName, _catalog.PersistentVars.GetEntries());
         }
       }
       if (_catalog.SaveFlag) {
       //if (_catalog.SaveFlag && _catalog.ExecuteFlag) {
-        Logger.WriteLine("*** Updating: {0} ***", _catalog.DatabaseName);
+        Logger.WriteLine("*** Updating catalog: {0}", _catalog.DatabaseName);
         _catalog.Finish();
       }
     }

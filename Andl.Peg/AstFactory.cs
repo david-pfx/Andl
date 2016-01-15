@@ -236,7 +236,7 @@ namespace Andl.Peg {
     /// Headings etc
     /// 
 
-    public AstField Field(string ident, AstType type) {
+    public AstField FieldTerm(string ident, AstType type) {
       return new AstField() {
         Name = ident,
         DataType = (type == null) ? Types.Find("text") : type.DataType
@@ -252,24 +252,6 @@ namespace Andl.Peg {
       return ret;
     }
 
-    public AstValue Binop(AstValue value, AstOpCall[] ops) {
-      Logger.WriteLine(4, "expr {0} op={1}", value, String.Join(",", ops.Select(o => o.ToString())));
-      if (ops.Length == 0) return value;
-      var op = ops[0];
-      if (ops.Length == 1) return FunCall(op.Func, Args(value, op.Arguments));
-      var opnext = ops[1];
-      var optail = ops.Skip(1);
-      //Func<AstCall, AstCall, bool> op high = (op1, op2) => !op1.Func.IsOperator || op1.Func.Precedence >= op2.Func.Precedence;
-      if (!op.Func.IsOperator || op.Func.Precedence >= opnext.Func.Precedence)
-        return Binop(FunCall(op.Func, Args(value, op.Arguments)), optail.ToArray());
-      // The hard case -- rewrite the tree
-      // extract higher precedence ops and do those first; then lower
-      var hiprec = optail.TakeWhile(o => !o.Func.IsOperator || o.Func.Precedence > op.Func.Precedence);
-      var hivalue = Binop(op.Arguments[0] as AstValue, hiprec.ToArray());
-      var loprec = optail.SkipWhile(o => !o.Func.IsOperator || o.Func.Precedence > op.Func.Precedence);
-      return Binop(FunCall(op.Func, Args(value, hivalue)), loprec.ToArray());
-    }
-
     // construct a FunCall from the first OpCall, then invoke tail on result
     public AstValue PostFix(AstValue value, IList<AstCall> ops) {
       if (ops.Count == 0) return value;
@@ -277,32 +259,6 @@ namespace Andl.Peg {
         ? PostFix(value, ops[0] as AstTranCall)
         : PostFix(value, ops[0] as AstOpCall);
       return PostFix(newvalue, ops.Skip(1).ToList()); // tail
-    }
-
-    // translate set of transform calls into a function call (or two)
-    AstValue PostFix(AstValue value, AstTranCall tran) {
-      var newvalue = value;
-      if (tran.Where != null)
-        newvalue = FunCall(FindFunc(SymNames.Restrict), value.DataType, Args(value, tran.Where), 1);
-      var args = new List<AstNode> { newvalue };
-      if (tran.Orderer != null) args.AddRange(tran.Orderer.Elements);
-      if (tran.Transformer != null) args.AddRange(tran.Transformer.Elements);
-      else if (tran.Orderer != null) args.AddRange(Allbut(value.DataType.Heading, new AstField[0]));
-      if (args.Count > 1) {
-        var opname = (tran.Orderer != null) ? SymNames.TransOrd
-          : tran.Transformer.Elements.Any(e => e is AstExtend && (e as AstExtend).Accums > 0) ? SymNames.TransAgg
-          : tran.Transformer.Elements.Any(e => e is AstExtend) ? SymNames.Transform
-          : tran.Transformer.Elements.All(e => e is AstRename) && tran.Transformer.Elements.Length == value.DataType.Heading.Degree ? SymNames.Rename
-          : SymNames.Project;
-        newvalue = FunCall(FindFunc(opname), tran.DataType, args.ToArray(), args.Count - 1);
-        if (tran.Transformer != null && tran.Transformer.Lift)
-          newvalue = FunCall(FindFunc(SymNames.Lift), tran.Transformer.DataType, Args(newvalue));
-      }
-      return newvalue;
-    }
-
-    AstValue PostFix(AstValue value, AstOpCall op) {
-      return FunCall(op.Func, new AstValue[] { value }.Concat(op.Arguments).ToArray()); // cons
     }
 
     // Dot that is a function call
@@ -313,6 +269,11 @@ namespace Andl.Peg {
 
     public AstOpCall DotComponent(string name) {
       var op = FindComponent(name);
+      return new AstOpCall() { Func = op, DataType = op.DataType, Arguments = Args() };
+    }
+
+    public AstOpCall DotField(string name) {
+      var op = FindField(name);
       return new AstOpCall() { Func = op, DataType = op.DataType, Arguments = Args() };
     }
 
@@ -356,6 +317,50 @@ namespace Andl.Peg {
       };
     }
 
+    AstValue Binop(AstValue value, AstOpCall[] ops) {
+      Logger.WriteLine(4, "expr {0} op={1}", value, String.Join(",", ops.Select(o => o.ToString())));
+      if (ops.Length == 0) return value;
+      var op = ops[0];
+      if (ops.Length == 1) return FunCall(op.Func, Args(value, op.Arguments));
+      var opnext = ops[1];
+      var optail = ops.Skip(1);
+      //Func<AstCall, AstCall, bool> op high = (op1, op2) => !op1.Func.IsOperator || op1.Func.Precedence >= op2.Func.Precedence;
+      if (!op.Func.IsOperator || op.Func.Precedence >= opnext.Func.Precedence)
+        return Binop(FunCall(op.Func, Args(value, op.Arguments)), optail.ToArray());
+      // The hard case -- rewrite the tree
+      // extract higher precedence ops and do those first; then lower
+      var hiprec = optail.TakeWhile(o => !o.Func.IsOperator || o.Func.Precedence > op.Func.Precedence);
+      var hivalue = Binop(op.Arguments[0] as AstValue, hiprec.ToArray());
+      var loprec = optail.SkipWhile(o => !o.Func.IsOperator || o.Func.Precedence > op.Func.Precedence);
+      return Binop(FunCall(op.Func, Args(value, hivalue)), loprec.ToArray());
+    }
+
+    // translate set of transform calls into a function call (or two)
+    AstValue PostFix(AstValue value, AstTranCall tran) {
+      var newvalue = value;
+      if (tran.Where != null)
+        newvalue = FunCall(FindFunc(SymNames.Restrict), value.DataType, Args(value, tran.Where), 1);
+      var args = new List<AstNode> { newvalue };
+      if (tran.Orderer != null) args.AddRange(tran.Orderer.Elements);
+      if (tran.Transformer != null) args.AddRange(tran.Transformer.Elements);
+      else if (tran.Orderer != null) args.AddRange(Allbut(value.DataType.Heading, new AstField[0]));
+      if (args.Count > 1) {
+        var opname = (tran.Orderer != null) ? SymNames.TransOrd
+          : tran.Transformer.Elements.Any(e => e is AstExtend && (e as AstExtend).Accums > 0) ? SymNames.TransAgg
+          : tran.Transformer.Elements.Any(e => e is AstExtend) ? SymNames.Transform
+          : tran.Transformer.Elements.All(e => e is AstRename) && tran.Transformer.Elements.Length == value.DataType.Heading.Degree ? SymNames.Rename
+          : SymNames.Project;
+        newvalue = FunCall(FindFunc(opname), tran.DataType, args.ToArray(), args.Count - 1);
+        if (tran.Transformer != null && tran.Transformer.Lift)
+          newvalue = FunCall(FindFunc(SymNames.Lift), tran.Transformer.DataType, Args(newvalue));
+      }
+      return newvalue;
+    }
+
+    AstValue PostFix(AstValue value, AstOpCall op) {
+      return FunCall(op.Func, new AstValue[] { value }.Concat(op.Arguments).ToArray()); // cons
+    }
+
     // implement allbut: remove projects, add renames, extends and other columns as projects
     AstField[] Allbut(DataHeading heading, AstField[] fields) {
       // deletions first -- remove all columns matching a project
@@ -373,6 +378,7 @@ namespace Andl.Peg {
     // Generic function call, handles type checking, overloads and def funcs
     AstFunCall FunCall(Symbol op, AstNode[] args) {
       if (op.IsComponent) return Component(op, args);
+      if (op.IsField) return FieldOf(op, args);
       DataType datatype;
       CallInfo callinfo;
       Types.CheckTypeError(op, out datatype, out callinfo, args.Select(a => a.DataType).ToArray());
@@ -398,6 +404,14 @@ namespace Andl.Peg {
       Types.CheckTypeMatch(DataTypes.User, args[0].DataType);
       // FIX: check if component of type?
       return new AstComponent {
+        Func = op, DataType = op.DataType, Arguments = args,
+      };
+    }
+
+    AstFieldOf FieldOf(Symbol op, AstNode[] args) {
+      Logger.Assert(args.Length == 1);
+      Types.CheckTypeMatch(DataTypes.Row, args[0].DataType);
+      return new AstFieldOf {
         Func = op, DataType = op.DataType, Arguments = args,
       };
     }
@@ -478,10 +492,13 @@ namespace Andl.Peg {
 
     ///--------------------------------------------------------------------------------------------
     ///  Utility
+    ///  
+    /// The Find() routines are unconditional, and throw an error if they fail
     /// 
     public AstType FindType(string name) {
-      var ut = FindUserType(name);
-      var datatype = (ut != null) ? ut.DataType : Types.Find(name);
+      var ut = Symbols.FindIdent(name);
+      var datatype = (ut != null && ut.IsUserType) ? ut.DataType : Types.Find(name);
+      if (datatype == null) Parser.ParseError("unknown type: {0}", name);
       return new AstType { DataType = datatype };
     }
     public AstType GetType(AstValue value) {
@@ -489,32 +506,39 @@ namespace Andl.Peg {
     }
 
     public Symbol FindCatVar(string name) {
-      var ret = Symbols.FindIdent(name);
-      return ret != null && ret.IsCatVar ? ret : null;
+      return FindIdent(name, o => o.IsCatVar);
     }
     public Symbol FindDefFunc(string name) {
-      var ret = Symbols.FindIdent(name);
-      return ret != null && ret.IsDefFunc ? ret : null;
+      return FindIdent(name, o => o.IsDefFunc);
     }
     public Symbol FindField(string name) {
-      var ret = Symbols.FindIdent(name);
-      return ret != null && ret.IsField ? ret : null;
+      return FindIdent(name, o => o.IsField);
     }
     public Symbol FindVariable(string name) {
-      var ret = Symbols.FindIdent(name);
-      return ret != null && ret.IsVariable ? ret : null;
+      return FindIdent(name, o => o.IsVariable);
     }
     public Symbol FindFunc(string name) {
-      var ret = Symbols.FindIdent(name);
-      return ret != null && ret.IsCallable ? ret : null;
+      return FindIdent(name, o => o.IsCallable);
     }
     public Symbol FindComponent(string name) {
-      var ret = Symbols.FindIdent(name);
-      return ret != null && ret.IsComponent ? ret : null;
+      return FindIdent(name, o => o.IsComponent);
     }
     public Symbol FindUserType(string name) {
+      return FindIdent(name, o => o.IsUserType);
+    }
+
+    // find a symbol that matches a predicate, or error
+    public Symbol FindIdent(string name, Func<Symbol, bool> reqtype) {
       var ret = Symbols.FindIdent(name);
-      return ret != null && ret.IsUserType ? ret : null;
+      if (!(reqtype(ret))) Parser.ParseError("unknown or invalid: {0}", name);
+      return ret;
+    }
+
+    // find a symbol, or error
+    public Symbol FindIdent(string name) {
+      var ret = Symbols.FindIdent(name);
+      if (ret == null) Parser.ParseError("not found: {0}", name);
+      return ret;
     }
     // get a heading type
     public DataType Typeof(IEnumerable<AstField> fields) {

@@ -7,7 +7,7 @@
 
 
 // start rule: Init for error handling, Start to load catalog
-MainStart <AstStatement> = #STATE{ PrintLine(state); } &{ SetState(state) } WSE* &{ Start() } v:MainRestart { v };
+MainStart <AstStatement> = #STATE{ PrintLine(state); } &{ SetState(state) } DirectiveLine* WSE* &{ Start() } v:MainRestart { v };
 MainRestart <AstStatement> = WSE* v:MainStatement &{ SetState(state) } { v };
 MainStatement <AstStatement> = WSO EOF { null }
     / v:Statement EOLexp { v };
@@ -16,6 +16,7 @@ DoBody <AstValue> = LCexp &{ AST(state).Enter() } WSC v:DoBodyLine* &{ AST(state
 DoBodyLine <AstStatement> = WSO !RC v:Statement (&RC / EOLexp WSE+) { v };
 
 // directives
+DirectiveLine = Directive WSO EOLexp EOLX;      // take directive and end of line
 Directive = "#" (CatalogDirective / IncludeDirective / NoisyDirective / StopDirective / PanicDirective / BadDirective);
 CatalogDirective = "catalog" IDX v:CatalogOption* (&EOL / #STATE{ ParseError(state, "option expected"); } Skip ) { CatalogDirective(state, v) };
 CatalogOption = v:("new" / "load" / "update") IDX { v };
@@ -86,6 +87,7 @@ PostFixTail <AstCall> = RECURSE LPexp v:ExpressionExp RPexp { AST(state).OpCall(
     / &LB v:TransformTailExp { v }
     / DOT v:Funcop { AST(state).DotFunc(v) }
     / DOT v:Component { AST(state).DotComponent(v) }
+    / DOT v:FieldIdent { AST(state).DotField(v) }
     / DOT #STATE{ ParseError(state, "component or function expected"); } { null };
 
 //--- Transforms
@@ -147,8 +149,8 @@ RowTrans <AstField> = v:FieldIdent &(SEP / RC) { AST(state).Transfield(v) }
 
 //----- definitions
 FieldList = v:FieldTerm<0,,SEP>;
-FieldTerm <AstField> = v:Definable COLON w:Type { AST(state).Field(v, w) }
-    / v:Definable { AST(state).Field(v, null) };
+FieldTerm <AstField> = v:Definable COLON w:Type { AST(state).FieldTerm(v, w) }
+    / v:Definable { AST(state).FieldTerm(v, null) };
 
 DefinableExp = Definable 
     / #STATE{ ParseError(state, "aleady defined"); } { null }
@@ -226,7 +228,7 @@ IDX = !ID WS*;              // end of ident possibly followed by WS
 //Init <AstNode> = #STATE{ PrintLine(state); } { AST(state).Node<AstNode>(null) }
 Skip = (!EOL .)* WSE;       // skip the rest of the line and hope it then makes sense
 WSC = WSO (EOLX WSO)*;      // continuation, take eol if found, plus WS
-WSE = WSO EOLX ( Directive EOLexp EOLX)*;   // end of line, take it and any following directives
+WSE = WSO EOLX DirectiveLine*;   // end of line, take it and any following directives
 WSO = WS*;                  // optional whitespace between tokens
 WS = (SP / Comment) { "" };
 SP = [ \t];

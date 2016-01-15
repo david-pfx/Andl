@@ -416,6 +416,11 @@ namespace Andl.Runtime {
     public override bool Equals(object other) {
       return ((TupleValue)other).Value.Equals(Value);
     }
+    // support LDFIELDT
+    public TypedValue GetFieldValue(string name) {
+      var index = Heading.FindIndex(name);
+      return index == -1 ? TypedValue.Empty : Value.Values[index];
+    }
     public override int GetHashCode() {
       return Value.GetHashCode();
     }

@@ -74,6 +74,7 @@ namespace Andl.Peg {
         case Opcodes.LDCATR:
         case Opcodes.LDFIELD:
         case Opcodes.LDCOMP:
+        case Opcodes.LDFIELDT:
           Logger.WriteLine(3, "{0}{1}", prefix, preader.ReadString());
           break;
         case Opcodes.LDACC:
