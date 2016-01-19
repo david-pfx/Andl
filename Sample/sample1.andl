@@ -156,11 +156,11 @@ u0.t
 
 // multiple components
 def ut1(n:number, t:text, d:time)
-v2 := 'Hello World!'
+uv2 := 'Hello World!'
 t2 := t'2015/01/31'
-u1 := ut1(42, v2, t2)
+u1 := ut1(42, uv2, t2)
 "n:" & u1.n & " t:" & u1.t & " d:" & u1.d
-u2 := ut1(41, "!"&v2, t'2000/01/01')
+u2 := ut1(41, "!"&uv2, t'2000/01/01')
 "n:" & u2.n & " t:" & u2.t & " d:" & u2.d
 
 // Comparison left-to-right

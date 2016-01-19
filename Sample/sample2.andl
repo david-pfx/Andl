@@ -16,7 +16,7 @@ t1
 {{:}}       // empty relation, no attributes, no tuples
 {{:}()}     // ditto, one tuple
 {{}}        // same, with type derived by inference
-{{},{},{},{},{},{},{},{}}        // exactly the same value (duplicates discarded)
+//{{},{},{},{},{},{},{},{}}        // exactly the same value (duplicates discarded)
 {{:}(),(),(),(),(),(),()}         // exactly the same value (heading format)
 wait
 

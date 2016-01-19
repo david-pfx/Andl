@@ -1,7 +1,21 @@
 ﻿// Console based on jQuery-console for Andl REPL
 
+$.ajax({
+    type: "POST",
+    url: "/repl/apprepl",
+    success: function (data) {
+        //alert("Success");
+        self.Employees(data);
+    },
+    error: function (err) {
+        alert(err.status + ":" + err.statusText + ":" + err.responseText);
+        //alert(err.status + " <--------------->");
+    }
+});
+
 var container = $('<div class="console">');
 $('div.repl').append(container);
+
 var controller = container.console({
     promptLabel: 'Andl> ',
     commandValidate: function (line) {
