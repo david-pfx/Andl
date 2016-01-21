@@ -20,7 +20,7 @@ namespace Andl.Compiler {
   /// Recursive descent parser.
   /// Each ParseXxx function tries to match a specific construct. It returns true if it matches, false if not.
   /// 
-  public class Parser : IDisposable, IParser {
+  public class OldCompiler : IDisposable, IParser {
     // get whether error happened on this statement
     public bool Error { get; private set; }
     // get or set debug level
@@ -57,8 +57,8 @@ namespace Andl.Compiler {
     }
 
     // Factory method
-    public static Parser Create(Catalog catalog) {
-      return new Parser() {
+    public static OldCompiler Create(Catalog catalog) {
+      return new OldCompiler() {
         SymbolTable = SymbolTable.Create(catalog),
         Catalog = catalog,
       };
@@ -90,26 +90,28 @@ namespace Andl.Compiler {
       ErrorCount = 0;
       if (!ParseMain() || ErrorCount > 0) return ErrorCount == 0;
 
-      var code = _emitter.GetCode();
-      if (Logger.Level >= 4)
-        Decoder.Create(code).Decode();
+      // FIX: drop batch execution
+      //var code = _emitter.GetCode();
+      //if (Logger.Level >= 4)
+      //  Decoder.Create(code).Decode();
 
-      // batch execution
-      if (Catalog.ExecuteFlag) {
-        Logger.WriteLine("*** Begin execution");
-        try {
-          _evaluator.Exec(code);
-        } catch (ProgramException ex) {
-          Logger.WriteLine(ex.ToString());
-        }
-      }
+      //// batch execution
+      //if (Catalog.ExecuteFlag) {
+      //  Logger.WriteLine("*** Begin execution");
+      //  try {
+      //    _evaluator.Exec(code);
+      //  } catch (ProgramException ex) {
+      //    Logger.WriteLine(ex.ToString());
+      //  }
+      //}
       return true;
     }
 
     // Parse a sequence of statements
     bool ParseMain() {
       var ret = false;
-      var exec = Catalog.InteractiveFlag;
+      var exec = Catalog.ExecuteFlag;
+      //var exec = Catalog.InteractiveFlag;
       while (!Check(Atoms.EOF)) {
         Error = false;
         var marker = _emitter.GetMarker();

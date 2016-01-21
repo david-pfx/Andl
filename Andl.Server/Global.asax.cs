@@ -1,4 +1,4 @@
-﻿using Andl.API;
+﻿using Andl.Gateway;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
@@ -31,7 +31,7 @@ namespace Andl.Server {
     }
 
     // Access the required database
-    public static Gateway GetGateway(string database) {
+    public static GatewayBase GetGateway(string database) {
       return GatewayManager.GetGateway(database);
     }
 

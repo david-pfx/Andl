@@ -54,9 +54,9 @@
     <None Include="webhostspsetup.andl" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Andl.API\Andl.API.csproj">
+    <ProjectReference Include="..\Andl.Gateway\Andl.Gateway.csproj">
       <Project>{1201feff-69fc-4720-8b03-059697b41ed3}</Project>
-      <Name>Andl.API</Name>
+      <Name>Andl.Gateway</Name>
     </ProjectReference>
     <ProjectReference Include="..\Andl.Runtime\Andl.Runtime.csproj">
       <Project>{c7d6d0e8-dc93-4d12-b580-34d09e284873}</Project>

@@ -16,11 +16,8 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace Andl.Runtime {
-  // scope levels, can be compared in this order
-  public enum ScopeLevels { Persistent = 0, Global = 1, Local = 2 };
-
-  // entry kinds -- persistence is sorted in this order, to ensure it restores correctly
-  public enum EntryKinds { None = 0, Type = 1, Value = 2, Code = 3 };
+    // scope levels, can be compared in this order
+    public enum ScopeLevels { Persistent = 0, Global = 1, Local = 2 };
 
   // entry flags -- including visibility
   [Flags]
@@ -31,6 +28,19 @@ namespace Andl.Runtime {
     Persistent = 4, // entry persists in catalog (and maybe data too)
     Database = 8,   // link to relvar data stored in external database (local or SQL)
   };
+
+  // Requests for entry info use these codes
+  public enum EntryInfoKind {
+    None, Relation, Variable, Operator, Type
+  }
+
+  // Requests for entry component info use these codes
+  public enum EntrySubInfoKind {
+    None, Attribute, Argument, Component
+  }
+
+  // entry kinds -- persistence is sorted in this order, to ensure it restores correctly
+  public enum EntryKinds { None = 0, Type = 1, Value = 2, Code = 3 };
 
   ///===========================================================================
   /// <summary>
@@ -45,10 +55,10 @@ namespace Andl.Runtime {
     static string _databasepattern = @"^[A-Za-z].*$";     // All with alpha first char
     static string _persistpattern = @"^[$^A-Za-z].*$";    // First char alpha, dollar, caret
 
-    static readonly string _localdatabaseext = ".sandl";
-    static readonly string _sqldatabaseext = ".sqlite";
-    static readonly string _databasename = "data";
-    static readonly string _catalogtablename = "andl_catalog";
+    public static readonly string DefaultDatabaseExtension = ".sandl";
+    public static readonly string DefaultSqlDatabaseExtension = ".sqandl";
+    public static readonly string DefaultDatabaseName = "data";
+    public static readonly string CatalogTableName = "andl_catalog";
 
     public enum CatalogTables {
       Catalog, Variable, Operator, Member
@@ -68,8 +78,6 @@ namespace Andl.Runtime {
     static readonly DataHeading _catalogkey = DataHeading.Create("Name:text");
     static readonly DataHeading _catalogtableheading = _catalogtableheadings[CatalogTables.Catalog];
 
-    //static Dictionary<string, DataHeading> _protectedheadings;
-
     static Dictionary<CatalogTables, Func<CatalogTableMaker, IEnumerable<CatalogEntry>, CatalogTableMaker>> _catalogtablemaker =
       new Dictionary<CatalogTables, Func<CatalogTableMaker, IEnumerable<CatalogEntry>, CatalogTableMaker>> {
       { CatalogTables.Catalog, (c, e) => c.AddEntries(e) },
@@ -79,7 +87,7 @@ namespace Andl.Runtime {
     };
 
     internal static readonly Dictionary<string, CatalogTables> _catalogtables = new Dictionary<string, CatalogTables> {
-      { _catalogtablename, CatalogTables.Catalog },
+      { CatalogTableName, CatalogTables.Catalog },
       { "andl_variables", CatalogTables.Variable }, 
       { "andl_operators", CatalogTables.Operator }, 
       { "andl_members", CatalogTables.Member },  
@@ -105,7 +113,7 @@ namespace Andl.Runtime {
     public string DatabasePattern { get; set; } // relvars kept in the (SQL) database
 
     public string BaseName { get; set; }        // base name for application
-    public string DatabaseName { get; set; }    // name of the database (defaults to same as filename)
+    public string DatabaseName { get; private set; } // name of the database (defaults to same as filename)
     public string DatabasePath { get; set; }    // path to the database (either kind)
     public string SourcePath { get; set; }      // base path for reading a source
 
@@ -151,12 +159,15 @@ namespace Andl.Runtime {
     // open the catalog for use, after all flags set up (including from lexer)
     // create catalog table here, local until the end
     // only do it once
-    public bool Start() {
+    public bool Start(string databasepath = null) {
       if (_started) return false;
-      if (DatabaseName == null)
-        DatabaseName = (DatabasePath == null) ? _databasename : Path.GetFileNameWithoutExtension(DatabasePath);
-      if (DatabasePath == null)
-        DatabasePath = (DatabaseSqlFlag) ? DatabaseName + _sqldatabaseext : DatabaseName + _localdatabaseext;
+      DatabasePath = databasepath ?? DatabasePath ?? DefaultDatabaseName;
+      var ext = Path.GetExtension(DatabasePath);
+      if (ext == "")
+        DatabasePath = Path.ChangeExtension(DatabasePath, (DatabaseSqlFlag) ? DefaultSqlDatabaseExtension : DefaultDatabaseExtension);
+      else if (ext == DefaultSqlDatabaseExtension)
+        DatabaseSqlFlag = true;
+      DatabaseName = Path.GetFileNameWithoutExtension(DatabasePath);
       if (DatabaseSqlFlag) {
         var sqleval = SqlEvaluator.Create();
         var database = Sqlite.SqliteDatabase.Create(DatabasePath, sqleval);
@@ -164,10 +175,10 @@ namespace Andl.Runtime {
       }
 
       var table = DataTableLocal.Create(_catalogtableheading);
-      GlobalVars.Add(_catalogtablename, table.DataType, EntryKinds.Value, EntryFlags.Public | EntryFlags.System, TypedValue.Create(table));
-      GlobalVars.FindEntry(_catalogtablename).Flags |= EntryFlags.Database;
+      GlobalVars.Add(CatalogTableName, table.DataType, EntryKinds.Value, EntryFlags.Public | EntryFlags.System, TypedValue.Create(table));
+      GlobalVars.FindEntry(CatalogTableName).Flags |= EntryFlags.Database;
       if (LoadFlag) {
-        if (!LinkRelvar(_catalogtablename))
+        if (!LinkRelvar(CatalogTableName))
           ProgramError.Fatal("Catalog", "cannot load catalog for '{0}'", DatabaseName);
         LoadFromTable();
         Logger.WriteLine(2, "Loaded catalog for '{0}'", DatabaseName);
@@ -269,14 +280,12 @@ namespace Andl.Runtime {
         table.AddRow(addrow);
       }
       if (DatabaseSqlFlag)
-        DataTableSql.Create(_catalogtablename, table);
-      else Persist.Create(DatabasePath, true).Store(_catalogtablename, RelationValue.Create(table));
+        DataTableSql.Create(CatalogTableName, table);
+      else Persist.Create(DatabasePath, true).Store(CatalogTableName, RelationValue.Create(table));
     }
 
     public void LoadFromTable() {
-      var table = GlobalVars.FindEntry(_catalogtablename).Value.AsTable();
-      //var table = GlobalVars.GetValue(_catalogtablename).AsTable();
-      //var level = FindLevel(ScopeLevels.Persistent);
+      var table = GlobalVars.FindEntry(CatalogTableName).Value.AsTable();
       foreach (var row in table.GetRows()) {
         var blob = (row.Values[3] as BinaryValue).Value;
         var entry = CatalogEntry.FromBinary(blob);
@@ -429,6 +438,64 @@ namespace Andl.Runtime {
       return expr.Value.Lookup.Columns.Select(c => c.DataType).ToArray();
     }
 
+    // Provide formatted dictionary of strings for external tools
+    // Searches current scope, not parent
+    public Dictionary<string, string> GetEntryInfoDict(EntryInfoKind kind) {
+      switch (kind) {
+      case EntryInfoKind.Relation:
+        return GetEntryValuesDict(ce => ce.IsDatabase, ce => ce.RelationToStringValue());
+      case EntryInfoKind.Variable:
+        return GetEntryValuesDict(ce => ce.IsVariable, ce => ce.ValueToStringValue());
+      case EntryInfoKind.Operator:
+        return GetEntryValuesDict(ce => ce.IsCode, ce => ce.CodeToStringValue());
+      case EntryInfoKind.Type:
+        return GetEntryValuesDict(ce => ce.IsType, ce => ce.TypeToStringValue());
+      default:
+        break;
+      }
+      return new Dictionary<string, string>();
+    }
+
+    Dictionary<string, string> GetEntryValuesDict(Func<CatalogEntry, bool> selector, Func<CatalogEntry, string> formatter) {
+      return GetEntries().Where(e => selector(e)).ToDictionary(e => e.Name, e => formatter(e));
+    }
+
+    public Dictionary<string, string> GetSubEntryInfoDict(EntrySubInfoKind kind, string name) {
+      if (_entries.ContainsKey(name)) {
+        var entry = _entries[name];
+        switch (kind) {
+        case EntrySubInfoKind.Attribute:
+          if (!entry.IsDatabase) break;
+          return GetSubEntryValuesDict(entry.DataType.Heading);
+        case EntrySubInfoKind.Argument:
+          if (!entry.IsCode) break;
+          return GetSubEntryValuesDict(entry.CodeValue.Value.Lookup);
+        case EntrySubInfoKind.Component:
+          if (!entry.IsType) break;
+          return GetSubEntryValuesDict(entry.DataType.Heading);
+        default:
+          break;
+        }
+      }
+      return new Dictionary<string, string>();
+    }
+
+    Dictionary<string, string> GetSubEntryValuesDict(DataHeading heading) {
+      return heading.Columns.ToDictionary(c => c.Name, c => c.DataType.BaseName);
+    }
+
+    //public Dictionary<string, string> GetRelationsDict() {
+    //  return GetEntryValuesDict(ce => ce.IsDatabase, ce => ce.RelationToStringValue());
+    //}
+    //public Dictionary<string, string> GetOperatorsDict() {
+    //  return GetEntryValuesDict(ce => ce.IsCode, ce => ce.CodeToStringValue());
+    //}
+    //public Dictionary<string, string> GetVariablesDict() {
+    //  return GetEntryValuesDict(ce => ce.IsVariable, ce => ce.ValueToStringValue());
+    //}
+    //public Dictionary<string, string> GetTypesDict() {
+    //  return GetEntryValuesDict(ce => ce.IsType, ce => ce.TypeToStringValue());
+    //}
   }
 
 
@@ -495,10 +562,15 @@ namespace Andl.Runtime {
     public CatalogScope Scope { get; set; }
 
     public bool IsCode { get { return Kind == EntryKinds.Code; } }
+    public bool IsType { get { return Kind == EntryKinds.Type; } }
+    public bool IsValue { get { return Kind == EntryKinds.Value; } }
     public bool IsDatabase { get { return Flags.HasFlag(EntryFlags.Database); } }
+    public bool IsVariable { get { return IsValue && !IsDatabase; } }
+
     public bool IsPublic { get { return Flags.HasFlag(EntryFlags.Public); } }
     public bool IsPersistent { get { return Flags.HasFlag(EntryFlags.Persistent); } }
     public bool IsSystem { get { return Flags.HasFlag(EntryFlags.System); } }
+
     public CodeValue CodeValue { get { return Value as CodeValue; } }
 
     public static readonly CatalogEntry Empty = new CatalogEntry();
@@ -518,6 +590,24 @@ namespace Andl.Runtime {
 
     public override string ToString() {
       return String.Format("{0} {1} {2} {3} {4}", Name, Kind, Value, Flags, DataType);
+    }
+
+    // return entry value formatted to suit display
+    public string RelationToStringValue() {
+      Logger.Assert(Kind == EntryKinds.Value && DataType.HasHeading, Kind);
+      return String.Format("{0} [{1}]", DataType.BaseName, DataType.Heading.Degree);
+    }
+    public string CodeToStringValue() {
+      Logger.Assert(Kind == EntryKinds.Code, Kind);
+      return String.Format("{0} [{1}]", CodeValue.Value.DataType.BaseName, CodeValue.Value.NumArgs);
+    }
+    public string TypeToStringValue() {
+      Logger.Assert(Kind == EntryKinds.Type, Kind);
+      return String.Format("[{0}]", DataType.Heading.Degree);
+    }
+    public string ValueToStringValue() {
+      Logger.Assert(Kind == EntryKinds.Value, Kind);
+      return String.Format("{0} = {1}", DataType.BaseName, Value);
     }
 
     // persist a catalog entry
@@ -568,10 +658,10 @@ namespace Andl.Runtime {
     }
 
     public void AddEntry(CatalogEntry entry) {
-      var addrow = DataRow.Create(Table.Heading, new TypedValue[] 
-          { TextValue.Create(entry.Name), 
-            TextValue.Create(entry.Kind.ToString()), 
-            TextValue.Create(entry.DataType.BaseType.Name), 
+      var addrow = DataRow.Create(Table.Heading, new TypedValue[]
+          { TextValue.Create(entry.Name),
+            TextValue.Create(entry.Kind.ToString()),
+            TextValue.Create(entry.DataType.BaseType.Name),
             BinaryValue.Create(entry.ToBinary()) });
       Table.AddRow(addrow);
     }
@@ -585,9 +675,9 @@ namespace Andl.Runtime {
     }
 
     void AddVariable(string name, DataType datatype) {
-      var addrow = DataRow.Create(Table.Heading, new TypedValue[] 
-          { TextValue.Create(name), 
-            TextValue.Create(datatype.BaseType.Name), 
+      var addrow = DataRow.Create(Table.Heading, new TypedValue[]
+          { TextValue.Create(name),
+            TextValue.Create(datatype.BaseType.Name),
             TextValue.Create(datatype.GetUniqueName ?? "") });
       Table.AddRow(addrow);
     }
@@ -601,9 +691,9 @@ namespace Andl.Runtime {
     }
 
     void AddOperator(string name, DataType datatype, ExpressionBlock value) {
-      var addrow = DataRow.Create(Table.Heading, new TypedValue[] 
-          { TextValue.Create(name), 
-            TextValue.Create(value.DataType.BaseType.Name), 
+      var addrow = DataRow.Create(Table.Heading, new TypedValue[]
+          { TextValue.Create(name),
+            TextValue.Create(value.DataType.BaseType.Name),
             TextValue.Create(value.DataType.GetUniqueName ?? ""),
             TextValue.Create(value.NumArgs == 0 ? "" : value.SubtypeName) }); // suppress empty arg list
       Table.AddRow(addrow);
@@ -624,10 +714,10 @@ namespace Andl.Runtime {
     void AddMember(string parent, DataHeading heading) {
       int index = 0;
       foreach (var column in heading.Columns) {
-        var addrow = DataRow.Create(Table.Heading, new TypedValue[] 
-          { TextValue.Create(parent), 
-            NumberValue.Create(++index), 
-            TextValue.Create(column.Name), 
+        var addrow = DataRow.Create(Table.Heading, new TypedValue[]
+          { TextValue.Create(parent),
+            NumberValue.Create(++index),
+            TextValue.Create(column.Name),
             TextValue.Create(column.DataType.BaseType.Name),
             TextValue.Create(column.DataType.GetUniqueName ?? "") });
         Table.AddRow(addrow);

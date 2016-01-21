@@ -16,13 +16,13 @@
     <!-- Combobox catalog selection -->
     <Border Margin="4,4">
       <StackPanel Grid.Row="0" Orientation="Horizontal" >
-        <TextBlock Text="Catalog:" Margin="4,2"/>
-        <ComboBox ItemsSource="{Binding Path=Catalogs}" 
-                  SelectedValue="{Binding Path=CatalogName, Mode=TwoWay}" 
+        <TextBlock Text="Databases:" Margin="4,2"/>
+        <ComboBox Name="comboControl"
+                  ItemsSource="{Binding Path=Databases}" 
+                  SelectedValue="{Binding Path=DatabaseName, Mode=TwoWay}" 
                   SelectedValuePath="Name" 
                   DisplayMemberPath="Name"
-                  ToolTip="Choose a Catalog" >
-        </ComboBox>
+                  ToolTip="Choose a Catalog" />
       </StackPanel>
     </Border>
 
@@ -42,12 +42,21 @@
         <TreeViewItem.ItemTemplate>
           <HierarchicalDataTemplate ItemsSource="{Binding Path=Attributes}">
             <TextBlock Text="{Binding Path=Display}"/>
-            <!-- Attribute template -->
-            <HierarchicalDataTemplate.ItemTemplate>
-              <DataTemplate>
-                <TextBlock Text="{Binding Path=Display}"/>
-              </DataTemplate>
-            </HierarchicalDataTemplate.ItemTemplate>
+          </HierarchicalDataTemplate>
+        </TreeViewItem.ItemTemplate>
+      </TreeViewItem>
+
+      <!-- Variables -->
+      <TreeViewItem ItemsSource="{Binding Path=Variables}">
+        <TreeViewItem.Header>
+          <StackPanel Orientation="Horizontal">
+            <Image Source="Images/Label_684.png" />
+            <TextBlock Text="Variables"/>
+          </StackPanel>
+        </TreeViewItem.Header>
+        <TreeViewItem.ItemTemplate>
+          <HierarchicalDataTemplate ItemsSource="{Binding Path=.}">
+            <TextBlock Text="{Binding Path=Display}" />
           </HierarchicalDataTemplate>
         </TreeViewItem.ItemTemplate>
       </TreeViewItem>
@@ -60,16 +69,9 @@
             <TextBlock Text="Operators" Margin="4,0"/>
           </StackPanel>
         </TreeViewItem.Header>
-        <!-- operator template -->
         <TreeViewItem.ItemTemplate>
           <HierarchicalDataTemplate ItemsSource="{Binding Path=Arguments}">
             <TextBlock Text="{Binding Path=Display}"/>
-            <!-- Argument template -->
-            <HierarchicalDataTemplate.ItemTemplate>
-              <DataTemplate>
-                <TextBlock Text="{Binding Path=Display}"/>
-              </DataTemplate>
-            </HierarchicalDataTemplate.ItemTemplate>
           </HierarchicalDataTemplate>
         </TreeViewItem.ItemTemplate>
       </TreeViewItem>
@@ -83,8 +85,8 @@
           </StackPanel>
         </TreeViewItem.Header>
         <TreeViewItem.ItemTemplate>
-          <HierarchicalDataTemplate ItemsSource="{Binding Path=.}">
-            <TextBlock Text="{Binding Path=Name}"/>
+          <HierarchicalDataTemplate ItemsSource="{Binding Path=Components}">
+            <TextBlock Text="{Binding Path=Display}"/>
           </HierarchicalDataTemplate>
         </TreeViewItem.ItemTemplate>
       </TreeViewItem>

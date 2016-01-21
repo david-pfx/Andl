@@ -7,10 +7,11 @@ using Newtonsoft.Json;
 using Andl;
 using Andl.Runtime;
 using Andl.Compiler;
+using Andl.Peg;
 using System.IO;
 using System.Text.RegularExpressions;
 
-namespace Andl.API {
+namespace Andl.Gateway {
   /// <summary>
   /// Encapsulates a result
   /// 
@@ -40,16 +41,30 @@ namespace Andl.API {
   /// <summary>
   /// Anstract class representing runtime
   /// </summary>
-  public abstract class Gateway {
+  public static class GatewayFactory {
+    public const string DefaultDatabaseName = "data";
 
-    // Start the engine and let it configure itself
-    public static Gateway StartUp(Dictionary<string, string> settings) {
-      return GatewayImpl.Create(settings);
+    // Start the engine for a specified database and configuration settings
+    public static GatewayBase Create(string database, Dictionary<string, string> settings) {
+      return GatewayImpl.Create(database, settings);
     }
+  }
+
+
+  /// <summary>
+  /// Anstract class representing runtime
+  /// </summary>
+  public abstract class GatewayBase {
+    //public const string DefaultDatabaseName = "data";
+
+    //// Start the engine and let it configure itself
+    //public static GatewayBase Create(string database, Dictionary<string, string> settings) {
+    //  return GatewayImpl.Create(database, settings);
+    //}
 
     public bool JsonReturnFlag { get; set; }
     public abstract string DatabaseName { get; }
-    public abstract Parser Parser { get; }
+    public abstract IParser Parser { get; }
 
     //--- A gateway for accessing variables and functions by name
 
@@ -103,13 +118,21 @@ namespace Andl.API {
     // Compile and execute the program, returning error or program output as lines of text
     //public abstract Result Execute(string program, out string output);
 
-  }
+    public abstract Dictionary<string, string> GetEntryInfoDict(EntryInfoKind kind);
+    public abstract Dictionary<string, string> GetSubEntryInfoDict(string name, EntrySubInfoKind kind);
 
-  ///===========================================================================
-  /// <summary>
-  /// Manager/factory for multiple gateways accessed by database name
-  /// </summary>
-  public static class GatewayManager {
+      //public abstract Dictionary<string, string> GetRelationsDict();
+      //public abstract Dictionary<string, string> GetOperatorsDict();
+      //public abstract Dictionary<string, string> GetVariablesDict();
+      //public abstract Dictionary<string, string> GetTypesDict();
+
+    }
+
+    ///===========================================================================
+    /// <summary>
+    /// Manager/factory for multiple gateways accessed by database name
+    /// </summary>
+    public static class GatewayManager {
     enum SettingOptions { Ignore, Common, Split }
 
     static Dictionary<string, SettingOptions> _settingsdict = new Dictionary<string, SettingOptions> {
@@ -120,17 +143,17 @@ namespace Andl.API {
       //{ "^Database.*$", SettingOptions.Split },
     };
 
-    static Dictionary<string, Gateway> _gatewaydict = new Dictionary<string, Gateway>();
+    static Dictionary<string, GatewayBase> _gatewaydict = new Dictionary<string, GatewayBase>();
 
-    public static Gateway AddGateway(Dictionary<string, string> settings) {
-      var common = settings
-        .Where(s => _settingsdict.ContainsKey(s.Key) && _settingsdict[s.Key] == SettingOptions.Common)
-        .ToDictionary(k => k, v => v);
-      var gateway = GatewayImpl.Create(settings);
-      if (settings.ContainsKey("DatabaseName"))
-        _gatewaydict[settings["DatabaseName"]] = gateway;
-      return gateway;
-    }
+    //public static GatewayBase AddGateway(Dictionary<string, string> settings) {
+    //  var common = settings
+    //    .Where(s => _settingsdict.ContainsKey(s.Key) && _settingsdict[s.Key] == SettingOptions.Common)
+    //    .ToDictionary(k => k, v => v);
+    //  var gateway = GatewayImpl.Create(settings);
+    //  if (settings.ContainsKey("DatabaseName"))
+    //    _gatewaydict[settings["DatabaseName"]] = gateway;
+    //  return gateway;
+    //}
 
     // Add one gateway for each DatabaseN key, plus common settings
     public static void AddGateways(Dictionary<string, string> settings) {
@@ -141,48 +164,54 @@ namespace Andl.API {
         if (Regex.IsMatch(key, "^Database.*$")) {
           var values = settings[key].Split(',');
           var settingsx = new Dictionary<string, string>(settings);
-          settingsx.Add("DatabaseName", values[0]);
-          if (values.Length >= 2) settingsx.Add("DatabaseSqlFlag", values[1]);
-          if (values.Length >= 3) settingsx.Add("DatabasePath", values[2]);
-          _gatewaydict[values[0]] = GatewayImpl.Create(settingsx);
+          _gatewaydict[values[0]] = GatewayFactory.Create(values[2], settingsx);
+          //settingsx.Add("DatabaseName", values[0]);
+          //if (values.Length >= 2) settingsx.Add("DatabaseSqlFlag", values[1]);
+          //if (values.Length >= 3) settingsx.Add("DatabasePath", values[2]);
+          //_gatewaydict[values[0]] = GatewayImpl.Create(settingsx);
         }
       }
     }
 
-    public static Gateway GetGateway(string database) {
+    public static GatewayBase GetGateway(string database) {
       return _gatewaydict[database];
     }
 
   }
-  
+
   ///===========================================================================
   /// <summary>
   /// The implementation of the gateway API for a particular catalog
   /// </summary>
-  public class GatewayImpl : Gateway {
+  public class GatewayImpl : GatewayBase {
     Catalog _catalog;
-    Parser _parser;
+    IParser _parser;
 
-    public static GatewayImpl Create(Dictionary<string, string> settings) {
+    public static GatewayImpl Create(string database, Dictionary<string, string> settings) {
       var ret = new GatewayImpl();
-      ret.Start(settings);
+      ret.Start(database, settings);
       return ret;
     }
 
     // Load and start the catalog
-    void Start(Dictionary<string, string> settings) {
+    void Start(string database, Dictionary<string, string> settings) {
       _catalog = Catalog.Create();
       _catalog.LoadFlag = true;
       _catalog.ExecuteFlag = true;
       foreach (var key in settings.Keys)
         _catalog.SetConfig(key, settings[key]);
-      _catalog.Start();
-      _parser = Parser.Create(_catalog);
+      _catalog.Start(database);
+      //_parser = Parser.Create(_catalog);
+      // FIX: allow access to old compiler?
+      //_parser = PegCompiler.Create(_catalog);
+      _parser = OldCompiler.Create(_catalog);
     }
 
     public override string DatabaseName { get { return _catalog.DatabaseName; } }
-    public override Parser Parser { get { return _parser; } }
+    public override IParser Parser { get { return _parser; } }
 
+    ///--------------------------------------------------------------------------------------------
+    /// Catalog access functions
 
     // Support implementation functions at catalog level
     public override Type[] GetArgumentTypes(string name) {
@@ -204,7 +233,32 @@ namespace Andl.API {
       return TypedValueBuilder.Create(types);
     }
 
-    // Main implementation functions
+    public override Dictionary<string, string> GetEntryInfoDict(EntryInfoKind kind) {
+      return _catalog.PersistentVars.GetEntryInfoDict(kind);
+    }
+
+    public override Dictionary<string, string> GetSubEntryInfoDict(string name, EntrySubInfoKind kind) {
+      return _catalog.PersistentVars.GetSubEntryInfoDict(kind, name);
+    }
+
+    //public override Dictionary<string, string> GetRelationsDict() {
+    //  return _catalog.PersistentVars.GetRelationsDict();
+    //}
+    //public override Dictionary<string, string> GetOperatorsDict() {
+    //  return _catalog.PersistentVars.GetOperatorsDict();
+    //}
+    //public override Dictionary<string, string> GetVariablesDict() {
+    //  return _catalog.PersistentVars.GetVariablesDict();
+    //}
+    //public override Dictionary<string, string> GetTypesDict() {
+    //  return _catalog.PersistentVars.GetTypesDict();
+    //}
+
+
+    ///--------------------------------------------------------------------------------------------
+    /// Main implementation functions, request session based
+    /// 
+
     //-- direct calls, native types
     public override Result GetValue(string name) {
       return RequestSession.Create(this, _catalog).GetValue(name);
@@ -245,15 +299,6 @@ namespace Andl.API {
       return result;
     }
 
-    // Build function name
-    // NOTE: empty query string here is NOT the same as null
-    static string BuildName(string method, string name, bool hasid, bool hasquery) {
-      var pref = method.ToLower();
-      if (pref == "post") pref = "add";
-      var newname = pref + "_" + name + (hasid ? "_id" : "") + (hasquery ? "_q" : "");
-      return newname;
-    }
-
     //-- serialised native interface
     public override bool NativeCall(string name, byte[] arguments, out byte[] result) {
       return RequestSession.Create(this, _catalog).NativeCall(name, arguments, out result);
@@ -276,6 +321,19 @@ namespace Andl.API {
       return result;
     }
 
+    ///--------------------------------------------------------------------------------------------
+    /// Utility
+
+    // Build function name
+    // NOTE: empty query string here is NOT the same as null
+    static string BuildName(string method, string name, bool hasid, bool hasquery) {
+      var pref = method.ToLower();
+      if (pref == "post")
+        pref = "add";
+      var newname = pref + "_" + name + (hasid ? "_id" : "") + (hasquery ? "_q" : "");
+      return newname;
+    }
+
   }
 
   ///===========================================================================
@@ -285,13 +343,14 @@ namespace Andl.API {
   ///
 
   internal class RequestSession {
-    Gateway _runtime;
+    GatewayBase _runtime;
     CatalogPrivate _catalogpriv;
     Evaluator _evaluator;
     StringWriter _output = new StringWriter();
     StringReader _input = new StringReader("");
 
-    internal static RequestSession Create(Gateway runtime, Catalog catalog) {
+    // Create a request session
+    internal static RequestSession Create(GatewayBase runtime, Catalog catalog) {
       var ret = new RequestSession();
       ret._runtime = runtime;
       ret._catalogpriv = CatalogPrivate.Create(catalog);
@@ -299,6 +358,7 @@ namespace Andl.API {
       return ret;
     }
 
+    // Get a native value from a variable or parameterless function
     public Result GetValue(string name) {
       var kind = _catalogpriv.GetKind(name);
       if (kind == EntryKinds.Code)
@@ -309,6 +369,7 @@ namespace Andl.API {
       return Result.Success(nvalue);
     }
 
+    // Set a native value to a variable or call a single parameter void function
     public Result SetValue(string name, object nvalue) {
       var kind = _catalogpriv.GetKind(name);
       if (kind == EntryKinds.Code)
@@ -320,6 +381,7 @@ namespace Andl.API {
       return Result.Success(null);
     }
 
+    // Call a function with native arguments, get a return value or null if void
     public Result Evaluate(string name, params object[] arguments) {
       var kind = _catalogpriv.GetKind(name);
       if (kind != EntryKinds.Code) return Result.Failure("unknown or invalid name");

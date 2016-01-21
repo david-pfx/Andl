@@ -20,6 +20,7 @@
     <IISExpressAnonymousAuthentication />
     <IISExpressWindowsAuthentication />
     <IISExpressUseClassicPipelineMode />
+    <UseGlobalApplicationHostFile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -223,7 +224,7 @@
     <Content Include="Views\Home\apprepl.cshtml" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Andl.API\Andl.API.csproj">
+    <ProjectReference Include="..\Andl.Gateway\Andl.Gateway.csproj">
       <Project>{1201feff-69fc-4720-8b03-059697b41ed3}</Project>
       <Name>Andl.API</Name>
     </ProjectReference>

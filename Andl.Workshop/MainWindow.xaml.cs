@@ -22,18 +22,20 @@ namespace Andl.Workshop {
     public TreeDataViewModel DataModel { get; set; }
     string CurrentFileName { get; set; }
 
-    readonly DatabaseConnector _dbconnector;
+    readonly DatabaseSelector _dbconnector;
 
     public MainWindow() {
       InitializeComponent();
 
-      _dbconnector = DatabaseConnector.Create();
-      _dbconnector.OpenCatalog("test");
+      _dbconnector = DatabaseSelector.Create(".");
 
       // data context is this; access data model via simply property
       DataModel = new TreeDataViewModel(_dbconnector);
       DataContext = this;
-      
+
+      // set initial visual state
+      if (DataModel.Databases.Length > 0)
+        DataModel.DatabaseName = DataModel.Databases[0].Name;
       textEditor.Focus();
       textEditor.IsModified = false;
     }
@@ -82,7 +84,7 @@ namespace Andl.Workshop {
     private void ExecuteQuery() {
       var text = textEditor.SelectedText;
       if (text.Length == 0) text = textEditor.Text;
-      OutputText = DataModel.Catalog.Execute(text);
+      OutputText = DataModel.Connector.Execute(text);
     }
 
     ///============================================================================================

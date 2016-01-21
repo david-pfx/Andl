@@ -8,7 +8,7 @@ using Thrift;
 using Thrift.Protocol;
 using Thrift.Server;
 using Thrift.Transport;
-using Andl.API;
+using Andl.Gateway;
 using Andl.Runtime; // for TypedValueBuilder -- temp
 
 namespace Andl.Thrift {
@@ -17,11 +17,11 @@ namespace Andl.Thrift {
   /// Dependent on library functions provided by Thrift library.
   /// </summary>
   public class Processor : TProcessor {
-    Gateway _gateway;
+    GatewayBase _gateway;
     TypedValueBuilder _arguments;
     TypedValueBuilder _result;
 
-    public Processor(Gateway gateway) {
+    public Processor(GatewayBase gateway) {
       _gateway = gateway;
     }
 

@@ -35,9 +35,9 @@ namespace Andl.Main {
     static Evaluator _evaluator;
 
     static List<string> _paths = new List<string>();
-    static string _help = "Andl [<input path> [<catalog name> [<database path>]]] options\n"
+    static string _help = "Andl [<input path> [<database name or path>]] options\n"
       + "\t\tDefault is compile and execute with new catalog and local database, no update.\n"
-      + "\t\tDefault catalog is 'data', default database is 'data.sandl' or 'data.sqlite'.\n"
+      + "\t\tDefault database is 'data', path is 'data.sandl' or 'data.sqlite' for sql.\n"
       + "\t/c[nu]\tUse existing catalog, n for new, u for update\n"
       + "\t/i\tInteractive, using console screen and keyboard\n"
       + "\t/t\tOutput Thrift IDL file\n"
@@ -120,12 +120,10 @@ namespace Andl.Main {
       _catalog.DatabaseSqlFlag = _ssw;
       _catalog.BaseName = Path.GetFileNameWithoutExtension(_paths[0]);
       if (_paths.Count > 1)
-        _catalog.DatabaseName = _paths[1];
-      if (_paths.Count > 2)
-        _catalog.DatabasePath = _paths[2];
+        _catalog.DatabasePath = _paths[1];
       _catalog.SourcePath = "";
 
-      // Create private catalog with access to global level
+      // Create private catalog with access to global level, for evaluator
       var catalogp = CatalogPrivate.Create(_catalog, true);
       // Create evaluator (may not get used)
       _evaluator = Evaluator.Create(catalogp, Console.Out, Console.In);
@@ -140,7 +138,7 @@ namespace Andl.Main {
       //IParser parser = (_psw) ?
       IParser parser = (!_psw) ? 
         PegCompiler.Create(_catalog) : 
-        Parser.Create(_catalog);
+        OldCompiler.Create(_catalog);
       using (StreamReader input = File.OpenText(path)) {
         var ret = parser.Process(input, Console.Out, _evaluator, path);
         Logger.WriteLine("*** Compiled {0} {1} ", path, ret ? "OK"

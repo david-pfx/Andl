@@ -9,7 +9,7 @@ using System.Net;
 using System.ServiceModel.Channels;
 using System.Linq;
 using System.Configuration;
-using Andl.API;
+using Andl.Gateway;
 using Andl.Runtime;
 
 namespace Andl.Host {
@@ -91,7 +91,8 @@ namespace Andl.Host {
       Logger.WriteLine(2, "Server {0}: {1},{2},{3},{4} <{5}>", method, catalog, name, id, KvpToString(qparams), content);
 
       var gateway = HostProgram.GetGateway(catalog);
-      var result = (gateway == null) ? API.Result.Failure("catalog not found: " + catalog)
+      // FIX: ambiguous
+      var result = (gateway == null) ? Gateway.Result.Failure("catalog not found: " + catalog)
         : gateway.JsonCall(method, name, id, qparams, content);
 
       if (result.Ok) { 
@@ -162,9 +163,9 @@ namespace Andl.Host {
   /// Implement calling program
   /// </summary>
   class HostProgram {
-    static Gateway _gateway;
+    static GatewayBase _gateway;
     // return gateway for this catalog, used by server request handler
-    public static Gateway GetGateway(string catalog) {
+    public static GatewayBase  GetGateway(string catalog) {
       return catalog == _gateway.DatabaseName ? _gateway : null;
     }
 
@@ -173,7 +174,8 @@ namespace Andl.Host {
     // start up web host, then run tests
     static void Main(string[] args) {
       Logger.Open(0);   // no default logging
-      AppStartup();
+      // FIX: use GatewayFactory.DefaultDatabaseName
+      AppStartup("data");
       string address = "http://" + Environment.MachineName + ":8000/api";
       var host = CreateHost(address, "");
       host.Open();
@@ -217,12 +219,12 @@ namespace Andl.Host {
       { "Noisy", "Noisy" },
     };
 
-    static void AppStartup() {
+    static void AppStartup(string database) {
       var appsettings = ConfigurationManager.AppSettings;
       var settings = appsettings.AllKeys
         .Where(k => _settingsdict.ContainsKey(k))
         .ToDictionary(k => _settingsdict[k], k => appsettings[k]);
-      _gateway = Andl.API.Gateway.StartUp(settings);
+      _gateway = Andl.Gateway.GatewayFactory.Create(database, settings);
       _gateway.JsonReturnFlag = true;   // FIX: s/b default
     }
 

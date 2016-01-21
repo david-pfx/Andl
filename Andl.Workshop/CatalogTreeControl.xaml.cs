@@ -15,7 +15,7 @@ using System.Windows.Shapes;
 
 namespace Andl.Workshop {
   public interface IDatabaseProvider {
-    DatabaseConnector Database { get; }
+    DatabaseSelector Database { get; }
   }
 
   /// <summary>
@@ -33,7 +33,9 @@ namespace Andl.Workshop {
     }
 
     private void treeViewControl_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e) {
+    }
 
+    private void comboControl_TargetUpdated(object sender, DataTransferEventArgs e) {
     }
   }
 }

@@ -2,7 +2,7 @@
 using System.Web.Http;
 using System.Web.Http.Description;
 using System.Linq;
-using Andl.API;
+using Andl.Gateway;
 using System.Threading.Tasks;
 using System;
 using System.Runtime.Serialization.Json;
@@ -10,7 +10,7 @@ using Newtonsoft.Json;
 
 namespace Andl.Server.Controllers {
   public class AndlController : ApiController {
-    Gateway Runtime(string database) {
+    GatewayBase Runtime(string database) {
       return WebApiApplication.GetGateway(database);
     }
     //Gateway Runtime { get { return WebApiApplication.GetGateway(); } }

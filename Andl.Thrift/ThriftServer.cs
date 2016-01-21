@@ -8,7 +8,7 @@ using Thrift;
 using Thrift.Server;
 using Thrift.Transport;
 using Thrift.Protocol;
-using Andl.API;
+using Andl.Gateway;
 using Andl.Runtime; // for logging!
 
 namespace Andl.Thrift {
@@ -42,13 +42,14 @@ namespace Andl.Thrift {
       "DatabasePath", "DatabaseSqlFlag", "DatabaseName", "Noisy"
     };
 
-    static Gateway AppStartup() {
+    static GatewayBase AppStartup(string database = null) {
       var appsettings = ConfigurationManager.AppSettings;
       // Convert dictionary type, filter out unwanted
       var settings = appsettings.AllKeys
         .Where(k => _settingshash.Contains(k))
         .ToDictionary(k => k, k => appsettings[k]);
-      return Andl.API.Gateway.StartUp(settings);
+      return GatewayFactory.Create(database, settings);
+      //return Andl.Gateway.GatewayBase.StartUp(settings);
     }
 
     /// <summary>

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Andl.API;
+using Andl.Gateway;
 using System.IO;
 
 namespace Andl.Client {
@@ -20,23 +20,21 @@ namespace Andl.Client {
   }
 
   class CallCompile {
-    Gateway _api;
+    GatewayBase _api;
+    string DatabaseName = "Supplier";
     Dictionary<string, string> _settingsdict = new Dictionary<string, string> {
-      { "DatabaseName", "Supplier" },
       { "Noisy", "0" },
-      //{ "DatabasePath", "" },
-      //{ "DatabasePathSqlFlag", "" },
     };
 
     internal void Exec() {
-      _api = Gateway.StartUp(_settingsdict);
+      _api = GatewayFactory.Create(DatabaseName, _settingsdict);
       Run("fact:0(n:0) => if(n<=1,1,n*fact(n-1))");
       Run("fact(6)");
       Run("zzz");
     }
 
     internal void Repl() {
-      _api = Gateway.StartUp(_settingsdict);
+      _api = GatewayFactory.Create(DatabaseName, _settingsdict);
       for (; ; ) {
         Console.Write(">>>");
         var line = Console.ReadLine();
@@ -58,11 +56,9 @@ namespace Andl.Client {
   }
 
   class CallNative {
+    string DatabaseName = "Supplier";
     Dictionary<string, string> _settingsdict = new Dictionary<string, string> {
-      { "DatabaseName", "Supplier" },
       { "Noisy", "2" },
-      //{ "DatabasePath", "" },
-      //{ "DatabasePathSqlFlag", "" },
     };
 
     internal void Exec() {
@@ -78,7 +74,7 @@ namespace Andl.Client {
     }
 
     void CallFunc() {
-      var api = Gateway.StartUp(_settingsdict);
+      var api = GatewayFactory.Create(DatabaseName, _settingsdict);
       var args = ArgWriter.Create().Put("abcdef").Out();
       byte[] result;
       var ret = api.NativeCall("func", args, out result);
@@ -87,7 +83,7 @@ namespace Andl.Client {
     }
 
     void ShowCatalog() {
-      var api = Gateway.StartUp(_settingsdict);
+      var api = GatewayFactory.Create(DatabaseName, _settingsdict);
       byte[] result;
       var ret = api.NativeCall("andl_catalog", new byte[0], out result);
     }
@@ -100,7 +96,7 @@ namespace Andl.Client {
     };
 
     bool FindSupplier(string id, out Supplier[] supplier) {
-      var api = Gateway.StartUp(_settingsdict);
+      var api = GatewayFactory.Create(DatabaseName, _settingsdict);
       byte[] args = ArgWriter.Create().Put(id).Out();
       byte[] result;
       supplier = null;
