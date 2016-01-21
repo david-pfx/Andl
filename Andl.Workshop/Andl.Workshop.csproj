@@ -67,7 +67,7 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="CatalogTreeControl.xaml">
+    <Page Include="DatabaseTreeControl.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -79,8 +79,8 @@
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="CatalogTreeControl.xaml.cs">
-      <DependentUpon>CatalogTreeControl.xaml</DependentUpon>
+    <Compile Include="DatabaseTreeControl.xaml.cs">
+      <DependentUpon>DatabaseTreeControl.xaml</DependentUpon>
     </Compile>
     <Compile Include="CustomCommands.cs" />
     <Compile Include="DatabaseConnector.cs" />
@@ -176,6 +176,9 @@
   </ItemGroup>
   <ItemGroup>
     <Resource Include="Images\Label_684.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Images\SaveFileDialogControl_703.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

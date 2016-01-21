@@ -23,10 +23,11 @@ namespace Andl.Workshop {
   /// 
   /// Note: relies on data context provided by parent
   /// </summary>
-  public partial class CatalogTreeControl : UserControl {
+  public partial class DatabaseTreeControl : UserControl {
 
-    public CatalogTreeControl() {
+    public DatabaseTreeControl() {
       InitializeComponent();
+      comboControl.Focus();
     }
 
     private void treeViewControl_MouseRightButtonDown(object sender, MouseButtonEventArgs e) {

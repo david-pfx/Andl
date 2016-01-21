@@ -1,6 +1,7 @@
 ﻿using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -19,6 +20,8 @@ namespace Andl.Workshop {
   /// Interaction logic for MainWindow.xaml
   /// </summary>
   public partial class MainWindow : Window {
+    const string DefaultScriptName = "test.andl";
+
     public TreeDataViewModel DataModel { get; set; }
     string CurrentFileName { get; set; }
 
@@ -35,8 +38,14 @@ namespace Andl.Workshop {
 
       // set initial visual state
       if (DataModel.Databases.Length > 0)
-        DataModel.DatabaseName = DataModel.Databases[0].Name;
-      textEditor.Focus();
+        //DataModel.DatabaseName = DataModel.Databases[DataModel.Databases.Length - 1].OpenName;
+        DataModel.DatabaseName = DataModel.Databases[0].OpenName;
+
+      //textEditor.Focus();
+      if (File.Exists(DefaultScriptName)) {
+        CurrentFileName = DefaultScriptName;
+        textEditor.Load(DefaultScriptName);
+      }
       textEditor.IsModified = false;
     }
 
@@ -53,12 +62,19 @@ namespace Andl.Workshop {
     public static readonly DependencyProperty OutputTextProperty =
         DependencyProperty.Register("OutputText", typeof(string), typeof(MainWindow), new PropertyMetadata("test"));
 
+    public string OutputTextColour {
+      get { return (string)GetValue(OutputTextColourProperty); }
+      set { SetValue(OutputTextColourProperty, value); }
+    }
+    public static readonly DependencyProperty OutputTextColourProperty =
+        DependencyProperty.Register("OutputTextColour", typeof(string), typeof(MainWindow), new PropertyMetadata("black"));
+
     ///============================================================================================
     ///
     /// Implementation
     /// 
-    bool SaveCurrentFile() {
-      if (CurrentFileName == null) {
+    bool SaveCurrentFile(bool ask = false) {
+      if (ask || CurrentFileName == null) {
         SaveFileDialog dlg = new SaveFileDialog();
         dlg.DefaultExt = ".txt";
         if (dlg.ShowDialog() ?? false)
@@ -84,7 +100,14 @@ namespace Andl.Workshop {
     private void ExecuteQuery() {
       var text = textEditor.SelectedText;
       if (text.Length == 0) text = textEditor.Text;
-      OutputText = DataModel.Connector.Execute(text);
+      var result = DataModel.Connector.Execute(text);
+      if (result.Ok) {
+        OutputText = result.Value as string;
+        OutputTextColour = "black";
+      } else {
+        OutputText = result.Message;
+        OutputTextColour = "crimson";
+      }
     }
 
     ///============================================================================================
@@ -110,6 +133,9 @@ namespace Andl.Workshop {
 
     private void Save_Executed(object sender, ExecutedRoutedEventArgs e) {
       SaveCurrentFile();
+    }
+    private void SaveAs_Executed(object sender, ExecutedRoutedEventArgs e) {
+      SaveCurrentFile(true);
     }
 
     private void Exit_Executed(object sender, ExecutedRoutedEventArgs e) {
@@ -144,5 +170,6 @@ namespace Andl.Workshop {
     private void Web_Executed(object sender, ExecutedRoutedEventArgs e) {
 
     }
+
   }
 }

@@ -11,6 +11,7 @@
     <CommandBinding Command="ApplicationCommands.New" Executed="New_Executed" />
     <CommandBinding Command="ApplicationCommands.Open" Executed="Open_Executed" />
     <CommandBinding Command="ApplicationCommands.Save" Executed="Save_Executed" />
+    <CommandBinding Command="ApplicationCommands.SaveAs" Executed="SaveAs_Executed" />
     <CommandBinding Command="local:CustomCommands.Exit" Executed="Exit_Executed" />
     <CommandBinding Command="NavigationCommands.Refresh" Executed="Refresh_Executed" />
     <CommandBinding Command="local:CustomCommands.Properties" Executed="Properties_Executed" />
@@ -29,19 +30,24 @@
     <!-- Menu -->
     <Menu x:Name="menu" Height="22" DockPanel.Dock="Top">
       <MenuItem Header="_File">
-        <MenuItem Command="ApplicationCommands.New" >
+        <MenuItem Header = "_New" Command="ApplicationCommands.New" >
           <MenuItem.Icon>
             <Image Source="Images/NewWindow_6277.png" />
           </MenuItem.Icon>
         </MenuItem>
-        <MenuItem Command="ApplicationCommands.Open" >
+        <MenuItem Header = "_Open" Command="ApplicationCommands.Open" >
           <MenuItem.Icon>
             <Image Source="Images/Open_6529.png" />
           </MenuItem.Icon>
         </MenuItem>
-        <MenuItem Command="ApplicationCommands.Save" >
+        <MenuItem Header = "_Save" Command="ApplicationCommands.Save" >
           <MenuItem.Icon>
             <Image Source="Images/Save_6530.png" />
+          </MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Header="Save _As" Command="ApplicationCommands.SaveAs" >
+          <MenuItem.Icon>
+            <Image Source="Images/SaveFileDialogControl_703.png" />
           </MenuItem.Icon>
         </MenuItem>
         <MenuItem Header="_Refresh" Command="local:CustomCommands.Refresh" >
@@ -54,7 +60,7 @@
         <Separator />
         <MenuItem Header="E_xit" Command="local:CustomCommands.Exit" />
       </MenuItem>
-      
+
       <MenuItem Header="_Edit">
         <MenuItem Command="ApplicationCommands.Undo" >
           <MenuItem.Icon>
@@ -88,7 +94,7 @@
           </MenuItem.Icon>
         </MenuItem>
       </MenuItem>
-      
+
       <MenuItem Header="_Query">
         <MenuItem Header="E_xecute" Command="local:CustomCommands.Execute" >
           <MenuItem.Icon>
@@ -101,20 +107,20 @@
           </MenuItem.Icon>
         </MenuItem>
       </MenuItem>
-      
+
       <MenuItem Header="_Window"/>
-      
+
       <MenuItem Header="_Help">
         <MenuItem Header="Andl on the _Web" Command="local:CustomCommands.Web" >
           <MenuItem.Icon>
-          <Image Source="Images/webpi.png" />
+            <Image Source="Images/webpi.png" />
           </MenuItem.Icon>
         </MenuItem>
         <MenuItem Header="_About" Command="local:CustomCommands.About" >
         </MenuItem>
       </MenuItem>
     </Menu>
-    
+
     <!-- Toolbar -->
     <ToolBarTray 
       DockPanel.Dock="Top">
@@ -183,9 +189,9 @@
           Grid.Row="0" 
           BorderThickness="5"
           BorderBrush="Green">
-        <local:CatalogTreeControl x:Name="catalogTreeControl" />
+        <local:DatabaseTreeControl x:Name="databaseTreeControl" />
       </Border>
-      
+
       <GridSplitter 
         Grid.Column ="1" 
         HorizontalAlignment="Left" 
@@ -226,7 +232,9 @@
           <TextBox 
             FontFamily="Consolas"
             FontSize="10pt"
-            Text="{Binding Path=OutputText}" IsReadOnly="True" />
+            Foreground="{Binding Path=OutputTextColour}" 
+            Text="{Binding Path=OutputText}"
+            IsReadOnly="True" Background="White" />
         </Border>
       </Grid>
 

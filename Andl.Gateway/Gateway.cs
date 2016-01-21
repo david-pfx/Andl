@@ -545,12 +545,12 @@ namespace Andl.Gateway {
 
     // call to execute a piece of Andl code against the current catalog
     // raw text in, Result var out
-    internal Result RawExecute(string program) {
+    internal Result RawExecute(string program, string source = "Line") {
       var input = new StringReader(program);
       try {
-        var ret = _runtime.Parser.Process(input, _output, _evaluator, "-api-");
+        var ret = _runtime.Parser.Process(input, _output, _evaluator, source);
         if (ret) return Result.Success(_output.ToString());
-        else return Result.Success("Failed: " + _output.ToString());
+        else return Result.Failure(_output.ToString());
       } catch (ProgramException ex) {
         return Result.Failure(ex.ToString());
       }
