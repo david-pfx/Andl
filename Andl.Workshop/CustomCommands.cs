@@ -23,8 +23,8 @@ namespace Andl.Workshop {
     public static RoutedCommand Execute = new RoutedCommand(
       "E_xecute", typeof(string), new InputGestureCollection() {
         new KeyGesture(Key.F5) });
-    public static RoutedCommand Refresh = new RoutedCommand(
-      "_Refresh", typeof(string), new InputGestureCollection() {
+    public static RoutedCommand Reload = new RoutedCommand(
+      "_Reload", typeof(string), new InputGestureCollection() {
         new KeyGesture(Key.F5, ModifierKeys.Alt) });
     public static RoutedCommand Web = new RoutedCommand(
       "_Web", typeof(string));

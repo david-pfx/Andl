@@ -26,7 +26,7 @@ namespace Andl.Compiler {
     // get or set debug level
     public int ErrorCount { get; private set; }
     // get instance of symbol table
-    public SymbolTable SymbolTable { get; private set; }
+    public SymbolTable Symbols { get; private set; }
     // get set instance of Catalog
     public Catalog Catalog { get; private set; }
 
@@ -59,7 +59,7 @@ namespace Andl.Compiler {
     // Factory method
     public static OldCompiler Create(Catalog catalog) {
       return new OldCompiler() {
-        SymbolTable = SymbolTable.Create(catalog),
+        Symbols = SymbolTable.Create(catalog),
         Catalog = catalog,
       };
       // TODO: add symbols from catalog
@@ -69,14 +69,14 @@ namespace Andl.Compiler {
     public bool Start() {
       if (_started) return false;
       Catalog.Start();
-      SymbolTable.Import(Catalog.GlobalVars);
-      SymbolTable.Import(Catalog.PersistentVars);
+      Symbols.Import(Catalog.GlobalVars);
+      Symbols.Import(Catalog.PersistentVars);
       _started = true;
       return true;
     }
 
     public bool Process(TextReader input, TextWriter output, Evaluator evaluator, string filename) {
-      _lexer = Lexer.Create(SymbolTable, Catalog);
+      _lexer = Lexer.Create(Symbols, Catalog);
       _evaluator = evaluator;
       _output = output;
       _emitter = new Emitter();
@@ -120,8 +120,8 @@ namespace Andl.Compiler {
 
         // wrap return value so it will print out
         if (result && datatype != DataTypes.Void) {
-          _emitter.OutCall(SymbolTable.Find("pp"));
-          _emitter.OutCall(SymbolTable.Find("write"));
+          _emitter.OutCall(Symbols.Find("pp"));
+          _emitter.OutCall(Symbols.Find("write"));
         }
         var code = _emitter.GetSeg(marker, true);
         if (Logger.Level >= 3)
@@ -211,8 +211,8 @@ namespace Andl.Compiler {
       if (datatype == null) return ErrSyntax("not found: {0}", idsym.Name);
 
       idsym = SymbolTable.MakeCatVar(idsym.Name, datatype);
-      Scope.Current.Add(idsym);
-      SymbolTable.AddCatalog(idsym);
+      Symbols.CurrentScope.Add(idsym);
+      Symbols.AddCatalog(idsym);
 
       _emitter.Out(Opcodes.LDVALUE, source);
       _emitter.Out(Opcodes.LDVALUE, TextValue.Create(idsym.Name));
@@ -237,11 +237,11 @@ namespace Andl.Compiler {
         return ErrSyntax("already defined: {0}", expr.Sym.Name);
       } else {
         expr.Sym = SymbolTable.MakeCatVar(expr.Sym.Name, expr.DataType);
-        Scope.Current.Add(expr.Sym);
-        SymbolTable.AddCatalog(expr.Sym);
+        Symbols.CurrentScope.Add(expr.Sym);
+        Symbols.AddCatalog(expr.Sym);
       }
       _emitter.OutSeg(expr.Expression());
-      _emitter.OutCall(SymbolTable.Find(Symbol.Assign));
+      _emitter.OutCall(Symbols.Find(Symbol.Assign));
       return true;
     }
 
@@ -259,9 +259,9 @@ namespace Andl.Compiler {
 
       var args = new List<Symbol>();
       if (Match(Atoms.LP)) {
-        Scope.Push();
+        Symbols.CurrentScope.Push();
         ParseDeclList(args);
-        Scope.Pop();
+        Symbols.CurrentScope.Pop();
         if (!Match(Atoms.RP)) return ErrCheck(Atoms.RP);
       }
       if (!Match(Atoms.RA)) return ErrExpect(Atoms.RA);
@@ -270,11 +270,11 @@ namespace Andl.Compiler {
       // set up function because it might get called recursively
 
       idsym = SymbolTable.MakeDeferred(idsym.Name, idsym.DataType, MakeColumns(args));
-      Scope.Current.Add(idsym);
+      Symbols.CurrentScope.Add(idsym);
 
-      Scope.Push();
+      Symbols.CurrentScope.Push();
       foreach (var sym in args)
-        Scope.Current.Add(sym);
+        Symbols.CurrentScope.Add(sym);
       ExprInfo expr;
       var marker = _emitter.GetMarker();
       if (ParseUpdateJoin() || ParseUpdateTransform()) {
@@ -296,7 +296,7 @@ namespace Andl.Compiler {
         expr.Sym = idsym;
       }
       if (Error) return true;
-      Scope.Pop();
+      Symbols.CurrentScope.Pop();
 
       // Update type -- could still be unknown if lazy
       if (idsym.DataType == DataTypes.Unknown)
@@ -307,13 +307,13 @@ namespace Andl.Compiler {
         idsym.Foldable = FoldableFlags.ANY;
 
       // add to catalog now type is known
-      SymbolTable.AddCatalog(idsym);
+      Symbols.AddCatalog(idsym);
 
       var argtype = DataHeading.Create(idsym.CallInfo.Arguments, false);  // preserve order
       var eblock = expr.Expression(argtype, true);
       // output wrapped as code value to suppress execution
       _emitter.OutLoad(CodeValue.Create(eblock));
-      _emitter.OutCall(SymbolTable.Find(Symbol.Defer));
+      _emitter.OutCall(Symbols.Find(Symbol.Defer));
       return true;
     }
 
@@ -336,7 +336,7 @@ namespace Andl.Compiler {
         return ErrSyntax("relational expression with same heading expected");
 
       _emitter.OutLoad(NumberValue.Create((int)joinsym.JoinOp));
-      _emitter.OutCall(SymbolTable.Find(Symbol.UpdateJoin));
+      _emitter.OutCall(Symbols.Find(Symbol.UpdateJoin));
       return true;
     }
 
@@ -362,7 +362,7 @@ namespace Andl.Compiler {
         _emitter.OutSeg(ExpressionBlock.True);
       else _emitter.OutSegs(trinfo.Restrict);
       _emitter.OutSegs(trinfo.AttributeExprs);
-      _emitter.OutCall(SymbolTable.Find(Symbol.UpdateTransform), trinfo.AttributeExprs.Length);
+      _emitter.OutCall(Symbols.Find(Symbol.UpdateTransform), trinfo.AttributeExprs.Length);
       return true;
     }
 
@@ -446,7 +446,7 @@ namespace Andl.Compiler {
       case SymKinds.PARAM:
         // TODO: guard other kinds of invalid symbol
         if (symbol.DataType == DataTypes.Unknown) return ErrSyntax("unknown type: {0}", symbol.Name);
-        if (symbol.IsField) Scope.Current.LookupItems.Add(DataColumn.Create(symbol.Name, symbol.DataType));
+        if (symbol.IsField) Symbols.CurrentScope.LookupItems.Add(DataColumn.Create(symbol.Name, symbol.DataType));
         _emitter.OutName(symbol.IsLookup ? Opcodes.LDFIELD : Opcodes.LDCAT, symbol);
         datatype = symbol.DataType;
         Match();
@@ -466,7 +466,7 @@ namespace Andl.Compiler {
       datatype = DataTypes.Unknown;
       if (!Look().IsUnary) return false;
 
-      var symbol = (Check(Atoms.MINUS)) ? SymbolTable.Find("u-") : Look();
+      var symbol = (Check(Atoms.MINUS)) ? Symbols.Find("u-") : Look();
       Match();
       ParsePrimary(out datatype);
       CallInfo callinfo;
@@ -484,7 +484,7 @@ namespace Andl.Compiler {
       if (!Match(Atoms.LC)) return ErrCheck(Atoms.LC);
 
       // === open scope shared by local variables
-      Scope.Push();
+      Symbols.CurrentScope.Push();
       // Must capture expression as eblock to allow a runtime scope to be set up
       var marker = _emitter.GetMarker();
       var exprcount = 0;
@@ -497,7 +497,7 @@ namespace Andl.Compiler {
           if (datatype != DataTypes.Void) return ErrSyntax("bad expression type in do block: {0}", datatype);
       }
       if (Error) return true;
-      Scope.Pop();
+      Symbols.CurrentScope.Pop();
       // === end scope
 
       var code = _emitter.GetSeg(marker);
@@ -508,7 +508,7 @@ namespace Andl.Compiler {
       var ebs = expr.Expression();
       _emitter.OutSeg(ebs);
       _emitter.Out(Opcodes.LDACCBLK);   // make sure to pass through, if needed
-      _emitter.OutCall(SymbolTable.Find(Symbol.DoBlock));
+      _emitter.OutCall(Symbols.Find(Symbol.DoBlock));
       return true;
     }
 
@@ -525,12 +525,12 @@ namespace Andl.Compiler {
       //if (!(opsym.JoinOp == JoinOps.UNION)) return ErrExpect("union");
       //if (!Match(Atoms.SEP)) return ErrCheck(Atoms.SEP);
 
-      Scope.Push(datatype);
+      Symbols.CurrentScope.Push(datatype);
       ExprInfo expr;
       if (!(ParseOpenExpression(out expr) && expr.DataType == datatype))
         return ErrExpect("expression of same type");
       if (!Match(Atoms.RP)) return ErrCheck(Atoms.RP);
-      Scope.Pop();
+      Symbols.CurrentScope.Pop();
 
       _emitter.OutLoad(NumberValue.Create(0)); // reserved
       _emitter.OutSeg(expr.Expression());
@@ -549,7 +549,7 @@ namespace Andl.Compiler {
       // predicate if specified
       if (trinfo.Restrict.Length > 0) {
         _emitter.OutSegs(trinfo.Restrict);
-        _emitter.OutCall(SymbolTable.Find(Symbol.Restrict), trinfo.Restrict.Length);
+        _emitter.OutCall(Symbols.Find(Symbol.Restrict), trinfo.Restrict.Length);
       }
 
       // Extended project if specified
@@ -560,13 +560,13 @@ namespace Andl.Compiler {
           _emitter.OutSeg(ordi.Expression());
         count += trinfo.OrderInfo.Count;
         // TODO: check
-        _emitter.OutCall(SymbolTable.Find(trinfo.CallName), count);
+        _emitter.OutCall(Symbols.Find(trinfo.CallName), count);
         datatype = DataTypeRelation.Get(trinfo.Heading);
       }
 
       // Lift if specified
       if (trinfo.Lift) {
-        var sym = SymbolTable.Find(Symbol.Lift);
+        var sym = Symbols.Find(Symbol.Lift);
         datatype = trinfo.Heading.Columns[0].DataType;
         _emitter.OutCall(sym);
       }
@@ -583,7 +583,7 @@ namespace Andl.Compiler {
       if (!MatchOverEol(Atoms.LB)) return false;
       if (!(datatype is DataTypeRelation)) return ErrSyntax("type {0} cannot have transform", datatype);
       // === open a new scope
-      Scope.Push(datatype);
+      Symbols.CurrentScope.Push(datatype);
 
       // where order group (in any order)
       var ebs = new List<ExpressionBlock>();
@@ -658,7 +658,7 @@ namespace Andl.Compiler {
         trinfo.Update(funcname, lift, exprs.ToArray());
       }
 
-      Scope.Pop();
+      Symbols.CurrentScope.Pop();
       // === Close scope
       return true;
     }
@@ -681,7 +681,7 @@ namespace Andl.Compiler {
       CallInfo callinfo;
       CheckTypeError(symbol, out datatype, out callinfo, datatypes.ToArray());
       if (symbol.CallKind == CallKinds.SFUNC)
-        _emitter.OutCall(SymbolTable.Find(Symbol.UserSelector), datatypes.Count);
+        _emitter.OutCall(Symbols.Find(Symbol.UserSelector), datatypes.Count);
       else _emitter.OutCall(symbol, 0, callinfo);
       return true;
     }
@@ -712,7 +712,7 @@ namespace Andl.Compiler {
         _accuminfo.AccumCount += callinfo.AccumCount;
       }
 
-      var invoke = SymbolTable.Find(Symbol.Invoke);
+      var invoke = Symbols.Find(Symbol.Invoke);
       _emitter.OutCall(invoke, datatypes.Count, invoke.CallInfo);
       return true;
     }
@@ -728,7 +728,7 @@ namespace Andl.Compiler {
         _emitter.OutName(Opcodes.LDCATR, funsym);
         CallInfo callinfo;
         CheckTypeError(funsym, out datatype, out callinfo, datatype);
-        _emitter.OutCall(SymbolTable.Find(Symbol.Invoke), 1, callinfo); // BUG: does this work at all???
+        _emitter.OutCall(Symbols.Find(Symbol.Invoke), 1, callinfo); // BUG: does this work at all???
       } else if (funsym.IsFunction) {
         CallInfo callinfo;
         CheckTypeError(funsym, out datatype, out callinfo, datatype);
@@ -862,7 +862,7 @@ namespace Andl.Compiler {
       if (!Match(Atoms.QUERY)) return false;
       if (!Match(Atoms.LP)) return ErrExpect(Atoms.LP);
 
-      Logger.Assert(Scope.Current.LookupItems.Items.Length == 0);
+      Logger.Assert(Symbols.CurrentScope.LookupItems.Items.Length == 0);
       ExprInfo expr;
       if (!ParseLookupExpression(out expr) && expr.DataType == DataTypes.Bool) return ErrExpect("predicate expression");
       exprinfo.Add(expr.Expression());
@@ -908,10 +908,10 @@ namespace Andl.Compiler {
 
       _emitter.OutLoad(HeadingValue.Create(heading));    // FIX: please no headings
       _emitter.OutSegs(ebs);
-      _emitter.OutCall(SymbolTable.Find(Symbol.Table), ebs.Count());
+      _emitter.OutCall(Symbols.Find(Symbol.Table), ebs.Count());
 
       foreach (var eb in ebs)
-        Scope.Current.LookupItems.Add(eb.Lookup.Columns);
+        Symbols.CurrentScope.LookupItems.Add(eb.Lookup.Columns);
       datatype = DataTypeRelation.Get(heading);
       return true;
     }
@@ -928,10 +928,10 @@ namespace Andl.Compiler {
 
       // take LC, but if not a heading then untake and return false
       Match(Atoms.LC);
-      Scope.Push();
+      Symbols.CurrentScope.Push();
       var idents = new List<Symbol>();
       if (!(Match(Atoms.COLON) || ParseDeclList(idents))) return ErrExpect("declaration list");
-      Scope.Pop();
+      Symbols.CurrentScope.Pop();
       if (!Match(Atoms.RC)) return ErrExpect(Atoms.RC);
 
       var cols = MakeColumns(idents);
@@ -951,7 +951,7 @@ namespace Andl.Compiler {
           var marker = _emitter.GetMarker();
           _emitter.OutLoad(HeadingValue.Create(heading));
           _emitter.OutSegs(vebs);
-          _emitter.OutCall(SymbolTable.Find(Symbol.Row), cols.Length);
+          _emitter.OutCall(Symbols.Find(Symbol.Row), cols.Length);
           exprs.Add(new ExprInfo {
             Code = _emitter.GetSeg(marker),
             DataType = DataTypeTuple.Get(heading),
@@ -964,7 +964,7 @@ namespace Andl.Compiler {
       var ebs = exprs.Select(e => e.Expression());
       _emitter.OutLoad(HeadingValue.Create(heading));    // FIX: please no headings
       _emitter.OutSegs(ebs);
-      _emitter.OutCall(SymbolTable.Find(Symbol.Table), exprs.Count);
+      _emitter.OutCall(Symbols.Find(Symbol.Table), exprs.Count);
       datatype = DataTypeRelation.Get(heading);
       return true;
     }
@@ -980,7 +980,7 @@ namespace Andl.Compiler {
         return true;
       if (!Match(Atoms.RC)) return ErrCheck(Atoms.RC);
 
-      var ebs = (all) ? MakeProject(Scope.Current.Heading ?? DataHeading.Empty) 
+      var ebs = (all) ? MakeProject(Symbols.CurrentScope.Heading ?? DataHeading.Empty) 
                       : attrs.Select(a => a.Expression());
       var newcols = ebs.Select(e => e.MakeDataColumn());
       var dups = newcols.GroupBy(c => c.Name).Where(g => g.Count() > 1).Select(g => g.Key).ToArray();
@@ -990,10 +990,10 @@ namespace Andl.Compiler {
 
       _emitter.OutLoad(HeadingValue.Create(heading));
       _emitter.OutSegs(ebs);
-      _emitter.OutCall(SymbolTable.Find(Symbol.Row), ebs.Count());
+      _emitter.OutCall(Symbols.Find(Symbol.Row), ebs.Count());
 
       foreach (var eb in ebs)
-        Scope.Current.LookupItems.Add(eb.Lookup.Columns);
+        Symbols.CurrentScope.LookupItems.Add(eb.Lookup.Columns);
       datatype = DataTypeTuple.Get(heading);
       return true;
     }
@@ -1129,11 +1129,11 @@ namespace Andl.Compiler {
     // parse an open expression that uses a lookup
     bool ParseLookupExpression(out ExprInfo expr) {
       expr = new ExprInfo();
-      if (Scope.Current.LookupItems.Items.Length > 0) return ErrSyntax("nested scope not allowed here");
+      if (Symbols.CurrentScope.LookupItems.Items.Length > 0) return ErrSyntax("nested scope not allowed here");
       //Logger.Assert(Scope.Current.LookupItems.Items.Length == 0);
       var ret = ParseOpenExpression(out expr);
-      if (ret && !Error) expr.LookupItems = Scope.Current.LookupItems.Items;
-      Scope.Current.LookupItems.Clear();
+      if (ret && !Error) expr.LookupItems = Symbols.CurrentScope.LookupItems.Items;
+      Symbols.CurrentScope.LookupItems.Clear();
       return ret;
     }
 
@@ -1143,7 +1143,7 @@ namespace Andl.Compiler {
     bool ParseOpenExpression(out ExprInfo expr) {
       var ret = false;
       var marker = _emitter.GetMarker();
-      Logger.WriteLine(4, "OpenExp marker={0} scope={1} -->", marker, Scope.Current.Level);
+      Logger.WriteLine(4, "OpenExp marker={0} scope={1} -->", marker, Symbols.CurrentScope.Level);
       DataType datatype;
       if (ParseExpression(out datatype)) {
         var code = _emitter.GetSeg(marker);
@@ -1190,7 +1190,7 @@ namespace Andl.Compiler {
         if (!ParseType(out datatype)) return ErrExpect("type or expression");
         if (!datatype.IsVariable) return ErrSyntax("not a valid type");
       }
-      if (idsym.Level != Scope.Current.Level)
+      if (idsym.Level != Symbols.CurrentScope.Level)
         idsym = SymbolTable.MakeIdent(idsym.Name);
       idsym.DataType = datatype;
       return true;
@@ -1204,17 +1204,17 @@ namespace Andl.Compiler {
       var idsym = Take();
       if (!idsym.IsDefinable) return ErrSyntax("already defined: {0}", idsym.Name);
       if (!Match(Atoms.LP)) return ErrCheck(Atoms.LP);
-      Scope.Push();
+      Symbols.CurrentScope.Push();
       var args = new List<Symbol>();
       ParseDeclList(args);
-      Scope.Pop();
+      Symbols.CurrentScope.Pop();
       if (!Match(Atoms.RP)) return ErrCheck(Atoms.RP);
 
       var cols = MakeColumns(args);
       var datatype = DataTypeUser.Get(idsym.Name, cols);
       idsym = SymbolTable.MakeUserType(idsym.Name, datatype);
-      Scope.Current.Add(idsym);
-      SymbolTable.AddCatalog(idsym);
+      Symbols.CurrentScope.Add(idsym);
+      Symbols.AddCatalog(idsym);
       return true;
     }
 
@@ -1233,8 +1233,8 @@ namespace Andl.Compiler {
       var cols = new DataColumn[] { DataColumn.Create("super", supertype) };
       var datatype = DataTypeUser.Get(idsym.Name, cols);
       idsym = SymbolTable.MakeUserType(idsym.Name, datatype);
-      Scope.Current.Add(idsym);
-      SymbolTable.AddCatalog(idsym);
+      Symbols.CurrentScope.Add(idsym);
+      Symbols.AddCatalog(idsym);
       return true;
     }
 
@@ -1310,7 +1310,7 @@ namespace Andl.Compiler {
       else _emitter.Out(Opcodes.LDAGG, seed);
       _emitter.Out(expr.Code);
       if (opsym.IsDefFunc)
-        _emitter.OutCall(SymbolTable.Find(Symbol.Invoke), callinfo.NumArgs);
+        _emitter.OutCall(Symbols.Find(Symbol.Invoke), callinfo.NumArgs);
       else
         _emitter.OutCall(opsym, 0, callinfo);
       expr.DataType = datatype;

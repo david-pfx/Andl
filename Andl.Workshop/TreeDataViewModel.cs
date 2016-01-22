@@ -35,8 +35,7 @@ namespace Andl.Workshop {
         // avoid recursive call to 'reset' during data binding
         if (value == null) return;
         _connector = _selector.OpenDatabase(value);
-        if (PropertyChanged != null)
-          PropertyChanged(this, new PropertyChangedEventArgs(null));
+        Refresh();
       }
     }
     public DatabaseConnector Connector { get { return _connector; } }
@@ -51,11 +50,20 @@ namespace Andl.Workshop {
       _connector = _selector.OpenDatabase();  // default/empty
     }
 
-    public EntryItem[] GetSubEntries(string name, Runtime.EntrySubInfoKind kind) {
+    public void Reload() {
+      DatabaseName = DatabaseName;
+    }
+
+    public void Refresh() {
+      if (PropertyChanged != null)
+        PropertyChanged(this, new PropertyChangedEventArgs(null));
+    }
+
+    internal EntryItem[] GetSubEntries(string name, Runtime.EntrySubInfoKind kind) {
       return Explode(_connector.GetSubEntries(name, kind));
     }
 
-    public EntryItem[] Explode(ItemInfo info) {
+    EntryItem[] Explode(ItemInfo info) {
       return info.Items.Select(x => new EntryItem { Owner = this, Name = x.Key, Value = x.Value }).ToArray();
     }
   }

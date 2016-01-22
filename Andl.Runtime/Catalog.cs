@@ -135,6 +135,11 @@ namespace Andl.Runtime {
       return IsPersist(name) && Regex.IsMatch(name, DatabasePattern);
     }
 
+    public override string ToString() {
+      return String.Format("Catalog '{0}' load:{1} save:{2} pers:{3} glob:{4}",
+        DatabasePath, LoadFlag, SaveFlag, PersistentVars, GlobalVars);
+    }
+
     //--- create
 
     Catalog() { }
@@ -182,6 +187,11 @@ namespace Andl.Runtime {
           ProgramError.Fatal("Catalog", "cannot load catalog for '{0}'", DatabaseName);
         LoadFromTable();
         Logger.WriteLine(2, "Loaded catalog for '{0}'", DatabaseName);
+        Logger.WriteLine(3, "Relations: {0} Variables: {1} Operators: {2} Types: {3}", 
+          PersistentVars.GetEntryInfoDict(EntryInfoKind.Relation).Count,
+          PersistentVars.GetEntryInfoDict(EntryInfoKind.Variable).Count,
+          PersistentVars.GetEntryInfoDict(EntryInfoKind.Operator).Count,
+          PersistentVars.GetEntryInfoDict(EntryInfoKind.Type).Count);
       }
       _started = true;
       return true;
@@ -308,6 +318,10 @@ namespace Andl.Runtime {
     internal ScopeLevels Level { get; private set; }
 
     internal Dictionary<string, CatalogEntry> _entries = new Dictionary<string, CatalogEntry>();
+
+    public override string ToString() {
+      return String.Format("CatScope {0} entries:{1}", Level, _entries.Count);
+    }
 
     public static CatalogScope Create(Catalog catalog, ScopeLevels level, CatalogScope parent = null) {
       return new CatalogScope {

@@ -10,8 +10,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
 using Andl.Runtime;
 
 namespace Andl.Compiler {
@@ -103,6 +101,7 @@ namespace Andl.Compiler {
       _pw.WriteValue(value);
     }
 
+    // Output a symbol as its name
     public void OutName(Opcodes opcode, Symbol symbol) {
       Out(opcode);
       _out.Write(symbol.Name);
@@ -121,7 +120,7 @@ namespace Andl.Compiler {
     }
 
     public void Out(Opcodes opcode) {
-      Logger.WriteLine(4, "{0,-4}: {1}", _mstream.Position, opcode);
+      Logger.WriteLine(5, "{0,-4}: {1}", _mstream.Position, opcode);
       _out.Write((byte)opcode);
     }
 

@@ -35,11 +35,6 @@ namespace Andl.Compiler {
         _lookupitems.Add(col);
     }
 
-    //// Add one or more lookup symbols
-    //public void Add(params Symbol[] syms) {
-    //  foreach (var sym in syms)
-    //    _lookupsyms.Add(sym);
-    //}
   }
   
   ///-------------------------------------------------------------------
@@ -59,51 +54,62 @@ namespace Andl.Compiler {
     }
     DataHeading _heading;
 
-    // Symbols used for lookup
-    public LookupItems LookupItems { get { return _lookupsyms; } } 
-    LookupItems _lookupsyms = new LookupItems();
+    // Used to track lookup within scope
+    public LookupItems LookupItems { get { return _lookupitems; } } 
+    LookupItems _lookupitems = new LookupItems();
 
+    // Owner table
+    SymbolTable _owner;
     // Link to parent
     Scope _parent = null;
 
     public int Level { get { return _parent == null ? 0 : 1 + _parent.Level; } }
 
-    public static Scope Current { get { return _current; } }
-    static Scope _current = null;
-
     // set this flag for symbols that should be pushed out to catalog
     public bool IsGlobal { get; set; }
 
+    public override string ToString() {
+      return String.Format("Scope {0} syms:{1} glob:{2} hdr:{3}", Level, Dict.Count, IsGlobal, _heading);
+    }
+    public string AllToString() {
+      return String.Format("Scope {0} syms:{1} glob:{2} hdr:{3} par:{4}", Level, Dict.Count, IsGlobal, _heading, _parent);
+    }
+
     // Create a new scope level
-    public static Scope Push() {
-      _current = new Scope() {
+    public static Scope Create(SymbolTable owner) {
+      var news = new Scope() {
         Dict = new Dictionary<string, Symbol>(),
-        _lookupsyms = new LookupItems(),
-        _parent = _current,
+        _lookupitems = new LookupItems(),
+        _parent = null,
+        _owner = owner,
       };
-      Logger.WriteLine(4, "Push scope {0}", _current.Level);
-      return _current;
+      owner.CurrentScope = news;
+      Logger.WriteLine(4, "Create scope {0}", news.Level);
+      return news;
+    }
+
+    public Scope Push() {
+      var news = new Scope() {
+        Dict = new Dictionary<string, Symbol>(),
+        _lookupitems = new LookupItems(),
+        _parent = this,
+        _owner = this._owner,
+      };
+      _owner.CurrentScope = news;
+      Logger.WriteLine(4, "Push scope {0}", news.Level);
+      return news;
     }
 
     // Create a new tuple scope level
-    public static Scope Push(DataType datatype) {
-      Logger.Assert(datatype is DataTypeRelation);
+    public Scope Push(DataType datatype) {
       var scope = Push();
-      Logger.WriteLine(4, "Add type {0}", datatype);
-      scope._heading = datatype.Heading;
-      foreach (var c in scope._heading.Columns) {
-        scope.Add(new Symbol {
-          Atom = Atoms.IDENT,
-          Kind = SymKinds.FIELD,
-          DataType = c.DataType,
-        }, c.Name);
-      }
+      if (datatype != null && datatype.HasHeading) scope.SetHeading(datatype);
       return scope;
     }
 
     // Create a new function scope level
     // Note that the function name itself lives outside this scope
-    public static Scope Push(Symbol[] argsyms) {
+    public Scope Push(Symbol[] argsyms) {
       var scope = Push();
       Logger.WriteLine(4, "Add func args {0}", String.Join(",", argsyms.Select(s => s.ToString()).ToArray()));
       foreach (var sym in argsyms)
@@ -112,11 +118,21 @@ namespace Andl.Compiler {
     }
 
     // Return to previous scope level
-    public static Scope Pop() {
-      Logger.WriteLine(4, "Pop scope {0}", _current.Level);
-      _current = _current._parent;
-      Logger.Assert(_current != null);
-      return _current;
+    public void Pop() {
+      Logger.WriteLine(4, "Pop scope {0}", Level);
+      _owner.CurrentScope = _parent;
+      Logger.Assert(_owner.CurrentScope != null);
+	  }
+    void SetHeading(DataType datatype) {
+      Logger.Assert(datatype != null);
+      _heading = datatype.Heading;
+      Logger.WriteLine(4, "Set heading {0}", _heading);
+      foreach (var c in _heading.Columns) {
+        Add(new Symbol {
+          Kind = (datatype is DataTypeUser) ? SymKinds.COMPONENT : SymKinds.FIELD,
+          DataType = c.DataType,
+        }, c.Name);
+      }
     }
 
     // Add a symbol -- all go through here

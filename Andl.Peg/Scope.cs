@@ -34,6 +34,7 @@ namespace Andl.Peg {
       foreach (var col in cols)
         _lookupitems.Add(col);
     }
+
   }
   
   ///-------------------------------------------------------------------
@@ -57,36 +58,50 @@ namespace Andl.Peg {
     public LookupItems LookupItems { get { return _lookupitems; } } 
     LookupItems _lookupitems = new LookupItems();
 
+    // Owner table
+    SymbolTable _owner;
     // Link to parent
     Scope _parent = null;
 
     public int Level { get { return _parent == null ? 0 : 1 + _parent.Level; } }
 
-    public static Scope Current { get { return _current; } }
-    static Scope _current = null;
-
     // set this flag for symbols that should be pushed out to catalog
     public bool IsGlobal { get; set; }
 
+    public override string ToString() {
+      return String.Format("Scope {0} syms:{1} glob:{2} hdr:{3}", Level, Dict.Count, IsGlobal, _heading);
+    }
+    public string AllToString() {
+      return String.Format("Scope {0} syms:{1} glob:{2} hdr:{3} par:{4}", Level, Dict.Count, IsGlobal, _heading, _parent);
+    }
+
     // Create a new scope level
-    public static Scope Push() {
-      _current = new Scope() {
+    public static Scope Create(SymbolTable owner) {
+      var news = new Scope() {
         Dict = new Dictionary<string, Symbol>(),
-        _heading = null,
-        _parent = _current,
+        _lookupitems = new LookupItems(),
+        _parent = null,
+        _owner = owner,
       };
-      Logger.WriteLine(4, "Push scope {0}", _current.Level);
-      return _current;
+      owner.CurrentScope = news;
+      Logger.WriteLine(4, "Create scope {0}", news.Level);
+      return news;
     }
 
-    // Reset scope variables but keep symbols
-    public void Reset() {
-      _lookupitems = new LookupItems();
+    public Scope Push() {
+      var news = new Scope() {
+        Dict = new Dictionary<string, Symbol>(),
+        _lookupitems = new LookupItems(),
+        _parent = this,
+        _owner = this._owner,
+      };
+      _owner.CurrentScope = news;
+      Logger.WriteLine(4, "Push scope {0}", news.Level);
+      return news;
     }
 
-    // Create a new scope level, possible empty
-    // Note that null heading means look at parent
-    public static Scope Push(DataType datatype = null) {
+    // Create a new tuple scope level
+    public Scope Push(DataType datatype) {
       var scope = Push();
       if (datatype != null && datatype.HasHeading) scope.SetHeading(datatype);
       return scope;
@@ -94,7 +109,7 @@ namespace Andl.Peg {
 
     // Create a new function scope level
     // Note that the function name itself lives outside this scope
-    public static Scope Push(Symbol[] argsyms) {
+    public Scope Push(Symbol[] argsyms) {
       var scope = Push();
       Logger.WriteLine(4, "Add func args {0}", String.Join(",", argsyms.Select(s => s.ToString()).ToArray()));
       foreach (var sym in argsyms)
@@ -103,13 +118,11 @@ namespace Andl.Peg {
     }
 
     // Return to previous scope level
-    public static Scope Pop() {
-      Logger.WriteLine(4, "Pop scope {0}", _current.Level);
-      _current = _current._parent;
-      Logger.Assert(_current != null);
-      return _current;
-    }
-
+    public void Pop() {
+      Logger.WriteLine(4, "Pop scope {0}", Level);
+      _owner.CurrentScope = _parent;
+      Logger.Assert(_owner.CurrentScope != null);
+	  }
     void SetHeading(DataType datatype) {
       Logger.Assert(datatype != null);
       _heading = datatype.Heading;

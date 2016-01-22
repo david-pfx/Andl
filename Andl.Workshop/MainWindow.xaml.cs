@@ -101,13 +101,13 @@ namespace Andl.Workshop {
       var text = textEditor.SelectedText;
       if (text.Length == 0) text = textEditor.Text;
       var result = DataModel.Connector.Execute(text);
-      if (result.Ok) {
-        OutputText = result.Value as string;
-        OutputTextColour = "black";
-      } else {
-        OutputText = result.Message;
-        OutputTextColour = "crimson";
-      }
+      ShowOutput(result.Ok, result.Ok ? result.Value as string + "\nFinished, no errors." : result.Message);
+      DataModel.Refresh();
+    }
+
+    void ShowOutput(bool ok, string message) {
+      OutputText = message;
+      OutputTextColour = (ok) ? "black" : "red";
     }
 
     ///============================================================================================
@@ -142,8 +142,9 @@ namespace Andl.Workshop {
       Close();
     }
 
-    private void Refresh_Executed(object sender, ExecutedRoutedEventArgs e) {
-
+    private void Reload_Executed(object sender, ExecutedRoutedEventArgs e) {
+      DataModel.Reload();
+      ShowOutput(true, string.Format("Database '{0}' reloaded.", DataModel.DatabaseName));
     }
 
     private void Properties_Executed(object sender, ExecutedRoutedEventArgs e) {

@@ -10,6 +10,7 @@
 using System;
 using System.IO;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 
 namespace Andl.Runtime {
@@ -45,6 +46,10 @@ namespace Andl.Runtime {
       _levels.Add(level);
       _tws.Add(tw);
     }
+    public static void OpenTrace(int level) {
+      _levels.Add(level);
+      _tws.Add(new TraceWriter());
+    }
     public static void Close() {
       foreach (var tw in _tws)
         tw.Close();
@@ -65,29 +70,10 @@ namespace Andl.Runtime {
             _neednl = false;
           }
           if (!_neednl) _tws[i].Write(Pad(level, msg));
-          //if (!_neednl) _tws[i].Write(Pad(level, msg.StartsWith(">>>")));
           _tws[i].Write(msg);
           if (newline) _tws[i].WriteLine();
           else _tws[i].Write("; ");
           _neednl = !newline;
-          //if (_neednl) {
-          //  _tws[i].Write(msg + "; ");
-          //} else {
-          //  _tws[i].Write(Pad(level, msg.StartsWith(">>>")) + msg);
-          //  if (newline)
-          //    _tws[i].WriteLine();
-          //  else _neednl = true;
-          //}
-          //if (newline && _neednl) {
-          //  _tws[i].WriteLine();
-          //  _neednl = false;
-          //}
-          //if (!_neednl)
-          //  _tws[i].Write(Pad(level, msg.StartsWith(">>>")));
-          //_tws[i].Write(msg);
-          //if (newline)
-          //  _tws[i].WriteLine();
-          //else _neednl = true;
         }
       }
     }
@@ -146,6 +132,18 @@ namespace Andl.Runtime {
         Flush();
         throw new UtilAssertException(msg);
       }
+    }
+  }
+
+  class TraceWriter : TextWriter {
+    public override Encoding Encoding {
+      get { return Encoding.Default; }
+    }
+    public override void Write(string text) {
+      Trace.Write(text);
+    }
+    public override void WriteLine() {
+      Trace.WriteLine("");
     }
   }
 }

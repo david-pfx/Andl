@@ -121,7 +121,7 @@ namespace Andl.Compiler {
   public enum FoldSeeds {
     NUL, ZERO, ONE, MIN, MAX, FALSE, TRUE
   }
-  
+
   /// <summary>
   /// Implements a symbol table entry.
   /// </summary>
@@ -178,13 +178,12 @@ namespace Andl.Compiler {
     public bool Is(Atoms atom) { return Atom == atom; }
     public bool IsLiteral { get { return Atom == Atoms.LITERAL; } }
     public bool IsIdent { get { return Atom == Atoms.IDENT; } }
-    public bool IsDefinable { get { return Atom == Atoms.IDENT && Level != Scope.Current.Level; } }
     public bool IsUndefIdent { get { return Atom == Atoms.IDENT && Kind == SymKinds.UNDEF; } }
     public bool IsField { get { return Kind == SymKinds.FIELD; } }
     public bool IsLookup { get { return Kind == SymKinds.FIELD || Kind == SymKinds.PARAM; } }
     public bool IsFoldable { get { return Foldable != FoldableFlags.NUL; } }
     public bool IsDyadic { get { return MergeOp != MergeOps.Nul; } }
-    public bool IsUnary { get { return Kind == SymKinds.UNOP|| Atom == Atoms.MINUS; } }
+    public bool IsUnary { get { return Kind == SymKinds.UNOP || Atom == Atoms.MINUS; } }
     public bool IsBinary { get { return Kind == SymKinds.BINOP; } }
     public bool IsOperator { get { return IsBinary || IsUnary; } }
     public bool IsFunction { get { return CallKind != CallKinds.NUL && !IsOperator; } }
@@ -193,6 +192,9 @@ namespace Andl.Compiler {
     public bool IsDefFunc { get { return Atom == Atoms.IDENT && CallKind == CallKinds.EFUNC; } }
     public bool IsCompareOp { get { return IsBinary && DataType == DataTypes.Bool && !IsFoldable; } }
     public bool IsGlobal { get { return Level == 1; } }
+
+    public bool IsDefinable { get { return Atom == Atoms.IDENT; } }
+    //public bool IsDefinable { get { return Atom == Atoms.IDENT && Level != Scope.Current.Level; } }
 
     public TypedValue GetSeed(DataType datatype) {
       if (datatype is DataTypeRelation)
@@ -238,13 +240,21 @@ namespace Andl.Compiler {
   /// SymbolTable implements the main compiler symbol table.
   /// </summary>
   public class SymbolTable {
+    // current scope
+    public Scope CurrentScope { get; set; }
+
     Scope _importscope;
     Catalog _catalog;
+
+    public override string ToString() {
+      return String.Format("SymTab {0} {1}", CurrentScope.AllToString(), _catalog);
+    }
 
     //public static SymbolTable Create() {
     public static SymbolTable Create(Catalog catalog) {
       var st = new SymbolTable { _catalog = catalog };
       st.Init();
+      Logger.WriteLine(3, "Created symbol table: {0}", st);
       return st;
     }
 
@@ -252,7 +262,7 @@ namespace Andl.Compiler {
 
     // Add a symbol to the catalog, but only if it is global
     public void AddCatalog(Symbol symbol) {
-      if (Scope.Current.IsGlobal) {
+      if (CurrentScope.IsGlobal) {
         var kind = symbol.IsUserType ? EntryKinds.Type
           : symbol.IsDefFunc ? EntryKinds.Code
           : EntryKinds.Value;
@@ -263,7 +273,7 @@ namespace Andl.Compiler {
 
     // Find existing symbol by name
     public Symbol Find(string name) {
-      return Scope.Current.FindAny(name);
+      return CurrentScope.FindAny(name);
     }
 
     // Get symbol from token, add to symbol table as needed
@@ -339,12 +349,12 @@ namespace Andl.Compiler {
     //--- setup
 
     void Init() {
-      Scope.Push();
+      CurrentScope = Scope.Create(this);
       AddSymbols();
       foreach (var info in AddinInfo.GetAddinInfo())
         AddBuiltinFunction(info.Name, info.NumArgs, info.DataType, info.Method);
-      _importscope = Scope.Push();  // reserve a level for imported symbols
-      Scope.Current.IsGlobal = true;
+      _importscope = CurrentScope.Push();  // reserve a level for imported symbols
+      CurrentScope.IsGlobal = true;
     }
 
     // Process catalog to add all entries from persistent level
@@ -516,7 +526,7 @@ namespace Andl.Compiler {
 
     // Add a symbol to the current scope
     Symbol Add(string name, Symbol sym) {
-      Scope.Current.Add(sym, name);
+      CurrentScope.Add(sym, name);
       return sym;
     }
 

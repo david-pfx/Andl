@@ -140,7 +140,7 @@ namespace Andl.Peg {
 
     // handle a Where rule simply as code (may have fold)
     public AstValue Where(AstValue value) {
-      var lookup = DataHeading.Create(Scope.Current.LookupItems.Items);
+      var lookup = DataHeading.Create(Symbols.CurrentScope.LookupItems.Items);
       var accums = _accum.Total;
       _accum = _accum.Push();
       return Code(value, lookup, "?", accums);
@@ -167,7 +167,7 @@ namespace Andl.Peg {
     // handle generic transform rule and create specific node with all required info
     // each element tracks lookup items and folds
     public AstField Transfield(string name, string rename = null, AstValue value = null) {
-      var lookup = DataHeading.Create(Scope.Current.LookupItems.Items);
+      var lookup = DataHeading.Create(Symbols.CurrentScope.LookupItems.Items);
       var accums = _accum.Count;
       _accum.Reset(false);
       if (name == null) return new AstLift {
@@ -460,7 +460,7 @@ namespace Andl.Peg {
     /// 
     public AstVariable Variable(string name) {
       var v = FindVariable(name);
-      if (v.IsField) Scope.Current.LookupItems.Add(v.AsColumn());
+      if (v.IsField) Symbols.CurrentScope.LookupItems.Add(v.AsColumn());
       return new AstVariable { Variable = v, DataType = v.DataType };
     }
 
@@ -580,7 +580,7 @@ namespace Andl.Peg {
       var args = (arguments == null) ? new DataColumn[0] : arguments.Select(a => DataColumn.Create(a.Name, a.DataType)).ToArray();
       var rtype = (rettype == null) ? DataTypes.Unknown : rettype.DataType;
       Symbols.AddDeferred(ident, rtype, args);
-      Scope.Push();
+      Symbols.CurrentScope.Push();
       foreach (var a in args)
         Symbols.AddVariable(a.Name, a.DataType, SymKinds.PARAM);
       _accum = _accum.Push();
@@ -589,7 +589,7 @@ namespace Andl.Peg {
 
     // Enter scope for a transform, with accumulator tracking
     public bool Enter(AstValue value) {
-      Scope.Push(value.DataType);
+      Symbols.CurrentScope.Push(value.DataType);
       _accum = _accum.Push();
       return true;
     }
@@ -597,26 +597,26 @@ namespace Andl.Peg {
     // Continue scope but perhaps change heading, reset accumulators
     public bool Reenter(DataType datatype) {
       var dt = datatype ?? DataTypeRelation.Get(CurrentHeading()); // HACK:
-      Scope.Pop();
-      Scope.Push(dt);
+      Symbols.CurrentScope.Pop();
+      Symbols.CurrentScope.Push(dt);
       _accum.Reset(true);
       return true;
     }
 
     // Enter scope for a do block -- no accumulators
     public bool Enter() {
-      Scope.Push();
+      Symbols.CurrentScope.Push();
       return true;
     }
 
     public bool Exit(bool accums = false) {
-      Scope.Pop();
+      Symbols.CurrentScope.Pop();
       if (accums) _accum = _accum.Pop();
       return true;
     }
 
     DataHeading CurrentHeading() {
-      return Scope.Current.Heading ?? DataHeading.Empty;
+      return Symbols.CurrentScope.Heading ?? DataHeading.Empty;
     }
   }
 }

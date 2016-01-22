@@ -1,5 +1,82 @@
-﻿// avoiding nulls
-def S:db(csv), P:db(csv), SP:db(csv)
+﻿#noisy 3
+
+db S(csv), P(csv), SP(csv)
+
+suppliersbyname(name:text) => S [ ?(SNAME =~ name) { *Sid:=S# }] 
+suppliersbyname('a')
+addsuppliers(adds:S) => S := union adds
+fib:number(n:number) => if(n < 2,n, fib(n-1) + fib(n-2))
+
+artist  := {{ artistid:0, name:'' }}
+cd      := {{ cdid:0, artistid:0, title:'', year:0 }}
+track   := {{ trackid:0, cdid:0, title:'' }}
+
+def utx(b:bool, s:text, n:number, t:time, r:{{a:text,b:text}})
+utv:=utx(true,'hello world', 42, now(), {{a:='aaaa',b:='bbbb'},{a:='aaaaa',b:='bbbbb'}})
+
+// an attempt to replicate the data required for Workshop
+
+// relations
+andl_catalog
+andl_variable()
+andl_operator()
+andl_member()
+
+#stop
+
+VR:={{ S#:='S99', SNAME:="Freddo", STATUS:=99, CITY:="Ur"}}
+VT:={ S#:='S99', SNAME:="Freddo", STATUS:=99, CITY:="Ur"}
+VT.S#
+
+VR [{SNAME, X:=99}]
+VT [{SNAME, X:=99}]
+
+// test.andl -- is automatically loaded and run if no other file is specified
+// 
+// Use this for quickly testing out ideas
+
+db S(csv), P(csv), SP(csv)
+S
+S [{}]
+S [ { fold(+,STATUS) } ]    // aggregated value
+
+//{{ X := 0 }} recurse (S [{ X := X + STATUS }])
+#stop
+
+suppliersbyname(name:text) => S [ ?(SNAME =~ name) { *Sid:=S# }] 
+suppliersbyname('a')
+addsuppliers(adds:S) => S := union adds
+
+addsuppliers({{ S#:='S99', SNAME:="Freddo", STATUS:=99, CITY:="Ur"}})
+
+S [ { fold(+,STATUS) } ]    // aggregated value
+
+_vartext := 'testing 1,2,3,4...'
+_varnum := 42.00
+_varrel := { {name:text,age:number}('Smith', 17),('Jones', 35),('Frankenstein', 199) }
+_func(a:'') => do { a }
+def _udt(b:bool, s:text)
+
+vartext := _vartext
+varnum := _varnum
+varrel := _varrel
+@varrel := _varrel
+func(a:'') => do { a }
+def udt(b:bool, s:text)
+udv := udt(true, 'not false')
+
+//andl_catalog
+#stop
+
+sum(n:0) => fold(+,n)
+hi(n:0) => fold(max,n)
+lo(n:0) => fold(min,n)
+ave(n:0) => fold(+,n)/fold(+,1)
+
+db S(csv), P(csv), SP(csv)
+S [ { sum(STATUS) } ]    // aggregated value
+S [ { sum(STATUS)/lo(STATUS) } ]    // aggregated value
+#stop
 
 S [ { partition := {{*}} join SP } ]
 S [ { S#, SNAME, SUMQTY := ( {{*}} join SP ) [ { fold(+,QTY) } ] } ]
@@ -10,7 +87,7 @@ S [ { S#, SNAME, SUMQTY := ( {{*}} join SP ) [ { fold(+,QTY) } ] } ]
 SP400 := SP [ ?(QTY>=400) ]
 (S join SP400) [ { S#, P# } ] union (S ajoin SP400) [ { S#, P# := 'none' } ]
 
-#stop
+//#stop
 
 artist  := {{ artistid:0, name:'' }}
 cd      := {{ cdid:0, artistid:0, title:'', year:0 }}
@@ -22,7 +99,7 @@ $artist_data := {{name:''}
   ( 'Eminem' ),
 } [{ *artistid := ord() }]
 #stop
-def S:db(csv), P:db(csv), SP:db(csv)
+db S(csv), P(csv), SP(csv)
 
 S [ { partition := {{*}} join SP } ]
 S [ { S#, SNAME, SUMQTY := ( {{*}} join SP ) [ { fold(+,QTY) } ] } ]
@@ -70,57 +147,6 @@ op2 [ $(Name) { Name, Type, Attributes, Arguments }]
 
 
 #stop
-
-=====
-
-// test.andl -- is automatically loaded and run if no other file is specified
-// 
-// Use this for quickly testing out ideas
-
-//#catalog
-
-'testing 1,2,3,4...'
-
-//sbyname('a')
-//#stop
-
-//def :ut1(n:number, t:text, d:date)
-//d1 := dateymd(2015,1,31)
-//u1 := ut1(42, 'xx', d1)
-//#stop
-
-def S:db(csv), P:db(csv), SP:db(csv)
-
-S [{}]
-{{ X := 0 }} recurse (S [{ X := X + STATUS }])
-
-//{{ X := 0 }} recurse (S [{ X := X + STATUS }])
-#stop
-
-suppliersbyname(name:text) => S [ ?(SNAME =~ name) { *Sid:=S# }] 
-suppliersbyname('a')
-addsuppliers(adds:S) => S := union adds
-
-addsuppliers({{ S#:='S99', SNAME:="Freddo", STATUS:=99, CITY:="Ur"}})
-
-S [ { fold(+,STATUS) } ]    // aggregated value
-
-_vartext := 'testing 1,2,3,4...'
-_varnum := 42.00
-_varrel := { {name:text,age:number}('Smith', 17),('Jones', 35),('Frankenstein', 199) }
-_func(a:'') => do { a }
-def :_udt(b:bool, s:text)
-
-vartext := _vartext
-varnum := _varnum
-varrel := _varrel
-@varrel := _varrel
-func(a:'') => do { a }
-def :udt(b:bool, s:text)
-udv := udt(true, 'not false')
-
-andl_catalog
-#stop
 #catalog new update
 
 'testing 1,2,3,4...'
@@ -134,7 +160,7 @@ seed
 prompt := fill('.',80) & h'd a' & '>>>'
 wait => pause(prompt)
 
-def S:db(csv), P:db(csv), SP:db(csv)
+db S(csv), P(csv), SP(csv)
 suppliers := S [{ *Sid:=S# }]
 parts := P [{ *Pid := P# }]
 supplies := SP [{ *Sid := S#, Pid:= P# }]

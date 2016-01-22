@@ -30,6 +30,17 @@ namespace Andl.Workshop {
       comboControl.Focus();
     }
 
+    void ExpandAll() {
+      treeViewControl.Items.OfType<TreeViewItem>().ToList().ForEach(ExpandAllNodes);
+    }
+
+    void ExpandAllNodes(TreeViewItem treeItem) {
+      treeItem.IsExpanded = true;
+      foreach (var childItem in treeItem.Items.OfType<TreeViewItem>()) {
+        ExpandAllNodes(childItem);
+      }
+    }
+
     private void treeViewControl_MouseRightButtonDown(object sender, MouseButtonEventArgs e) {
     }
 
@@ -37,6 +48,10 @@ namespace Andl.Workshop {
     }
 
     private void comboControl_TargetUpdated(object sender, DataTransferEventArgs e) {
+    }
+
+    private void treeViewControl_MouseDoubleClick(object sender, MouseButtonEventArgs e) {
+      ExpandAll();
     }
   }
 }

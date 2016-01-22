@@ -47,6 +47,17 @@ namespace Andl.Peg {
     List<int> _linestarts = new List<int>();
     int _last_location = -1;
 
+    // Initialise catalog and import symbols, but not until parse has started
+    bool _started = false;
+    public bool Start() {
+      if (_started) return false;
+      Cat.Start();
+      Symbols.Import(Cat.GlobalVars);
+      Symbols.Import(Cat.PersistentVars);
+      _started = true;
+      return true;
+    }
+
     // Called to restart parse after error
     public AstStatement Restart(ref Cursor state) {
       var cursor = state.WithMutability(mutable: false);
@@ -152,17 +163,6 @@ namespace Andl.Peg {
 
     public bool SetState(Cursor state) {
       State = state;
-      return true;
-    }
-
-    // Initialise catalog and import symbols, but not until parse has started
-    bool _started = false;
-    public bool Start() {
-      if (_started) return false;
-      Cat.Start();
-      Symbols.Import(Cat.GlobalVars);
-      Symbols.Import(Cat.PersistentVars);
-      _started = true;
       return true;
     }
 

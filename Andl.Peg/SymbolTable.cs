@@ -228,14 +228,22 @@ namespace Andl.Peg {
   /// SymbolTable implements the main compiler symbol table.
   /// </summary>
   public class SymbolTable {
+    // current scope
+    public Scope CurrentScope { get; set; }
+
     Scope _importscope;
     Catalog _catalog;
     HashSet<string> _sources = new HashSet<string>();
+
+    public override string ToString() {
+      return String.Format("SymTab {0} {1}", CurrentScope.AllToString(), _catalog);
+    }
 
     //public static SymbolTable Create() {
     public static SymbolTable Create(Catalog catalog) {
       var st = new SymbolTable { _catalog = catalog };
       st.Init();
+      Logger.WriteLine(3, "Created symbol table: {0}", st);
       return st;
     }
 
@@ -243,7 +251,7 @@ namespace Andl.Peg {
 
     // Add a symbol to the catalog, but only if it is global
     public void AddCatalog(Symbol symbol) {
-      if (Scope.Current.IsGlobal) {
+      if (CurrentScope.IsGlobal) {
         var kind = symbol.IsUserType ? EntryKinds.Type
           : symbol.IsDefFunc ? EntryKinds.Code
           : EntryKinds.Value;
@@ -254,13 +262,13 @@ namespace Andl.Peg {
 
     // Find existing symbol by name
     public Symbol FindIdent(string name) {
-      var sym = Scope.Current.FindAny(name);
+      var sym = CurrentScope.FindAny(name);
       return (sym != null && sym.Kind == SymKinds.ALIAS) ? sym.Link : sym;
     }
 
     public bool IsDefinable(string name) {
-      var sym = Scope.Current.FindAny(name);
-      return sym == null || sym.Level != Scope.Current.Level;
+      var sym = CurrentScope.FindAny(name);
+      return sym == null || sym.Level != CurrentScope.Level;
     }
 
     // Find existing source by name
@@ -269,15 +277,15 @@ namespace Andl.Peg {
     }
 
     public void AddUserType(string name, DataTypeUser datatype) {
-      Scope.Current.Add(MakeUserType(name, datatype));
+      CurrentScope.Add(MakeUserType(name, datatype));
     }
 
     public void AddVariable(string name, DataType datatype, SymKinds kind) {
-      Scope.Current.Add(MakeVariable(name, datatype, kind));
+      CurrentScope.Add(MakeVariable(name, datatype, kind));
     }
 
     public void AddDeferred(string name, DataType rettype, DataColumn[] args) {
-      Scope.Current.Add(MakeDeferred(name, rettype, args));
+      CurrentScope.Add(MakeDeferred(name, rettype, args));
     }
 
 
@@ -320,12 +328,12 @@ namespace Andl.Peg {
     //--- setup
 
     void Init() {
-      Scope.Push();
+      CurrentScope = Scope.Create(this);
       AddSymbols();
       foreach (var info in AddinInfo.GetAddinInfo())
         AddBuiltinFunction(info.Name, info.NumArgs, info.DataType, info.Method);
-      _importscope = Scope.Push();  // reserve a level for imported symbols
-      Scope.Current.IsGlobal = true;
+      _importscope = CurrentScope.Push();  // reserve a level for imported symbols
+      CurrentScope.IsGlobal = true;
     }
 
     // Process catalog to add all entries from persistent level
@@ -478,7 +486,7 @@ namespace Andl.Peg {
 
     // Add a symbol to the current scope
     Symbol Add(string name, Symbol sym) {
-      Scope.Current.Add(sym, name);
+      CurrentScope.Add(sym, name);
       return sym;
     }
 

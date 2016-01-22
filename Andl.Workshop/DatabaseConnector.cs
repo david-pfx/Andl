@@ -19,11 +19,12 @@ namespace Andl.Workshop {
     public bool IsTest {  get { return DatabaseSearchPath == TestDatabaseSearchPath; } }
 
     static readonly Dictionary<string, string> _settings = new Dictionary<string, string> {
-      { "Noisy", "0" },
+      { "Noisy", "3" },
     };
 
     // Create a selector for a specified folder (use test data if null)
     static public DatabaseSelector Create(string databasepath = null) {
+      Logger.OpenTrace(0);
       return new DatabaseSelector() { DatabaseSearchPath = databasepath ?? TestDatabaseSearchPath };
     }
 

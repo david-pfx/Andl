@@ -28,7 +28,7 @@
 
     <!-- Treeview catalog display -->
     <TreeView Name="treeViewControl" Grid.Row="1" 
-              MouseRightButtonDown="treeViewControl_MouseRightButtonDown">
+              MouseRightButtonDown="treeViewControl_MouseRightButtonDown" MouseDoubleClick="treeViewControl_MouseDoubleClick">
 
       <!-- Relations -->
       <TreeViewItem ItemsSource="{Binding Path=Relations}">
