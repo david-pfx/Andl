@@ -1,7 +1,7 @@
-﻿<Application x:Class="Andl.Workshop.App"
+﻿<Application x:Class="Andl.Workbench.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:Andl.Workshop"
+             xmlns:local="clr-namespace:Andl.Workbench"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
          

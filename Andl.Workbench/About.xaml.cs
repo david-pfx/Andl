@@ -12,7 +12,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 
-namespace Andl.Workshop {
+namespace Andl.Workbench {
   /// <summary>
   /// Interaction logic for About.xaml
   /// </summary>

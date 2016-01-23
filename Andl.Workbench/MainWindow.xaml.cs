@@ -15,7 +15,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 
-namespace Andl.Workshop {
+namespace Andl.Workbench {
   /// <summary>
   /// Interaction logic for MainWindow.xaml
   /// </summary>

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Windows.Input;
 
-namespace Andl.Workshop {
+namespace Andl.Workbench {
   /// <summary>
   /// Container class to hold custom command definitions
   /// </summary>

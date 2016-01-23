@@ -6,7 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 
-namespace Andl.Workshop {
+namespace Andl.Workbench {
   /// <summary>
   /// Interaction logic for App.xaml
   /// </summary>

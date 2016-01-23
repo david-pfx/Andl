@@ -7,7 +7,7 @@ using Andl.Gateway;
 using Andl.Runtime;
 using System.Windows;
 
-namespace Andl.Workshop {
+namespace Andl.Workbench {
 
   /// <summary>
   /// Implements a connection to an Andl database

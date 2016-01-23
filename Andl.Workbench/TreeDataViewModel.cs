@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Andl.Runtime;
 
-namespace Andl.Workshop {
+namespace Andl.Workbench {
   public class TreeDataViewModel : INotifyPropertyChanged {
 
     public event PropertyChangedEventHandler PropertyChanged;
