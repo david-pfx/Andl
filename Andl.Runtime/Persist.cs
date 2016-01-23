@@ -61,7 +61,7 @@ namespace Andl.Runtime {
     // Store typed value on file stream
     public void Store(string name, TypedValue value) {
       var path = Path.Combine(_basepath, name + "." + VariableExtension);
-      Logger.WriteLine(3, "Storing {0} type={1}", name, value.DataType.ToString());
+      Logger.WriteLine(4, "Storing {0} type={1}", name, value.DataType.ToString());
       try {
         using (var writer = new BinaryWriter(File.Open(path, FileMode.Create))) {
           var w = PersistWriter.Create(writer);
@@ -84,7 +84,7 @@ namespace Andl.Runtime {
     // Load from file stream
     public TypedValue Load(string name) {
       var path = Path.Combine(_basepath, name + "." + VariableExtension);
-      Logger.WriteLine(2, "Loading {0}", name);
+      Logger.WriteLine(4, "Loading {0}", name);
       if (!File.Exists(path)) return TypedValue.Empty;
       using (var reader = new BinaryReader(File.Open(path, FileMode.Open))) {
         var r = PersistReader.Create(reader);
@@ -96,7 +96,7 @@ namespace Andl.Runtime {
     public DataType Peek(string name) {
       var path = Path.Combine(_basepath, name + "." + VariableExtension);
       if (!File.Exists(path)) return null;
-      Logger.WriteLine(2, "Peeking {0}", name);
+      Logger.WriteLine(4, "Peeking {0}", name);
       using (var reader = new BinaryReader(File.Open(path, FileMode.Open))) {
         var r = PersistReader.Create(reader);
         return r.Peek();
@@ -105,7 +105,7 @@ namespace Andl.Runtime {
 
     // Load from byte array
     public TypedValue Load(byte[] buffer) {
-      Logger.WriteLine(2, "Loading data");
+      Logger.WriteLine(4, "Loading data");
       using (var reader = new BinaryReader(new MemoryStream(buffer))) {
         var r = PersistReader.Create(reader);
         return r.Load();

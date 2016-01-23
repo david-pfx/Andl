@@ -102,6 +102,10 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Andl.Compiler\Andl.Compiler.csproj">
+      <Project>{c31f55ee-c0b0-4f5d-a84e-e5b466a69276}</Project>
+      <Name>Andl.Compiler</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Andl.Runtime\Andl.Runtime.csproj">
       <Project>{c7d6d0e8-dc93-4d12-b580-34d09e284873}</Project>
       <Name>Andl.Runtime</Name>

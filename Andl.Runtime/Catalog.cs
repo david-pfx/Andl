@@ -166,6 +166,7 @@ namespace Andl.Runtime {
     // only do it once
     public bool Start(string databasepath = null) {
       if (_started) return false;
+      Logger.WriteLine(3, "Catalog Start {0} path:'{1}'", this, databasepath);
       DatabasePath = databasepath ?? DatabasePath ?? DefaultDatabaseName;
       var ext = Path.GetExtension(DatabasePath);
       if (ext == "")
@@ -186,20 +187,21 @@ namespace Andl.Runtime {
         if (!LinkRelvar(CatalogTableName))
           ProgramError.Fatal("Catalog", "cannot load catalog for '{0}'", DatabaseName);
         LoadFromTable();
-        Logger.WriteLine(2, "Loaded catalog for '{0}'", DatabaseName);
-        Logger.WriteLine(3, "Relations: {0} Variables: {1} Operators: {2} Types: {3}", 
+      }
+      _started = true;
+      Logger.WriteLine(3, "[CS {0}]", this);
+      Logger.WriteLine(4, "[Relations: {0} Variables: {1} Operators: {2} Types: {3}]",
           PersistentVars.GetEntryInfoDict(EntryInfoKind.Relation).Count,
           PersistentVars.GetEntryInfoDict(EntryInfoKind.Variable).Count,
           PersistentVars.GetEntryInfoDict(EntryInfoKind.Operator).Count,
           PersistentVars.GetEntryInfoDict(EntryInfoKind.Type).Count);
-      }
-      _started = true;
       return true;
     }
 
     // All done, persist catalog if required
     public bool Finish() {
       if (!_started) return false;
+      Logger.WriteLine(2, "Catalog Finish '{0}'", this);
       if (SaveFlag) {
         StoreToTable();
         Logger.WriteLine(2, "Saved catalog for '{0}'", DatabaseName);
@@ -419,7 +421,7 @@ namespace Andl.Runtime {
 
       // if relation value, convert to/from Sql
       // database flag means linked entry, value in database
-      if (entry.IsDatabase) {
+      if (entry.IsDatabase && Catalog.SaveFlag) {
         var table = value.AsTable();
         if (Catalog.DatabaseSqlFlag)
           RelationValue.Create(DataTableSql.Create(name, table));

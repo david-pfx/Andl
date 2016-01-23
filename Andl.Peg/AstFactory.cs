@@ -48,9 +48,11 @@ namespace Andl.Peg {
     AccumCounter _accum = new AccumCounter();
 
     // A set of statements inside a do scope
+    // May include Empty statements, which must be discarded
     public AstValue DoBlock(IList<AstStatement> statements) {
-      var datatype = (statements == null || statements.Count == 0) ? DataTypes.Void : statements.Last().DataType;
-      var block = new AstBlock { Statements = statements.ToArray(), DataType = datatype };
+      var stmts = statements.Where(s => s.DataType != null).ToArray();
+      var datatype = (stmts.Length == 0) ? DataTypes.Void : stmts.Last().DataType;
+      var block = new AstBlock { Statements = stmts, DataType = datatype };
       return new AstDoBlock {
         Func = FindFunc(SymNames.DoBlock), DataType = datatype, Value = block,
       };
@@ -81,6 +83,11 @@ namespace Andl.Peg {
       var ut = DataTypeUser.Get(ident, cols);
       Symbols.AddUserType(ident, ut);
       return new AstSubType { DataType = DataTypes.Void };
+    }
+
+    // null statement used for directives and blank lines
+    public AstStatement Empty() {
+      return new AstStatement();
     }
 
     public AstStatement Source(string ident, AstLiteral value) {

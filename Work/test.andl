@@ -1,215 +1,30 @@
-﻿#noisy 3
+﻿#noisy 1
+a:=42
+a
 
 db S(csv), P(csv), SP(csv)
-
-suppliersbyname(name:text) => S [ ?(SNAME =~ name) { *Sid:=S# }] 
-suppliersbyname('a')
-addsuppliers(adds:S) => S := union adds
-fib:number(n:number) => if(n < 2,n, fib(n-1) + fib(n-2))
+S [{ SNAME,CITY }]
+S [ { fold(+,STATUS) } ]    // aggregated value
 
 artist  := {{ artistid:0, name:'' }}
-cd      := {{ cdid:0, artistid:0, title:'', year:0 }}
-track   := {{ trackid:0, cdid:0, title:'' }}
+artist
+
+fib:number(n:number) => if(n < 2,n, fib(n-1) + fib(n-2))
+fib(2)
+fib2:number(n:number) => do { if(n < 2,n, fib(n-1) + fib(n-2)) }
+fib2(2)
+fib3:number(n:number) => do { 
+    if(n < 2,n, fib(n-1) + fib(n-2)) 
+}
+fib3(2)
+fib4:number(n:number) => do { 
+
+    if(n < 2,n, fib(n-1) + fib(n-2)) 
+
+}
+fib4(2)
 
 def utx(b:bool, s:text, n:number, t:time, r:{{a:text,b:text}})
 utv:=utx(true,'hello world', 42, now(), {{a:='aaaa',b:='bbbb'},{a:='aaaaa',b:='bbbbb'}})
-
-// an attempt to replicate the data required for Workshop
-
-// relations
-andl_catalog
-andl_variable()
-andl_operator()
-andl_member()
-
-#stop
-
-VR:={{ S#:='S99', SNAME:="Freddo", STATUS:=99, CITY:="Ur"}}
-VT:={ S#:='S99', SNAME:="Freddo", STATUS:=99, CITY:="Ur"}
-VT.S#
-
-VR [{SNAME, X:=99}]
-VT [{SNAME, X:=99}]
-
-// test.andl -- is automatically loaded and run if no other file is specified
-// 
-// Use this for quickly testing out ideas
-
-db S(csv), P(csv), SP(csv)
-S
-S [{}]
-S [ { fold(+,STATUS) } ]    // aggregated value
-
-//{{ X := 0 }} recurse (S [{ X := X + STATUS }])
-#stop
-
-suppliersbyname(name:text) => S [ ?(SNAME =~ name) { *Sid:=S# }] 
-suppliersbyname('a')
-addsuppliers(adds:S) => S := union adds
-
-addsuppliers({{ S#:='S99', SNAME:="Freddo", STATUS:=99, CITY:="Ur"}})
-
-S [ { fold(+,STATUS) } ]    // aggregated value
-
-_vartext := 'testing 1,2,3,4...'
-_varnum := 42.00
-_varrel := { {name:text,age:number}('Smith', 17),('Jones', 35),('Frankenstein', 199) }
-_func(a:'') => do { a }
-def _udt(b:bool, s:text)
-
-vartext := _vartext
-varnum := _varnum
-varrel := _varrel
-@varrel := _varrel
-func(a:'') => do { a }
-def udt(b:bool, s:text)
-udv := udt(true, 'not false')
-
-//andl_catalog
-#stop
-
-sum(n:0) => fold(+,n)
-hi(n:0) => fold(max,n)
-lo(n:0) => fold(min,n)
-ave(n:0) => fold(+,n)/fold(+,1)
-
-db S(csv), P(csv), SP(csv)
-S [ { sum(STATUS) } ]    // aggregated value
-S [ { sum(STATUS)/lo(STATUS) } ]    // aggregated value
-#stop
-
-S [ { partition := {{*}} join SP } ]
-S [ { S#, SNAME, SUMQTY := ( {{*}} join SP ) [ { fold(+,QTY) } ] } ]
-
-(S join SP) [ { S#, SNAME, SUMQTY := fold(+,QTY) } ] union (S ajoin SP) [ { S#, SNAME, SUMQTY := 0 } ]
-(S join SP) [ { S#, SNAME, SUMQTY := fold(+,QTY).text } ] union (S ajoin SP) [ { S#, SNAME, SUMQTY := '--' } ]
-
-SP400 := SP [ ?(QTY>=400) ]
-(S join SP400) [ { S#, P# } ] union (S ajoin SP400) [ { S#, P# := 'none' } ]
-
-//#stop
-
-artist  := {{ artistid:0, name:'' }}
-cd      := {{ cdid:0, artistid:0, title:'', year:0 }}
-track   := {{ trackid:0, cdid:0, title:'' }}
-
-// some data in temporary relvars, with auto-generated ordinals
-$artist_data := {{name:''}
-  ( 'Michael Jackson' ), 
-  ( 'Eminem' ),
-} [{ *artistid := ord() }]
-#stop
-db S(csv), P(csv), SP(csv)
-
-S [ { partition := {{*}} join SP } ]
-S [ { S#, SNAME, SUMQTY := ( {{*}} join SP ) [ { fold(+,QTY) } ] } ]
-#stop
-
-//#noisy 4
-
-get_S_keys() => do {
-    S [ { S# } ]
-}
-
-get_S_keys()
-
-getSid(id:0) => do {
-    S [ ?(S#=id) ]
-}
-getS() => do {
-    S
-}
-putSid(id:0,s:S) => do {
-    S := [ ?(S#=id) ]
-    S := union s
-}
-putS(s:S) => do {
-    S := union s
-}
-
-//andl_catalog
-//andl_variable()
-andl_operator()
-//andl_member()
-
-@paste(s1, s2) => if(s1='',s2 , s1 & ', ' & s2)
-
-mem := andl_member() [{ 
-    K := MemberOf, 
-    V := fold(@paste, Name & ':' & Type)
-}] union {{ K := '', V := '' }}
-
-op1 := (andl_operator() join mem[{ * Members := K }]) [{ Name, Type, Attributes := V, A := Arguments }]
-//op1
-op2 := (op1 join mem[{ A := K, Arguments := V }]) union (op1[{ * Arguments := '' }] ajoin mem[{ A := K }])
-//op2
-op2 [ $(Name) { Name, Type, Attributes, Arguments }]
-
-
-#stop
-#catalog new update
-
-'testing 1,2,3,4...'
-
-x:=42
-x
-
-seed := {{ name:= 'Alice', level := 0 }}
-seed
-
-prompt := fill('.',80) & h'd a' & '>>>'
-wait => pause(prompt)
-
-db S(csv), P(csv), SP(csv)
-suppliers := S [{ *Sid:=S# }]
-parts := P [{ *Pid := P# }]
-supplies := SP [{ *Sid := S#, Pid:= P# }]
-sandsp := S [{ * sp := {{*}} compose SP}]
-parts
-sandsp
-
-fib:number(n:number) => if(n < 2,n, fib(n-1) + fib(n-2))
-fib5 := fib(5)
-t:=now()
-
-def :utx(b:bool, s:text, n:number, t:time, r:{{a:text,b:text}})
-
-utv:=utx(true,'hello world', 42, now(), {{a:='aaaa',b:='bbbb'},{a:='aaaaa',b:='bbbbb'}})
-
-andl_catalog
-#stop
-
-seed := {{ name:= 'Alice', level := 0 }}
-
-ua := seed recurse( {{ boss := name, level := level+1 }} compose orgcharts)
-ua
-ua [{ t:=fill('.', level*3) & name }]
-
-^seed := seed
-^seed
-#stop
-
-b := binary(100)
-b.blength
-
-n := {{ x:=0 }} recurse( {{ x:=x+1 }} [?(x <= 10)] )
-n
-
-#stop
-
-fib:number(n:number) => if(n < 2,n, fib(n-1) + fib(n-2))
-
-now()
-//seq(10) [{ result := fib(20), time := now() }]
-fib(20)
-now()
-
-#stop
-
-
-#include supplierdata.andl
-
-S [?(CITY='Paris' and STATUS > 0 
-or 
-true) 
-    {STATUS}] 
+utv
+S // this line has no EOL

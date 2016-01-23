@@ -203,8 +203,8 @@ namespace Andl.Gateway {
       _catalog.Start(database);
       //_parser = Parser.Create(_catalog);
       // FIX: allow access to old compiler?
-      //_parser = PegCompiler.Create(_catalog);
-      _parser = OldCompiler.Create(_catalog);
+      _parser = PegCompiler.Create(_catalog);
+      //_parser = OldCompiler.Create(_catalog);
     }
 
     public override string DatabaseName { get { return _catalog.DatabaseName; } }
@@ -314,7 +314,7 @@ namespace Andl.Gateway {
 
     //-- execute and return result
     public override Result Execute(string program, ExecModes kind) {
-      Logger.WriteLine(3, "Execute {0} kind={1}", program, kind);
+      Logger.WriteLine(3, "Execute <{0}> len={1} kind={2}", program.Shorten(20), program.Length, kind);
       var result = (kind == ExecModes.Raw) ? RequestSession.Create(this, _catalog).RawExecute(program)
         : RequestSession.Create(this, _catalog).JsonExecute(program);
       Logger.WriteLine(3, "[Ex {0}]", result.Ok);

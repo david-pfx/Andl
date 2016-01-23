@@ -33,6 +33,7 @@ namespace Andl.Peg {
     public Cursor State { get; private set; }
 
     Stack<string> _inputpaths = new Stack<string>();
+    bool _skip = false;
 
     public PegParser() {
       Factory = new AstFactory { Parser = this };
@@ -52,9 +53,9 @@ namespace Andl.Peg {
     public bool Start() {
       if (_started) return false;
       Cat.Start();
+      Symbols.ResetScope();
       Symbols.Import(Cat.GlobalVars);
       Symbols.Import(Cat.PersistentVars);
-      _started = true;
       return true;
     }
 
@@ -63,35 +64,44 @@ namespace Andl.Peg {
       var cursor = state.WithMutability(mutable: false);
       // next line only needed if memoize active
       //this.storage = new Dictionary<CacheKey, object>();
-      Skip(ref cursor);
-      var result = MainRestart(ref cursor); // FIX: check for null?
+
+      var restart = _skip;
+      _skip = false;
+      var result = (restart) ? MainRestart(ref cursor) : MainNext(ref cursor);
       return result.Value;
     }
 
     // Get a single line of source code from position
     string GetLine(string s, int pos) {
       var posx = s.IndexOf('\n', pos);
-      return (posx == -1) ? "" : s.Substring(pos, posx - pos).Trim('\r', '\n');
+      var line = (posx == -1) ? s.Substring(pos) : s.Substring(pos, posx - pos);
+      return line.Trim('\r', '\n');
     }
 
-    // print the line starting here
+    // true predicate to print the line containing the current location
     // due to backtracking may be called more than once, so just do once and not off end
-    public void PrintLine(Cursor state) {
-      if (state.Location > _last_location && state.Location < state.Subject.Length) {
-        _linestarts.Add(state.Location);
+    public bool PrintLine(Cursor state, bool force = false) {
+      var bol = state.Location - state.Column + 1;
+      if (bol > _last_location) {
+        _linestarts.Add(bol);
         Symbols.FindIdent("$lineno$").Value = NumberValue.Create(state.Line);
-        if (Logger.Level > 0)
-          Output.WriteLine("{0,3}: {1}", state.Line, GetLine(state.Subject, state.Location));
-        _last_location = state.Location;
+        if (Logger.Level > 1 || force)
+          Output.WriteLine("{0,3} {1,5}: {2}", state.Line, bol, GetLine(state.Subject, bol));
+        else if (Logger.Level > 0)
+          Output.WriteLine("{0,3}: {1}", state.Line, GetLine(state.Subject, bol));
+        _last_location = bol;
       }
+      return true;
     }
 
     // Output error message and throw
     public void ParseError(Cursor state, string message = "unknown", params object[] args) {
+      PrintLine(state, true);
       var offset = state.Location - _linestarts.Last();
       if (offset > 0) Output.WriteLine("      {0}^", new string(' ', offset));
       Output.WriteLine("Error: {0}!", String.Format(message, args));
       ErrorCount++;
+      _skip = true;
       throw new ParseException(state, message);
     }
 

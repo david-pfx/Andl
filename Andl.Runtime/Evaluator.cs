@@ -45,6 +45,9 @@ namespace Andl.Runtime {
       temp.AddRange(morecode);
       bytes = temp.ToArray();
     }
+    public override string ToString() {
+      return String.Format("Code: [{0}]", Length);
+    }
   }
 
   /// <summary>

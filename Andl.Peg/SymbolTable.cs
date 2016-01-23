@@ -231,19 +231,20 @@ namespace Andl.Peg {
     // current scope
     public Scope CurrentScope { get; set; }
 
+    Scope _outerscope;
     Scope _importscope;
     Catalog _catalog;
     HashSet<string> _sources = new HashSet<string>();
 
     public override string ToString() {
-      return String.Format("SymTab {0} {1}", CurrentScope.AllToString(), _catalog);
+      return String.Format("SymTab {0}", CurrentScope.AllToString());
     }
 
     //public static SymbolTable Create() {
     public static SymbolTable Create(Catalog catalog) {
       var st = new SymbolTable { _catalog = catalog };
       st.Init();
-      Logger.WriteLine(3, "Created symbol table: {0}", st);
+      Logger.WriteLine(3, "[SymbolTable Create: {0}]", st);
       return st;
     }
 
@@ -328,7 +329,7 @@ namespace Andl.Peg {
     //--- setup
 
     void Init() {
-      CurrentScope = Scope.Create(this);
+      CurrentScope = _outerscope = Scope.Create(this);
       AddSymbols();
       foreach (var info in AddinInfo.GetAddinInfo())
         AddBuiltinFunction(info.Name, info.NumArgs, info.DataType, info.Method);
@@ -336,13 +337,22 @@ namespace Andl.Peg {
       CurrentScope.IsGlobal = true;
     }
 
+    public void ResetScope() {
+      CurrentScope = _outerscope;
+      _importscope = CurrentScope.Push();  // reserve a level for imported symbols
+      CurrentScope.IsGlobal = true;
+      Logger.WriteLine(3, "[Reset scope: {0}]", this);
+      // CurrentScope.Push(); ???
+    }
+
     // Process catalog to add all entries from persistent level
     // Called functions should discard duplicates, or flag errors???
     public void Import(CatalogScope catalogscope) {
+      Logger.WriteLine(3, "SymbolTable Import: {0}", catalogscope);
       foreach (var entry in catalogscope.GetEntries()) {
         var value = entry.Value;
         if (_importscope.Find(entry.Name) == null)
-          Logger.WriteLine(3, "From catalog add {0}:{1}", entry.Name, entry.DataType.BaseType.Name);
+          Logger.WriteLine(4, "From catalog add {0}:{1}", entry.Name, entry.DataType.BaseType.Name);
 
         if (entry.Kind == EntryKinds.Type)
           _importscope.Add(MakeUserType(entry.Name, entry.DataType as DataTypeUser));
@@ -351,6 +361,7 @@ namespace Andl.Peg {
         else if (entry.Kind == EntryKinds.Code)
           _importscope.Add(MakeDeferred(entry.Name, entry.DataType, entry.CodeValue.Value.Lookup.Columns));
       }
+      Logger.WriteLine(3, "[SSTI {0}]", this);
     }
 
     // Add a built in function (from a library)

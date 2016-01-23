@@ -75,7 +75,9 @@ namespace Andl.Workshop {
     /// 
     bool SaveCurrentFile(bool ask = false) {
       if (ask || CurrentFileName == null) {
-        SaveFileDialog dlg = new SaveFileDialog();
+        SaveFileDialog dlg = new SaveFileDialog() {
+          InitialDirectory = Directory.GetCurrentDirectory(),
+        };
         dlg.DefaultExt = ".txt";
         if (dlg.ShowDialog() ?? false)
           CurrentFileName = dlg.FileName;
@@ -116,7 +118,9 @@ namespace Andl.Workshop {
     /// 
 
     private void Open_Executed(object sender, ExecutedRoutedEventArgs e) {
-      OpenFileDialog dlg = new OpenFileDialog();
+      OpenFileDialog dlg = new OpenFileDialog() {
+        InitialDirectory = Directory.GetCurrentDirectory(),
+      };
       dlg.CheckFileExists = true;
       if (dlg.ShowDialog() ?? false) {
         CurrentFileName = dlg.FileName;
