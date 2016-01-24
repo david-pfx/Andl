@@ -7,6 +7,10 @@ using System.Threading.Tasks;
 using Andl.Runtime;
 
 namespace Andl.Workbench {
+  /// <summary>
+  /// Implement data model for tree data view
+  /// Also provides access to database connector
+  /// </summary>
   public class TreeDataViewModel : INotifyPropertyChanged {
 
     public event PropertyChangedEventHandler PropertyChanged;
@@ -27,17 +31,21 @@ namespace Andl.Workbench {
     public EntryItem[] Variables {
       get { return Explode(_connector.GetEntries(Runtime.EntryInfoKind.Variable)); }
     }
-    //}
 
+    // get or set the database name
     public string DatabaseName {
       get { return _connector.Name; }
       set {
         // avoid recursive call to 'reset' during data binding
         if (value == null) return;
-        _connector = _selector.OpenDatabase(value);
+        _connector = _selector.OpenDatabase(value, LoadCatalog);
         Refresh();
       }
     }
+
+    public bool LoadCatalog { get; set; }
+
+    // get the database connector
     public DatabaseConnector Connector { get { return _connector; } }
 
     //-- privates
@@ -48,10 +56,22 @@ namespace Andl.Workbench {
     public TreeDataViewModel(DatabaseSelector database) {
       _selector = database;
       _connector = _selector.OpenDatabase();  // default/empty
+      LoadCatalog = true;
     }
 
-    public void Reload() {
-      DatabaseName = DatabaseName;
+    public void Load(string database, bool load) {
+      LoadCatalog = load;
+      DatabaseName = database;
+    }
+
+    public void Reload(bool load) {
+      LoadCatalog = load;
+      DatabaseName = DatabaseName; // weird!
+    }
+
+    public void Save() {
+      LoadCatalog = true;
+      _connector.SaveCatalog();
     }
 
     public void Refresh() {
@@ -59,6 +79,7 @@ namespace Andl.Workbench {
         PropertyChanged(this, new PropertyChangedEventArgs(null));
     }
 
+    // Get sub-entries for any entry
     internal EntryItem[] GetSubEntries(string name, Runtime.EntrySubInfoKind kind) {
       return Explode(_connector.GetSubEntries(name, kind));
     }

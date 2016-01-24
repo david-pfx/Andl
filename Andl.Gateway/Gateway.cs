@@ -66,6 +66,12 @@ namespace Andl.Gateway {
     public abstract string DatabaseName { get; }
     public abstract IParser Parser { get; }
 
+    //--- A gateway for catalog level access
+
+    public abstract Dictionary<string, string> GetEntryInfoDict(EntryInfoKind kind);
+    public abstract Dictionary<string, string> GetSubEntryInfoDict(string name, EntrySubInfoKind kind);
+    public abstract void Restart(bool save);
+
     //--- A gateway for accessing variables and functions by name
 
     // Get the value of a variable, or evaluate a function of no arguments.
@@ -117,14 +123,6 @@ namespace Andl.Gateway {
     //public abstract Result Execute(string program, bool isjson = false);
     // Compile and execute the program, returning error or program output as lines of text
     //public abstract Result Execute(string program, out string output);
-
-    public abstract Dictionary<string, string> GetEntryInfoDict(EntryInfoKind kind);
-    public abstract Dictionary<string, string> GetSubEntryInfoDict(string name, EntrySubInfoKind kind);
-
-      //public abstract Dictionary<string, string> GetRelationsDict();
-      //public abstract Dictionary<string, string> GetOperatorsDict();
-      //public abstract Dictionary<string, string> GetVariablesDict();
-      //public abstract Dictionary<string, string> GetTypesDict();
 
     }
 
@@ -186,25 +184,30 @@ namespace Andl.Gateway {
   public class GatewayImpl : GatewayBase {
     Catalog _catalog;
     IParser _parser;
+    string _database;
+    Dictionary<string, string> _settings;
 
     public static GatewayImpl Create(string database, Dictionary<string, string> settings) {
-      var ret = new GatewayImpl();
-      ret.Start(database, settings);
+      var ret = new GatewayImpl() { _database = database, _settings = settings };
+      ret.Start();
       return ret;
     }
 
     // Load and start the catalog
-    void Start(string database, Dictionary<string, string> settings) {
+    void Start() {
       _catalog = Catalog.Create();
       _catalog.LoadFlag = true;
       _catalog.ExecuteFlag = true;
-      foreach (var key in settings.Keys)
-        _catalog.SetConfig(key, settings[key]);
-      _catalog.Start(database);
-      //_parser = Parser.Create(_catalog);
-      // FIX: allow access to old compiler?
+      _catalog.SetConfig(_settings);
+      _catalog.Start(_database);
       _parser = PegCompiler.Create(_catalog);
-      //_parser = OldCompiler.Create(_catalog);
+      //_parser = OldCompiler.Create(_catalog); // FIX: allow access to old compiler?
+    }
+
+    // Finish the catalog, optionally with different settings eg Save
+    void Finish(Dictionary<string, string> settings) {
+      _catalog.SetConfig(settings);
+      _catalog.Finish();
     }
 
     public override string DatabaseName { get { return _catalog.DatabaseName; } }
@@ -214,6 +217,12 @@ namespace Andl.Gateway {
     /// Catalog access functions
 
     // Support implementation functions at catalog level
+    public override void Restart(bool save) {
+      var settings = new Dictionary<string, string> { { "Save", save.ToString() } };
+      Finish(settings);
+      Start();
+    }
+
     public override Type[] GetArgumentTypes(string name) {
       var types = _catalog.GlobalVars.GetArgumentTypes(name);
       if (types == null) return null;
@@ -240,20 +249,6 @@ namespace Andl.Gateway {
     public override Dictionary<string, string> GetSubEntryInfoDict(string name, EntrySubInfoKind kind) {
       return _catalog.PersistentVars.GetSubEntryInfoDict(kind, name);
     }
-
-    //public override Dictionary<string, string> GetRelationsDict() {
-    //  return _catalog.PersistentVars.GetRelationsDict();
-    //}
-    //public override Dictionary<string, string> GetOperatorsDict() {
-    //  return _catalog.PersistentVars.GetOperatorsDict();
-    //}
-    //public override Dictionary<string, string> GetVariablesDict() {
-    //  return _catalog.PersistentVars.GetVariablesDict();
-    //}
-    //public override Dictionary<string, string> GetTypesDict() {
-    //  return _catalog.PersistentVars.GetTypesDict();
-    //}
-
 
     ///--------------------------------------------------------------------------------------------
     /// Main implementation functions, request session based

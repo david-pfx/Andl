@@ -97,6 +97,9 @@ namespace Andl.Runtime {
       { "DatabaseName", (c,s) => c.DatabaseName = s },
       { "DatabasePath", (c,s) => c.DatabasePath = s },
       { "DatabaseSqlFlag", (c,s) => c.DatabaseSqlFlag = (s != null && s.ToLower() == "true") },
+      { "Load", (c,s) => c.LoadFlag = Boolean.Parse(s) },
+      { "Save", (c,s) => c.SaveFlag = Boolean.Parse(s) },
+      { "Execute", (c,s) => c.ExecuteFlag = Boolean.Parse(s) },
       { "Noisy", (c,s) => Logger.Level = Int32.Parse(s) },
     };
 
@@ -148,10 +151,18 @@ namespace Andl.Runtime {
         SystemPattern = _systempattern,
         PersistPattern = _persistpattern,
         DatabasePattern = _databasepattern,
+        SourcePath = "",
       };
       cat.PersistentVars = CatalogScope.Create(cat, ScopeLevels.Persistent, null);
       cat.GlobalVars = CatalogScope.Create(cat, ScopeLevels.Global, cat.PersistentVars);
       return cat;
+    }
+
+    // Configure settings. Most need to be done before Start
+    public bool SetConfig(Dictionary<string,string> settings) {
+      foreach (var key in settings.Keys)
+        SetConfig(key, settings[key]);
+      return true;
     }
 
     // Configure settings. Most need to be done before Start
@@ -161,7 +172,7 @@ namespace Andl.Runtime {
       return true;
     }
 
-    // open the catalog for use, after all flags set up (including from lexer)
+    // open the catalog for use, after all flags set up
     // create catalog table here, local until the end
     // only do it once
     public bool Start(string databasepath = null) {
@@ -222,19 +233,17 @@ namespace Andl.Runtime {
     // Then use AddRelvar to import the value
     public DataType GetRelvarType(string name, string source) {
       var islinked = (source == "");
-      var issql = islinked && IsDatabase(name);
       if (islinked) {
-        if (issql) {
+        if (DatabaseSqlFlag) {
           var heading = SqlTarget.Create().GetTableHeading(name);
           return (heading == null) ? null : DataTypeRelation.Get(heading);
         } else {
           var type = Persist.Create(DatabasePath, false).Peek(name);
           return type;
         }
-      } else {
-        var table = DataSourceStream.Create(source, SourcePath).Input(name, InputMode.Preview);
-        if (table != null) return table.DataType;
       }
+      var table = DataSourceStream.Create(source, SourcePath).Input(name, InputMode.Preview);
+      if (table != null) return table.DataType;
       return null;
     }
 

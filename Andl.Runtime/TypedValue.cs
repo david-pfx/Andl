@@ -81,15 +81,18 @@ namespace Andl.Runtime {
     }
 
     public static BinaryValue Create(byte[] value) {
+      Logger.Assert(value != null);
       return new BinaryValue { Value = value };
     }
     public static PointerValue Create(object value) {
+      Logger.Assert(value != null);
       return new PointerValue { Value = value };
     }
     public static BoolValue Create(bool value) {
       return new BoolValue { Value = value };
     }
     public static CodeValue Create(ExpressionBlock value) {
+      Logger.Assert(value != null);
       return new CodeValue { Value = value };
     }
     public static NumberValue Create(decimal value) {
@@ -99,15 +102,19 @@ namespace Andl.Runtime {
       return new TimeValue { Value = value };
     }
     public static TextValue Create(string value) {
+      Logger.Assert(value != null);
       return new TextValue { Value = value };
     }
     public static HeadingValue Create(DataHeading value) {
+      Logger.Assert(value != null);
       return new HeadingValue { Value = value };
     }
     public static TupleValue Create(DataRow value) {
+      Logger.Assert(value != null);
       return new TupleValue { Value = value };
     }
     public static RelationValue Create(DataTable value) {
+      Logger.Assert(value != null);
       return new RelationValue { Value = value };
     }
 

@@ -19,7 +19,7 @@ namespace Andl.Workbench {
     public bool IsTest {  get { return DatabaseSearchPath == TestDatabaseSearchPath; } }
 
     static readonly Dictionary<string, string> _settings = new Dictionary<string, string> {
-      { "Noisy", "3" },
+      { "Noisy", "0" },
     };
 
     // Create a selector for a specified folder (use test data if null)
@@ -40,10 +40,11 @@ namespace Andl.Workbench {
     }
 
     // Open a database, or return empty object if null
-    public DatabaseConnector OpenDatabase(string name = null) {
+    public DatabaseConnector OpenDatabase(string name = null, bool load = true) {
       if (IsTest) return new DatabaseConnector { Selector = this, Name = TestDatabaseSearchPath };
       if (name == null) return new DatabaseConnector { Selector = this, Name = "" };
       try {
+        _settings["Load"] = load.ToString();
         var gateway = GatewayFactory.Create(name, _settings);
         return new DatabaseConnector { Selector = this, Name = name, Gateway = gateway };
       } catch (ProgramException e) {
@@ -95,6 +96,12 @@ namespace Andl.Workbench {
         Name = Name,
         Items = Gateway.GetSubEntryInfoDict(name, kind),
       };
+    }
+
+    public void SaveCatalog() {
+      if (Selector.IsTest) return;
+      if (Gateway == null) return;
+      Gateway.Restart(true);
     }
 
     // execute a script

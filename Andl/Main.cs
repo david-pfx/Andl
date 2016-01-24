@@ -121,7 +121,6 @@ namespace Andl.Main {
       _catalog.BaseName = Path.GetFileNameWithoutExtension(_paths[0]);
       if (_paths.Count > 1)
         _catalog.DatabasePath = _paths[1];
-      _catalog.SourcePath = "";
 
       // Create private catalog with access to global level, for evaluator
       var catalogp = CatalogPrivate.Create(_catalog, true);

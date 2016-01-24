@@ -61,6 +61,7 @@ namespace Andl.Peg {
 
     // Called to restart parse after error
     public AstStatement Restart(ref Cursor state) {
+      Logger.WriteLine(3, "Restart skip={0} line={1} column={2} location={3}", _skip, state.Line, state.Column, state.Location);
       var cursor = state.WithMutability(mutable: false);
       // next line only needed if memoize active
       //this.storage = new Dictionary<CacheKey, object>();
@@ -85,17 +86,30 @@ namespace Andl.Peg {
       if (bol > _last_location) {
         _linestarts.Add(bol);
         Symbols.FindIdent("$lineno$").Value = NumberValue.Create(state.Line);
-        if (Logger.Level > 1 || force)
+        if (Logger.Level > 1)
           Output.WriteLine("{0,3} {1,5}: {2}", state.Line, bol, GetLine(state.Subject, bol));
-        else if (Logger.Level > 0)
+        else if (Logger.Level > 0 || force)
           Output.WriteLine("{0,3}: {1}", state.Line, GetLine(state.Subject, bol));
         _last_location = bol;
       }
       return true;
     }
 
-    // Output error message and throw
-    public void ParseError(Cursor state, string message = "unknown", params object[] args) {
+    // Parser output error message and throw
+    public bool Error(Cursor state, string message, params object[] args) {
+      State = state;
+      ParseError(State, message, args);
+      return false; // never happens
+    }
+
+    // Internal call, mostly type errors
+    public void ParseError(string message, params object[] args) {
+      ParseError(State, message, args);
+    }
+
+    // common error handling -- set skip and throw
+    void ParseError(Cursor state, string message, params object[] args) {
+      Logger.WriteLine(3, "Error msg='{0}' line={1} column={2} location={3}", message, state.Line, state.Column, state.Location);
       PrintLine(state, true);
       var offset = state.Location - _linestarts.Last();
       if (offset > 0) Output.WriteLine("      {0}^", new string(' ', offset));
@@ -103,11 +117,6 @@ namespace Andl.Peg {
       ErrorCount++;
       _skip = true;
       throw new ParseException(state, message);
-    }
-
-    // error message wrapper
-    public void ParseError(string message = "unknown", params object[] args) {
-      ParseError(State, message, args);
     }
 
     ///============================================================================================

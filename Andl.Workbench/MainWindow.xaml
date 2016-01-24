@@ -13,16 +13,19 @@
     <CommandBinding Command="ApplicationCommands.Save" Executed="Save_Executed" />
     <CommandBinding Command="ApplicationCommands.SaveAs" Executed="SaveAs_Executed" />
     <CommandBinding Command="local:CustomCommands.Exit" Executed="Exit_Executed" />
-    <CommandBinding Command="local:CustomCommands.Reload" Executed="Reload_Executed" />
+    <CommandBinding Command="local:CustomCommands.NewCatalog" Executed="NewCatalog_Executed" />
+    <CommandBinding Command="local:CustomCommands.ReloadCatalog" Executed="ReloadCatalog_Executed" />
+    <CommandBinding Command="local:CustomCommands.SaveCatalog" Executed="SaveCatalog_Executed" />
     <CommandBinding Command="local:CustomCommands.Properties" Executed="Properties_Executed" />
     <CommandBinding Command="local:CustomCommands.Web" Executed="Web_Executed" />
     <CommandBinding Command="local:CustomCommands.About" Executed="About_Executed" />
     <CommandBinding Command="local:CustomCommands.Execute" Executed="Execute_Executed" />
+    <CommandBinding Command="local:CustomCommands.ExpandAll" Executed="Execute_ExpandAll" />
     <CommandBinding Command="local:CustomCommands.Testing" Executed="Testing_Executed" />
   </Window.CommandBindings>
   <Window.InputBindings>
     <KeyBinding Key="F5" Command="local:CustomCommands.Execute" />
-    <KeyBinding Key="F5" Modifiers="Alt" Command="local:CustomCommands.Reload" />
+    <KeyBinding Key="F5" Modifiers="Alt" Command="local:CustomCommands.ReloadCatalog" />
   </Window.InputBindings>
 
   <!-- Docking panel with menu, toolbar, status bar and grid -->
@@ -97,9 +100,19 @@
             <Image Source="Images/Executequery_9958.png" />
           </MenuItem.Icon>
         </MenuItem>
-        <MenuItem Header="_Reload" Command="local:CustomCommands.Reload" >
+        <MenuItem Header="_New Catalog" Command="local:CustomCommands.NewCatalog" >
+          <MenuItem.Icon>
+            <Image Source="Images/NewTable_5619.png" />
+          </MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Header="_Reload Catalog" Command="local:CustomCommands.ReloadCatalog" >
           <MenuItem.Icon>
             <Image Source="Images/Restart_6322.png" />
+          </MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Header="_Save Catalog" Command="local:CustomCommands.SaveCatalog" >
+          <MenuItem.Icon>
+            <Image Source="Images/SaveSelection_5630.png" />
           </MenuItem.Icon>
         </MenuItem>
         <MenuItem Header="_Properties" Command="local:CustomCommands.Properties" >
@@ -109,7 +122,9 @@
         </MenuItem>
       </MenuItem>
 
-      <MenuItem Header="_Window"/>
+      <MenuItem Header="_Window">
+        <MenuItem Header="Expand _All" Command="local:CustomCommands.ExpandAll" />
+      </MenuItem>
 
       <MenuItem Header="_Help">
         <MenuItem Header="Andl on the _Web" Command="local:CustomCommands.Web" >
@@ -142,11 +157,6 @@
           ToolTip="Save script file">
           <Image Source="Images/Save_6530.png" />
         </Button>
-        <Button 
-          Command="local:CustomCommands.Reload"
-          ToolTip="Reload database">
-          <Image Source="Images/Restart_6322.png" />
-        </Button>
         <Separator />
         <Button 
           Command="ApplicationCommands.Undo"
@@ -163,6 +173,21 @@
           Command="local:CustomCommands.Execute"
           ToolTip="Execute query">
           <Image Source="Images/Executequery_9958.png" />
+        </Button>
+        <Button 
+          Command="local:CustomCommands.NewCatalog"
+          ToolTip="New catalog">
+          <Image Source="Images/NewTable_5619.png" />
+        </Button>
+        <Button 
+          Command="local:CustomCommands.ReloadCatalog"
+          ToolTip="Reload catalog">
+          <Image Source="Images/Restart_6322.png" />
+        </Button>
+        <Button 
+          Command="local:CustomCommands.SaveCatalog"
+          ToolTip="Save catalog">
+          <Image Source="Images/SaveSelection_5630.png" />
         </Button>
       </ToolBar>
     </ToolBarTray>
@@ -230,12 +255,15 @@
 
         <!-- Output window -->
         <Border Grid.Row="2" BorderThickness="5" BorderBrush="Blue">
-          <TextBox 
+          <ScrollViewer VerticalScrollBarVisibility="Auto"
+                        HorizontalScrollBarVisibility="Auto">
+            <TextBox 
             FontFamily="Consolas"
             FontSize="10pt"
             Foreground="{Binding Path=OutputTextColour}" 
             Text="{Binding Path=OutputText}"
             IsReadOnly="True" Background="White" />
+          </ScrollViewer>
         </Border>
       </Grid>
 

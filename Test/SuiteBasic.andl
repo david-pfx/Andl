@@ -13,6 +13,30 @@ assert($lineno$, t'01/01/2015' > t'31/12/2014')
 i':=' "''" d'32' := b'2a2b2cd1e2f3'
 assert($lineno$, i':=' h'27 0027 20'  = b'2A2B2CD1E2F3')
 
+assert($lineno$, 17 = 17)
+assert($lineno$, 17 > -17)
+assert($lineno$, 17 >= 0)
+assert($lineno$, 17 <> 42)
+assert($lineno$, 17 < 42.)
+assert($lineno$, 17 <= 42.0)
+
+assert($lineno$, "abc" = "abc")
+assert($lineno$, "abc" > "aaa")
+assert($lineno$, "abc" >= "")
+assert($lineno$, "abc" <> "aaa")
+assert($lineno$, "abc" < "b")
+assert($lineno$, "abc" <= "bb")
+
+assert($lineno$, false = not true)
+assert($lineno$, true = not false)
+assert($lineno$, false = (true and false))
+assert($lineno$, true = (true or false))
+assert($lineno$, true = (true xor false))
+
+assert($lineno$, 3 = (7 and 11))
+assert($lineno$, 15 = (7 or 11))
+assert($lineno$, 12 = (7 xor 11))
+
 assert($lineno$, {{}} = {{}})
 assert($lineno$, {{:}} = {{:}})
 assert($lineno$, {{:}()} = {{:}()})
@@ -24,24 +48,23 @@ assert($lineno$, count({{:}()}) = 1)
 assert($lineno$, count({{}}) = 1)
 assert($lineno$, {{}} .count = 1)
 
-assert($lineno$, false = (true and false))
-assert($lineno$, true = (true or false))
-assert($lineno$, true = (true xor false))
-
-assert($lineno$, 3 = (7 and 11))
-assert($lineno$, 15 = (7 or 11))
-assert($lineno$, 12 = (7 xor 11))
-
 //--- if(,,)
 assert($lineno$, if(true,"yes",'no') = 'yes')
 assert($lineno$, if(false,0,1+2) = 3)
+assert($lineno$, if(false,t'01/01/2016',t'01/01/2017') = t'01/01/2017')
+assert($lineno$, if(true,{{}},{{:}}) = {{}})
 
 //--- assign
 a1 := 22
 assert($lineno$, a1 = 22)
 a2 := a1*2
 assert($lineno$, a2 = 44)
-
+a3 := "xyz"
+assert($lineno$, a3 = "xyz")
+a4 := t'2016/12/31'
+assert($lineno$, a4 = t'31/12/2016')
+a5 := {{:}}
+assert($lineno$, a5 = {{:}})
 
 //--- builtin
 assert($lineno$, seq(3) = {{N:=0},{N:=1},{N:=2}})
@@ -59,38 +82,71 @@ tim1 := t'2015/02/26'
 //dat2.dow = 5 // Friday
 //daysdiff(dat2,dat1) = 1
 
-//--- string operations
+//--- number operations
+assert($lineno$, 42 = number("42"))
+assert($lineno$, 42 = "42".number)
+assert($lineno$, 42 = --42)
+assert($lineno$, 42 = 40+2)
+assert($lineno$, 42 = 44-2)
+assert($lineno$, 42 = 10*4.2)
+assert($lineno$, 42 = 84/2)
+assert($lineno$, 10.5 = 42/4)
+assert($lineno$, 0.1 = 1/10)
+
+assert($lineno$, 42 = max(42,41))
+assert($lineno$, 42 = max(41,42))
+assert($lineno$, 42 = min(43,42))
+assert($lineno$, 42 = min(42,43))
+
+//--- precedence
+assert($lineno$, 42 = 36+2*3)
+assert($lineno$, 42 = 30+2*3+6)
+assert($lineno$, 42 = 12-6 + 2*3 + 6/5*10 + 2*3**2)
+assert($lineno$, 42 = 2*(12-6 + 1)*3)
+
+//--- text operations
+assert($lineno$, "42" = 42 .text) // note: needs the space
+assert($lineno$, "42" = text(42))
+
 ss1 := 'abcdefg'
 ss2 := 'XYZ   '
-assert($lineno$, ss2.trim = 'XYZ')
-assert($lineno$, left(ss1,10) = 'abcdefg   ')
-assert($lineno$, left(ss1,3) = 'abc')
-assert($lineno$, left(ss1,0) = '')
-assert($lineno$, right(ss1,3) = 'efg')
-assert($lineno$, right(ss1,10) = '   abcdefg')
-assert($lineno$, before(ss1,'cd') = 'ab')
-assert($lineno$, after(ss1,'cd') = 'efg')
-assert($lineno$, ss1.toupper = 'ABCDEFG')
-assert($lineno$, ss2.tolower = 'xyz   ')
-assert($lineno$, fill('abc', 20) = 'abcabcabcabcabcabcab')
-assert($lineno$, fill('abc', 0) = '')
-assert($lineno$, fill('abc', -20) = '')
-assert($lineno$, ss1.length = 7)
+assert($lineno$, 'abcdefgXXX'   = ss1 & 'XXX')
+assert($lineno$, 'abcdefgXXXYY' = ss1 & 'XXX' & 'YY')
+assert($lineno$, 7              = ss1.length)
+assert($lineno$, 'XYZ'          = ss2.trim)
+assert($lineno$, 'abcdefg   '   = left(ss1,10))
+assert($lineno$, 'abc'          = left(ss1,3))
+assert($lineno$, ''             = left(ss1,0))
+assert($lineno$, 'efg'          = right(ss1,3))
+assert($lineno$, '   abcdefg'   = right(ss1,10))
+assert($lineno$, 'ab'           = before(ss1,'cd'))
+assert($lineno$, 'efg'          = after(ss1,'cd'))
+assert($lineno$, 'ABCDEFG'      = ss1.toupper)
+assert($lineno$, 'xyz   '       = ss2.tolower)
+assert($lineno$, 'abcabcabcabc' = fill('abc', 12))
+assert($lineno$, ''             = fill('abc', 0))
+assert($lineno$, ''             = fill('abc', -20))
+
+assert($lineno$, "xyz" = max("xyz","xyx"))
+assert($lineno$, "xyz" = max("xyx","xyz"))
+assert($lineno$, "xyz" = min("xyz","xzz"))
+assert($lineno$, "xyz" = min("xzz","xyz"))
 
 //--- user type defs
 def utype1(age:0, name:'')
 uvar1 := utype1(17, 'smith')
-assert($lineno$, uvar1 = utype1(17, 'smith'))
-assert($lineno$, uvar1.age = 17)
-assert($lineno$, uvar1.name = 'smith')
+assert($lineno$, uvar1      = utype1(17, 'smith'))
+assert($lineno$, 17         = uvar1.age)
+assert($lineno$, 'smith'    = uvar1.name)
+
 uvar11 := utype1(18, 'jones')
 assert($lineno$, uvar11 > uvar1)
 
 def utype2(age:0, name:'', given:'')
 uvar2 := utype2(63, 'jones', 'mary')
-assert($lineno$, uvar2 = utype2(63, 'jones', 'mary'))
-assert($lineno$, uvar2.age = 63)
-assert($lineno$, uvar2.name = 'jones')
-assert($lineno$, uvar2.given = 'mary')
+assert($lineno$, uvar2      = utype2(63, 'jones', 'mary'))
+assert($lineno$, 63         = uvar2.age)
+assert($lineno$, 'jones'    = uvar2.name)
+assert($lineno$, 'mary'     = uvar2.given)
 
 finish($filename$)

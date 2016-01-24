@@ -10,7 +10,7 @@ assert(lineno:0, condition:bool) => do {
         do{}, 
         do {
             error_count := error_count + 1
-            write('FAIL: ' & lineno)
+            write('>>>FAIL: line no ' & lineno)
         }
     ) 
 }

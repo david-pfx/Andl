@@ -41,7 +41,7 @@ namespace Andl.Workbench {
         //DataModel.DatabaseName = DataModel.Databases[DataModel.Databases.Length - 1].OpenName;
         DataModel.DatabaseName = DataModel.Databases[0].OpenName;
 
-      //textEditor.Focus();
+      textEditor.Focus();
       if (File.Exists(DefaultScriptName)) {
         CurrentFileName = DefaultScriptName;
         textEditor.Load(DefaultScriptName);
@@ -107,6 +107,16 @@ namespace Andl.Workbench {
       DataModel.Refresh();
     }
 
+    void LoadDatabase(bool loadcatalog) {
+      DataModel.Reload(loadcatalog);
+      ShowOutput(true, string.Format(loadcatalog ? "Database '{0}' and catalog reloaded." : "Database '{0}' loaded with new catalog.", 
+        DataModel.DatabaseName));
+    }
+
+    void SaveDatabase() {
+      DataModel.Save();
+    }
+
     void ShowOutput(bool ok, string message) {
       OutputText = message;
       OutputTextColour = (ok) ? "black" : "red";
@@ -146,13 +156,16 @@ namespace Andl.Workbench {
       Close();
     }
 
-    private void Reload_Executed(object sender, ExecutedRoutedEventArgs e) {
-      DataModel.Reload();
-      ShowOutput(true, string.Format("Database '{0}' reloaded.", DataModel.DatabaseName));
+    private void NewCatalog_Executed(object sender, ExecutedRoutedEventArgs e) {
+      LoadDatabase(false);
     }
-
+    private void ReloadCatalog_Executed(object sender, ExecutedRoutedEventArgs e) {
+      LoadDatabase(true);
+    }
+    private void SaveCatalog_Executed(object sender, ExecutedRoutedEventArgs e) {
+      SaveDatabase();
+    }
     private void Properties_Executed(object sender, ExecutedRoutedEventArgs e) {
-
     }
 
     private void About_Executed(object sender, ExecutedRoutedEventArgs e) {
@@ -161,7 +174,6 @@ namespace Andl.Workbench {
     }
 
     private void Testing_Executed(object sender, ExecutedRoutedEventArgs e) {
-
     }
 
     private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e) {
@@ -173,7 +185,10 @@ namespace Andl.Workbench {
     }
 
     private void Web_Executed(object sender, ExecutedRoutedEventArgs e) {
+    }
 
+    private void Execute_ExpandAll(object sender, ExecutedRoutedEventArgs e) {
+      databaseTreeControl.ExpandAll();
     }
 
   }

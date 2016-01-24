@@ -6,48 +6,49 @@ start($filename$)
 
 //--- defer
 d1 => 22
-assert($lineno$, d1 = 22)
+assert($lineno$, 22 = d1)
+
 a1 := 22
 d2 => a1*2 + d1*2
-assert($lineno$, d2 = 88)
+assert($lineno$, 88 = d2)
 
 f1(x:0) => x*10
-assert($lineno$, f1(3) = 30)
+assert($lineno$, 30 = f1(3))
 
 f3(x:0) => seq(x)
-assert($lineno$, f3(4) = seq(4))
+assert($lineno$, seq(4) = f3(4))
 
 fact:0(n:0) => if(n<=1,1,n*fact(n-1))
-assert($lineno$, fact(6) = 720)
+assert($lineno$, 720 = fact(6))
 
-pot:0(n:0) => if(n<=0,1,10*pot(n-1))
-assert($lineno$, pot(6) = 1000000)
+pot:0(n:0) => do { if(n<=0,1,10*pot(n-1)) }
+assert($lineno$, 1000000 = pot(6))
 
 dfact:0(n:0) => do {
   nn => n*dfact(n-1)
   if(n<=1,1,nn)
 }
-assert($lineno$, dfact(6) = 720)
-assert($lineno$, dfact(20) = 2432902008176640000)
+assert($lineno$, 720 = dfact(6))
+assert($lineno$, 2432902008176640000 = dfact(20))
 
 scope0(t:'') => do {
   a := t & 'xxx'
   a
 }
-assert($lineno$, scope0('xyz') = 'xyzxxx')
+assert($lineno$, 'xyzxxx' = scope0('xyz'))
 
 scope1(n:0) => do {
   a := n+2
   a - 2
 }
-assert($lineno$, scope1(7) = 7)
+assert($lineno$, 7 = scope1(7))
 
 r := {{ name:='abc', id:=17 }}
 scope2(rr:r) => do {
   a := rr
   rr
 }
-assert($lineno$, scope2(r) = r)
+assert($lineno$, r = scope2(r))
 
 // --- user types
 
@@ -73,10 +74,10 @@ fr4(arg:rt2) => do {
   a
 }
 
-assert($lineno$, fr1(rr2) = rr2)
-assert($lineno$, fr2(rr2) = rr2)
-assert($lineno$, fr3(rt1(3, 'abc')) = rt1(3, 'abc'))
-assert($lineno$, fr4(rt2('abc', 4)) = rt2('abc', 4))
+assert($lineno$, rr2            = fr1(rr2))
+assert($lineno$, rr2            = fr2(rr2))
+assert($lineno$, rt1(3, 'abc')  = fr3(rt1(3, 'abc')))
+assert($lineno$, rt2('abc', 4)  = fr4(rt2('abc', 4)))
 
 finish($filename$)
 //andl_catalog

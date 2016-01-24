@@ -30,7 +30,7 @@ namespace Andl.Workbench {
       comboControl.Focus();
     }
 
-    void ExpandAll() {
+    public void ExpandAll() {
       treeViewControl.Items.OfType<TreeViewItem>().ToList().ForEach(ExpandAllNodes);
     }
 

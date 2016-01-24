@@ -5,7 +5,6 @@
 @classname PegParser
 @using System.Linq
 
-
 // start rule: Init for error handling, Start to load catalog
 MainStart <AstStatement> = &{ PrintLine(state) } &{ SetState(state) } DirectiveOrBlank* &{ Start() } v:MainNext { v }
     / MainRestart;  // suppress warning -- never taken
@@ -22,7 +21,7 @@ MainStatement <AstStatement> = WSO EOFX { null }
 // A do body is just {} or { statements }, EOF not allowed
 DoBody <AstValue> = WSO LCexp &{ AST(state).Enter() } WSC v:DoBodyLine* &{ AST(state).Exit() } WSO RCexp { AST(state).DoBlock(v) };
 DoBodyLine <AstStatement> = DirectiveOrBlank { AST(state).Empty() } // Note: DoBlock must discard these
-    / !(WSO RC) v:Statement WSO (&RC / EOLchk EOLX) { v };
+    / WSO !RC v:Statement WSO (&RC / EOLchk EOLX) { v };
 
 // directives
 DirectiveOrBlank = BlankLine / DirectiveLine;
@@ -31,13 +30,13 @@ BlankLine = WSO &EOL EOLX;
 DirectiveLine = Directive WSO EOLchk EOLX;      // take directive and end of line
 
 Directive = "#" (CatalogDirective / IncludeDirective / NoisyDirective / StopDirective / PanicDirective / BadDirective);
-CatalogDirective = "catalog" IDX v:CatalogOption* (&EOL / #STATE{ ParseError(state, "option expected"); } ) { CatalogDirective(state, v) };
+CatalogDirective = "catalog" IDX v:CatalogOption* (&EOL / &{ Error(state, "option expected") } ) { CatalogDirective(state, v) };
 CatalogOption = v:("new" / "load" / "update") IDX { v };
 IncludeDirective = "include" IDX v:(!CC .)* { IncludeDirective(state, String.Concat(v).Trim()) };
 NoisyDirective = "noisy" IDX v:Integer { NoisyDirective(state, String.Concat(v)) };
 StopDirective = "stop" IDX v:Integer? { StopDirective(state, String.Concat(v)) };
 PanicDirective = "panic" IDX #ERROR{ "panic" };
-BadDirective = #STATE{ ParseError(state, "bad directive");};
+BadDirective = &{ Error(state, "bad directive") };
 
 //--- statements
 Statement <AstStatement> = v:(<AstStatement> Deferred / Typedef / Import / UpdateJoin / UpdateTransform / Assignment / Expression / BadStatement) { v };
@@ -47,16 +46,16 @@ UserType <AstDefine> = v:DefinableExp LP w:FieldList RPexp { AST(state).UserType
 Subtype <AstDefine> = v:DefinableExp COLON w:Type { AST(state).SubType(v, w) };
 Type <AstType> = v:Typename &{ IsTypename(v) } { AST(state).FindType(v) }
     / v:SimplePrimary { AST(state).GetType(v) }
-    / #STATE{ ParseError(state, "type expected"); } { null };
+    / &{ Error(state, "type expected") } { null };
 
 Import <AstBlock> = DB v:ImportSource<0,,SEP> { AST(state).Block(v) };
 ImportSource <AstStatement> = v:DefinableExp LP w:SourceName RPexp { AST(state).Source(v, AST(state).Text(w)) };
 SourceName = v:Ident  &{ IsSourceName(v) } { v }
     / &RP { "" }
-    / #STATE{ ParseError(state, "source name expected"); } { "" };
+    / &{ Error(state, "source name expected") } { "" };
 
 Assignment <AstStatement> = &(Ident LA) v:DefinableExp LA w:Expression { AST(state).Assignment(v,w) }
-    / Definable LA #STATE{ ParseError(state, "expression expected"); } { null };
+    / Definable LA &{ Error(state, "expression expected") } { null };
 
 // must be able to backtrack from RA to pick up function call
 Deferred <AstStatement> = v:Ident 
@@ -77,13 +76,13 @@ UpdateJoin <AstStatement> =
 UpdateTransform <AstStatement> = 
     v:CatVar LA &LB &{ AST(state).Enter(AST(state).Variable(v)) } w:TransformTailExp &{ AST(state).Exit(true) } 
     { AST(state).UpdateTransform(v,w) };
-BadStatement <AstStatement> = #STATE{ ParseError(state, "bad statement");}  { null };
+BadStatement <AstStatement> = . &{ Error(state, "bad statement") }  { null };
 
 //----- expressions
 OpenAttrExprExp = (OpenAttrExpr 
-    / #STATE{ ParseError(state, "invalid attribute expression"); } { null });
+    / &{ Error(state, "invalid attribute expression") } { null });
 ExpressionExp = Expression
-    / #STATE{ ParseError(state, "expression expected"); } { null };
+    / &{ Error(state, "expression expected") } { null };
 
 OpenAttrExpr = OpenExpression; // may have a fold
 OpenExpression = Expression;  // needs to do name lookup
@@ -101,11 +100,11 @@ PostFixTail <AstCall> = RECURSE LPexp v:ExpressionExp RPexp { AST(state).OpCall(
     / DOT v:Funcop { AST(state).DotFunc(v) }
     / DOT v:Component { AST(state).DotComponent(v) }
     / DOT v:FieldIdent { AST(state).DotField(v) }
-    / DOT #STATE{ ParseError(state, "component or function expected"); } { null };
+    / DOT &{ Error(state, "component or function expected") } { null };
 
 //--- Transforms
 TransformTailExp = TransformTail
-    / LB #STATE{ ParseError(state, "transform arguments expected"); } { null };
+    / LB &{ Error(state, "transform arguments expected") } { null };
 TransformTail <AstTranCall> = LB v:Where? WSC w:Orderer? WSC x:Transformer? RBexp { AST(state).TransformTail(Single(v), Single(w), Single(x)) };
 
 Where <AstValue> = QUERY LPexp v:OpenExpression RPexp { AST(state).Where(v) };
@@ -129,20 +128,20 @@ SimplePrimary = DoBlock
     / Function
     / v:Literal { v }
     / v:VarIdent  { AST(state).Variable(v) }
-    / v:Ident #STATE{ ParseError(state, "undefined '{0}'", v); } { null };
+    / v:Ident &{ Error(state, "undefined '{0}'", v) } { null };
 
 If <AstValue> = IF LPexp v:Expression SEPexp w:Expression SEPexp x:Expression RPexp { AST(state).If(v,w,x) }
-    / IF LP  #STATE{ ParseError(state, "expression expected"); } { null };
+    / IF LP  &{ Error(state, "expression expected") } { null };
 
 Fold <AstValue> = FOLD LPexp v:Foldableop SEPexp w:Expression RPexp { AST(state).Fold(v,w) }
-    / FOLD LP  #STATE{ ParseError(state, "fold operator expected"); } { null };
+    / FOLD LP  &{ Error(state, "fold operator expected") } { null };
 
 DoBlock <AstValue> = DO v:DoBody { v }
 
 Function <AstValue> = v:Funcop LP w:ExpressionList RPexp { AST(state).Function(v, w.ToArray()) };
 
 Table <AstValue> = &(LC LC) &{ AST(state).Enter() } v:TableBody &{ AST(state).Exit() } { v }
-    / LC LC #STATE{ ParseError(state, "invalid table body"); } { null };
+    / LC LC &{ Error(state, "invalid table body") } { null };
 
 TableBody <AstValue> = LC LC STAR RCexp RCexp  { AST(state).Table() }
     / LC &LC v:TableHeading WSC w:RowValueList SEP? RCexp { AST(state).Table(v,w) }
@@ -166,7 +165,7 @@ FieldTerm <AstField> = v:Definable COLON w:Type { AST(state).FieldTerm(v, w) }
     / v:Definable { AST(state).FieldTerm(v, null) };
 
 DefinableExp = Definable 
-    / #STATE{ ParseError(state, "aleady defined"); } { null }
+    / &{ Error(state, "aleady defined") } { null }
 
 Typename = v:Ident &{ IsTypename(v) } { v };
 Foldableop = v:Funcop &{ IsFoldableop(v) } { v };
@@ -180,14 +179,14 @@ CatVar = v:Ident &{ IsCatVar(v) } { v };
 Definable = v:Ident &{ IsDefinable(v) } { v };
 
 // expecteds
-LCexp = (WSC LC / #STATE{ ParseError(state, "left brace expected"); } );
-RCexp = (WSC RC / #STATE{ ParseError(state, "right brace expected"); } );
-RBexp = (WSC RB / #STATE{ ParseError(state, "right bracket expected"); } );
-LPexp = (WSC LP / #STATE{ ParseError(state, "left parenthesis expected"); } );
-RPexp = (WSC RP / #STATE{ ParseError(state, "right parenthesis expected"); } );
-//LAexp = (WSC LA / #STATE{ ParseError(state, ":= expected"); } );
-SEPexp = (WSC SEP / #STATE{ ParseError(state, "comma expected"); } );
-EOLchk = (&EOL / #STATE{ ParseError(state, "end of line expected"); } );
+LCexp = (WSC LC / &{ Error(state, "left brace expected") } );
+RCexp = (WSC RC / &{ Error(state, "right brace expected") } );
+RBexp = (WSC RB / &{ Error(state, "right bracket expected") } );
+LPexp = (WSC LP / &{ Error(state, "left parenthesis expected") } );
+RPexp = (WSC RP / &{ Error(state, "right parenthesis expected") } );
+//LAexp = (WSC LA / &{ Error(state, ":= expected") } );
+SEPexp = (WSC SEP / &{ Error(state, "comma expected") } );
+EOLchk = (&EOL / &{ Error(state, "end of line expected") } );
 
 // Terminals -- each swallows following whitespace
 Ident = !KEYWORD v:IdentName WSO { v };
