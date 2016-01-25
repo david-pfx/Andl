@@ -35,6 +35,9 @@ namespace Andl.Runtime {
     public string SqlWhereText { get; private set; }
     // Sql for ORDERED BY clause
     public string SqlOrderByText { get; private set; }
+    // True if query contains a GROUP BY (so WHERE must be HAVING)
+    public bool HasGroupBy { get; set; }
+
     // True if this is a base table, otherwise it's just a query
     public bool BaseTable { get { return TableName != null; } }
 
@@ -224,8 +227,8 @@ namespace Andl.Runtime {
     //--- functions to manipulate queries
 
     // generate SQL code for restrict
-    DataTableSql AddWhere(ExpressionEval expr) {
-      var sql = _gen.Where(expr);
+    DataTableSql AddWhere(ExpressionEval expr, bool hasgroupby) {
+      var sql = (hasgroupby) ?  _gen.Having(expr) : _gen.Where(expr);
       var newtable = DataTableSql.CreateFromSql(this);
       // TODO: add WHERE to existing statement if there is none
       //var newtable = (!BaseTable && SqlWhereText == null) ? this : DataTableSql.CreateFromSql(this);
@@ -345,7 +348,7 @@ namespace Andl.Runtime {
 
     public override DataTable Restrict(ExpressionEval expr) {
       _database.RegisterExpressions(expr);
-      var newtable = AddWhere(expr);
+      var newtable = AddWhere(expr, HasGroupBy);
       Logger.WriteLine(4, "[Res '{0}']", newtable);
       return newtable;
     }
@@ -362,6 +365,7 @@ namespace Andl.Runtime {
       _database.RegisterExpressions(exprs);
       var sql = _gen.SelectAsGroup(GetFrom(), exprs);
       var newtable = DataTableSql.CreateFromSql(heading, sql);
+      newtable.HasGroupBy = true;
       Logger.WriteLine(4, "[TrnA '{0}']", newtable);
       return newtable;
     }
@@ -371,6 +375,7 @@ namespace Andl.Runtime {
       var sql = _gen.SelectAsGroup(GetFrom(), exprs);
       var ord = _gen.OrderBy(orderexps);
       var newtable = DataTableSql.CreateFromSql(heading, sql, ord);
+      newtable.HasGroupBy = true;
       Logger.WriteLine(4, "[TrnO '{0}']", newtable);
       return newtable;
     }

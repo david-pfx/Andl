@@ -191,5 +191,12 @@ namespace Andl.Workbench {
       databaseTreeControl.ExpandAll();
     }
 
+    private void TextBox_PreviewKeyDown(object sender, KeyEventArgs e) {
+      // the IsReadOnly flag on the control doesn't let the navigation keys work! WPF BUG?
+      if (!(e.Key == Key.Down || e.Key == Key.Up || e.Key == Key.Left || e.Key == Key.Right 
+         || e.Key == Key.Home || e.Key == Key.End || e.Key == Key.PageDown || e.Key == Key.PageUp 
+         || e.Key == Key.Tab || e.Key == Key.Escape))
+        e.Handled = true;
+    }
   }
 }

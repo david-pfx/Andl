@@ -32,7 +32,7 @@
   <DockPanel Height="auto" VerticalAlignment="Stretch">
 
     <!-- Menu -->
-    <Menu x:Name="menu" Height="22" DockPanel.Dock="Top">
+    <Menu x:Name="menu" Height="22" DockPanel.Dock="Top" Focusable="False">
       <MenuItem Header="_File">
         <MenuItem Header = "_New" Command="ApplicationCommands.New" >
           <MenuItem.Icon>
@@ -138,7 +138,7 @@
     </Menu>
 
     <!-- Toolbar -->
-    <ToolBarTray 
+    <ToolBarTray Focusable="False"
       DockPanel.Dock="Top">
       <ToolBar
         KeyboardNavigation.TabNavigation="None" >
@@ -191,6 +191,7 @@
         </Button>
       </ToolBar>
     </ToolBarTray>
+    
     <StatusBar 
       Name="statusBar"
       Height="23" 
@@ -201,6 +202,8 @@
       <StatusBarItem 
         Name="statusBarItem2" />
     </StatusBar>
+    
+    <!-- Main body content -->
     <Grid
       Height="Auto" 
       Width="Auto">
@@ -213,8 +216,7 @@
       <!-- Catalog tree view -->
       <Border
           Grid.Row="0" 
-          BorderThickness="5"
-          BorderBrush="Green">
+          BorderThickness="5">
         <local:DatabaseTreeControl x:Name="databaseTreeControl" />
       </Border>
 
@@ -236,8 +238,7 @@
         <!-- Text editor -->
         <Border
           Grid.Row="0" 
-          BorderThickness="5"
-          BorderBrush="Red">
+          BorderThickness="5">
           <avalonEdit:TextEditor
             xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
             Name="textEditor"
@@ -254,16 +255,23 @@
           IsTabStop="False" />
 
         <!-- Output window -->
-        <Border Grid.Row="2" BorderThickness="5" BorderBrush="Blue">
-          <ScrollViewer VerticalScrollBarVisibility="Auto"
-                        HorizontalScrollBarVisibility="Auto">
-            <TextBox 
-            FontFamily="Consolas"
-            FontSize="10pt"
-            Foreground="{Binding Path=OutputTextColour}" 
-            Text="{Binding Path=OutputText}"
-            IsReadOnly="True" Background="White" />
-          </ScrollViewer>
+        <Border Grid.Row="2" BorderThickness="5">
+            <TextBox Focusable="True"
+                     VerticalScrollBarVisibility="Auto"
+                     HorizontalScrollBarVisibility="Auto"
+                     FontFamily="Consolas" FontSize="10pt"
+                     Foreground="{Binding Path=OutputTextColour}" 
+                     Text="{Binding Path=OutputText}"
+                     Background="White" PreviewKeyDown="TextBox_PreviewKeyDown" />
+          <!--<ScrollViewer Name="scrollViewer" Focusable="False"
+                        VerticalScrollBarVisibility="Auto"
+                        HorizontalScrollBarVisibility="Auto" KeyDown="scrollViewer_KeyDown">
+            <TextBox Focusable="True"
+              FontFamily="Consolas" FontSize="10pt"
+              Foreground="{Binding Path=OutputTextColour}" 
+              Text="{Binding Path=OutputText}"
+              IsReadOnly="True" Background="White" />
+          </ScrollViewer>-->
         </Border>
       </Grid>
 

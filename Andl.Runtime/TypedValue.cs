@@ -85,7 +85,6 @@ namespace Andl.Runtime {
       return new BinaryValue { Value = value };
     }
     public static PointerValue Create(object value) {
-      Logger.Assert(value != null);
       return new PointerValue { Value = value };
     }
     public static BoolValue Create(bool value) {

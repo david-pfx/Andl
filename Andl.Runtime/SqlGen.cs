@@ -31,6 +31,7 @@ namespace Andl.Runtime {
       { "WhereExist",     "WHERE <not> EXISTS ( <select1> <setop> <select2> )" },
       { "WhereExist2",    "WHERE <not> EXISTS ( <select1> <setop> <select2> ) AND <not> EXISTS ( <select2> <setop> <select1> )" },
       { "Where",          "WHERE <expr>" },
+      { "Having",         "HAVING <expr>" },
       { "Using",          "USING ( <namelist> )" },
 
       { "OrderBy",        "ORDER BY <ordcols>" },
@@ -273,6 +274,13 @@ namespace Andl.Runtime {
         { "expr", (x) => EvalFunc(expr) },  // FIX: predicate
       };
       return SqlTemplater.Process("Where", dict);
+    }
+
+    public string Having(ExpressionBlock expr) {
+      var dict = new Dictionary<string, SubstituteDelegate> {
+        { "expr", (x) => EvalFunc(expr) },  // FIX: predicate
+      };
+      return SqlTemplater.Process("Having", dict);
     }
 
     public string OrderBy(ExpressionBlock[] exprs) {
