@@ -29,7 +29,7 @@ DirectiveOrBlank = BlankLine / DirectiveLine;
 BlankLine = WSO &EOL EOLX;
 DirectiveLine = Directive WSO EOLchk EOLX;      // take directive and end of line
 
-Directive = "#" (CatalogDirective / IncludeDirective / NoisyDirective / StopDirective / PanicDirective / BadDirective);
+Directive = "#" &{ PrintLine(state) } (CatalogDirective / IncludeDirective / NoisyDirective / StopDirective / PanicDirective / BadDirective);
 CatalogDirective = "catalog" IDX v:CatalogOption* (&EOL / &{ Error(state, "option expected") } ) { CatalogDirective(state, v) };
 CatalogOption = v:("new" / "load" / "update") IDX { v };
 IncludeDirective = "include" IDX v:(!CC .)* { IncludeDirective(state, String.Concat(v).Trim()) };
@@ -42,20 +42,23 @@ BadDirective = &{ Error(state, "bad directive") };
 Statement <AstStatement> = v:(<AstStatement> Deferred / Typedef / Import / UpdateJoin / UpdateTransform / Assignment / Expression / BadStatement) { v };
 
 Typedef <AstDefine> = DEF v:(UserType / Subtype)<0,,SEP> { AST(state).DefBlock(v) };
-UserType <AstDefine> = v:DefinableExp LP w:FieldList RPexp { AST(state).UserType(v, w.ToArray()) } ;
-Subtype <AstDefine> = v:DefinableExp COLON w:Type { AST(state).SubType(v, w) };
+UserType <AstDefine> = v:DefGlobalExp LP 
+    &{ AST(state).Enter() } w:FieldList &{ AST(state).Exit() } RPexp 
+    { AST(state).UserType(v, w.ToArray()) } ;
+Subtype <AstDefine> = v:DefGlobalExp COLON w:Type 
+    { AST(state).SubType(v, w) };
 Type <AstType> = v:Typename &{ IsTypename(v) } { AST(state).FindType(v) }
     / v:SimplePrimary { AST(state).GetType(v) }
     / &{ Error(state, "type expected") } { null };
 
 Import <AstBlock> = DB v:ImportSource<0,,SEP> { AST(state).Block(v) };
-ImportSource <AstStatement> = v:DefinableExp LP w:SourceName RPexp { AST(state).Source(v, AST(state).Text(w)) };
+ImportSource <AstStatement> = v:DefGlobalExp LP w:SourceName RPexp { AST(state).Source(v, AST(state).Text(w)) };
 SourceName = v:Ident  &{ IsSourceName(v) } { v }
     / &RP { "" }
     / &{ Error(state, "source name expected") } { "" };
 
-Assignment <AstStatement> = &(Ident LA) v:DefinableExp LA w:Expression { AST(state).Assignment(v,w) }
-    / Definable LA &{ Error(state, "expression expected") } { null };
+Assignment <AstStatement> = &(Ident LA) v:DefGlobalExp LA w:Expression { AST(state).Assignment(v,w) }
+    / DefGlobal LA &{ Error(state, "expression expected") } { null };
 
 // must be able to backtrack from RA to pick up function call
 Deferred <AstStatement> = v:Ident 
@@ -76,7 +79,8 @@ UpdateJoin <AstStatement> =
 UpdateTransform <AstStatement> = 
     v:CatVar LA &LB &{ AST(state).Enter(AST(state).Variable(v)) } w:TransformTailExp &{ AST(state).Exit(true) } 
     { AST(state).UpdateTransform(v,w) };
-BadStatement <AstStatement> = . &{ Error(state, "bad statement") }  { null };
+BadStatement <AstStatement> = WSO RC &{ Error(state, "mismatched right brace") }  { null }
+    / . &{ Error(state, "bad statement") }  { null };
 
 //----- expressions
 OpenAttrExprExp = (OpenAttrExpr 
@@ -161,11 +165,14 @@ RowTrans <AstField> = v:FieldIdent &(SEP / RC) { AST(state).Transfield(v) }
 
 //----- definitions
 FieldList = v:FieldTerm<0,,SEP>;
-FieldTerm <AstField> = v:Definable COLON w:Type { AST(state).FieldTerm(v, w) }
-    / v:Definable { AST(state).FieldTerm(v, null) };
+FieldTerm <AstField> = v:DefLocal COLON w:Type { AST(state).FieldTerm(v, w) }
+    / v:DefLocal { AST(state).FieldTerm(v, null) };
 
-DefinableExp = Definable 
-    / &{ Error(state, "aleady defined") } { null }
+DefGlobalExp = DefGlobal 
+    / v:Ident &{ Error(state, "previously defined '{0}'", v) } { null }
+// cannot use this because Deferred needs to be able to backtrack if no RA
+//DefLocalExp = DefLocal 
+//    / v:Ident &{ Error(state, "already defined in this scope '{0}'", v) } { null }
 
 Typename = v:Ident &{ IsTypename(v) } { v };
 Foldableop = v:Funcop &{ IsFoldableop(v) } { v };
@@ -176,7 +183,8 @@ Component = v:Ident &{ IsComponent(v) } { v };
 FieldIdent = v:Ident &{ IsField(v) } { v };
 VarIdent = v:Ident &{ IsVariable(v) } { v };
 CatVar = v:Ident &{ IsCatVar(v) } { v };
-Definable = v:Ident &{ IsDefinable(v) } { v };
+DefGlobal = v:Ident &{ CanDefGlobal(v) } { v };
+DefLocal = v:Ident &{ CanDefLocal(v) } { v };
 
 // expecteds
 LCexp = (WSC LC / &{ Error(state, "left brace expected") } );

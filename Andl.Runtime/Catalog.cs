@@ -175,16 +175,24 @@ namespace Andl.Runtime {
     // open the catalog for use, after all flags set up
     // create catalog table here, local until the end
     // only do it once
-    public bool Start(string databasepath = null) {
+    public bool Start(string path = null) {
       if (_started) return false;
-      Logger.WriteLine(3, "Catalog Start {0} path:'{1}'", this, databasepath);
-      DatabasePath = databasepath ?? DatabasePath ?? DefaultDatabaseName;
+      Logger.WriteLine(3, "Catalog Start {0} path:'{1}'", this, path);
+
+      // path logic
+      DatabasePath = path ?? DatabasePath ?? DefaultDatabaseName;
       var ext = Path.GetExtension(DatabasePath);
       if (ext == "")
         DatabasePath = Path.ChangeExtension(DatabasePath, (DatabaseSqlFlag) ? DefaultSqlDatabaseExtension : DefaultDatabaseExtension);
       else if (ext == DefaultSqlDatabaseExtension)
         DatabaseSqlFlag = true;
       DatabaseName = Path.GetFileNameWithoutExtension(DatabasePath);
+
+      if (LoadFlag) {
+        var exists = (DatabaseSqlFlag) ? File.Exists(DatabasePath) : Directory.Exists(DatabasePath);
+        if (!exists)
+          ProgramError.Fatal("Catalog", "Database does not exist: {0}", DatabasePath);
+      }
       if (DatabaseSqlFlag) {
         var sqleval = SqlEvaluator.Create();
         var database = Sqlite.SqliteDatabase.Create(DatabasePath, sqleval);

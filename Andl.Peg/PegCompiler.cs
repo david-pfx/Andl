@@ -15,6 +15,8 @@ namespace Andl.Peg {
     public bool Error { get; private set; }
     // get or set debug level
     public int ErrorCount { get; private set; }
+    // true if compilation was aborted
+    public bool Aborted { get; set; }
     // get instance of symbol table
     public SymbolTable Symbols { get; private set; }
     // get set instance of Catalog
@@ -31,14 +33,15 @@ namespace Andl.Peg {
     // Compile from input, write to output
     // Evaluate incrementally
     public bool Process(TextReader input, TextWriter output, Evaluator evaluator, string filename) {
-      var exec = Catalog.ExecuteFlag;
-      //var exec = Catalog.InteractiveFlag;
       var parser = new PegParser {
         Symbols = Symbols, Output = output, Cat = Catalog
       };
-      //var allcode = new ByteCode() { bytes = new byte[0] };
+      Error = false;
+      ErrorCount = 0;
+      Aborted = false;
 
       //var intext = input.ReadToEnd();
+      var exec = Catalog.ExecuteFlag;
       parser.Start(input, filename);
       Cursor state = null;
       while (!parser.Done) { // also set by #stop
@@ -59,8 +62,9 @@ namespace Andl.Peg {
           state = ex.State;
         } catch (Exception ex) {
           output.WriteLine(ex.ToString());
-          output.WriteLine(ex.Data["state"]);
+          //output.WriteLine(ex.Data["state"]);
           ErrorCount++;
+          Aborted = true;
           break;
         }
       }
@@ -74,7 +78,7 @@ namespace Andl.Peg {
       //  }
       //  return true;
       //}
-      return parser.Done && ErrorCount == 0;
+      return parser.Done && ErrorCount == 0 && !Aborted;
     }
 
     ///============================================================================================

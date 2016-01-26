@@ -5,7 +5,6 @@
 {{ x:= 1 }} recurse( {{ x:=x*2 }} [?(x<=5000000000)] )
 
 db orgchart(csv)
-//def orgchart:db(csv)
 orgchart
 ua := {{ name:= 'Alice', level := 0 }} recurse( {{ boss := name, level := level+1 }} compose orgchart)
 ua
@@ -16,19 +15,18 @@ ua [{ t:=fill('.', level*3) & name }]
 //    )
 
 db family_tree(csv)
-//def family_tree:db(csv)
 family_tree
 
 family_tree [ ?(id=1) { id, firstname, lastname, level:=0 }
   ] recurse( {{ father_id:=id, level:=level+1 }} compose family_tree[{id, firstname, lastname,father_id}] )
 
 db MM(csv)
-//def MM:db(csv)
 MM
 MM recurse( {{ z:=MAJOR_P#, MINOR_P# }} compose MM[{ MAJOR_P#, z:=MINOR_P# }] )
 MM recurse( {{ MAJOR_P#, z:=MINOR_P# }} compose MM[{ z:=MAJOR_P#, MINOR_P# }] )
 //{{ MAJOR_P#:'',MINOR_P#:'' }} recurse( {{ z:=MAJOR_P#, MINOR_P# }})
 
+// from this SQL
 //WITH RECURSIVE
 //  under_alice(name,level) AS (
 //    VALUES('Alice',0)

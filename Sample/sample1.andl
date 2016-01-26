@@ -95,7 +95,6 @@ write(v1)
 
 // read a file as a relation of lines of text {{ Line:text }}
 db test(txt)
-//def test:db(txt)
 test
 
 wait
@@ -105,21 +104,22 @@ v2
 
 // do block creates a local scope and returns value of last expression (statement returns void)
 do {
-  v2 := v1
-  v2
+  vx := v1
+  vx
 }
 
 // Deferred evaluation with do block
 v3 => do {
-  v2 := v1
-  v2
+  vx := v1
+  vx
 }
 v3
 
 // Deferred evaluation with do block and arguments defines a function
+// Note that local variables names can be reused
 v4(a) => do {
-  v2 := a
-  v2
+  vx := a
+  vx
 }
 v4(v1)
 

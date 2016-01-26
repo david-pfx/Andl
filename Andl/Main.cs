@@ -24,7 +24,7 @@ namespace Andl.Main {
   class Program {
     static bool _csw = false; // compile only
     static bool _isw = false; // interactive
-    static bool _nsw = true;  // new catalog
+    static bool _nsw = false;  // new catalog
     static bool _tsw = false; // Thrift IDL
     static bool _usw = false; // update catalog
     static bool _ssw = false; // sql
@@ -115,7 +115,7 @@ namespace Andl.Main {
       _catalog = Catalog.Create();
       _catalog.InteractiveFlag = _isw;
       _catalog.ExecuteFlag = !_csw;
-      _catalog.LoadFlag = !_nsw;
+      _catalog.LoadFlag = _paths.Count > 1 && !_nsw;
       _catalog.SaveFlag = _usw;
       _catalog.DatabaseSqlFlag = _ssw;
       _catalog.BaseName = Path.GetFileNameWithoutExtension(_paths[0]);
@@ -141,6 +141,7 @@ namespace Andl.Main {
       using (StreamReader input = File.OpenText(path)) {
         var ret = parser.Process(input, Console.Out, _evaluator, path);
         Logger.WriteLine("*** Compiled {0} {1} ", path, ret ? "OK"
+          : parser.Aborted ? "- terminated with fatal error"
           : "with error count = " + parser.ErrorCount.ToString());
         return parser.ErrorCount == 0;
       }

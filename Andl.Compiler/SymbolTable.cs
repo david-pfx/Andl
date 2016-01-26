@@ -193,7 +193,7 @@ namespace Andl.Compiler {
     public bool IsCompareOp { get { return IsBinary && DataType == DataTypes.Bool && !IsFoldable; } }
     public bool IsGlobal { get { return Level == 1; } }
 
-    public bool IsDefinable { get { return Atom == Atoms.IDENT; } }
+    public bool IsDefinable { get { return Atom == Atoms.IDENT; } } // BUG: will not fix
     //public bool IsDefinable { get { return Atom == Atoms.IDENT && Level != Scope.Current.Level; } }
 
     public TypedValue GetSeed(DataType datatype) {

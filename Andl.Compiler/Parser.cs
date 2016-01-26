@@ -25,6 +25,8 @@ namespace Andl.Compiler {
     public bool Error { get; private set; }
     // get or set debug level
     public int ErrorCount { get; private set; }
+    // true if compilation was aborted
+    public bool Aborted { get; set; }
     // get instance of symbol table
     public SymbolTable Symbols { get; private set; }
     // get set instance of Catalog

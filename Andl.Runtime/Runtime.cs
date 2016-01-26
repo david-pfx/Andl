@@ -10,6 +10,7 @@ namespace Andl {
   public interface IParser {
     bool Process(TextReader input, TextWriter output, Evaluator evaluator, string filename);
     int ErrorCount { get; }
+    bool Aborted { get; }
   }
 }
 

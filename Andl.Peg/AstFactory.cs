@@ -583,7 +583,7 @@ namespace Andl.Peg {
 
     // Enter scope for a function definition, with accumulator tracking
     public bool Enter(string ident, AstType rettype, IList<AstField> arguments) {
-      if (!Symbols.IsDefinable(ident)) Parser.ParseError("already defined: {0}", ident);
+      if (!Symbols.CanDefGlobal(ident)) Parser.ParseError("already defined: {0}", ident);
       var args = (arguments == null) ? new DataColumn[0] : arguments.Select(a => DataColumn.Create(a.Name, a.DataType)).ToArray();
       var rtype = (rettype == null) ? DataTypes.Unknown : rettype.DataType;
       Symbols.AddDeferred(ident, rtype, args);

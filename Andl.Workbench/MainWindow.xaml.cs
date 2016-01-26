@@ -23,22 +23,20 @@ namespace Andl.Workbench {
     const string DefaultScriptName = "test.andl";
 
     public TreeDataViewModel DataModel { get; set; }
-    string CurrentFileName { get; set; }
 
     readonly DatabaseSelector _dbconnector;
 
     public MainWindow() {
-      InitializeComponent();
-
       _dbconnector = DatabaseSelector.Create(".");
-
       // data context is this; access data model via simply property
       DataModel = new TreeDataViewModel(_dbconnector);
       DataContext = this;
 
+      InitializeComponent();
+
+
       // set initial visual state
       if (DataModel.Databases.Length > 0)
-        //DataModel.DatabaseName = DataModel.Databases[DataModel.Databases.Length - 1].OpenName;
         DataModel.DatabaseName = DataModel.Databases[0].OpenName;
 
       textEditor.Focus();
@@ -68,6 +66,15 @@ namespace Andl.Workbench {
     }
     public static readonly DependencyProperty OutputTextColourProperty =
         DependencyProperty.Register("OutputTextColour", typeof(string), typeof(MainWindow), new PropertyMetadata("black"));
+
+    public string CurrentFileName {
+      get { return (string)GetValue(CurrentFileNameProperty); }
+      set { SetValue(CurrentFileNameProperty, value); }
+    }
+
+    // Using a DependencyProperty as the backing store for CurrentFileName.  This enables animation, styling, binding, etc...
+    public static readonly DependencyProperty CurrentFileNameProperty =
+        DependencyProperty.Register("CurrentFileName", typeof(string), typeof(MainWindow), new PropertyMetadata(""));
 
     ///============================================================================================
     ///
@@ -198,5 +205,6 @@ namespace Andl.Workbench {
          || e.Key == Key.Tab || e.Key == Key.Escape))
         e.Handled = true;
     }
+
   }
 }

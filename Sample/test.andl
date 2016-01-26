@@ -2,4 +2,7 @@
 // 
 // Use this for quickly testing out ideas
 
-'Hello world!'
+v1 := 'Hello world!'
+v1
+
+v1.length

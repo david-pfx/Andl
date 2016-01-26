@@ -14,17 +14,15 @@
     </Grid.RowDefinitions>
 
     <!-- Combobox catalog selection -->
-    <Border Margin="4,4">
-      <StackPanel Grid.Row="0" Orientation="Horizontal" >
-        <TextBlock Text="Databases:" Margin="4,2"/>
-        <ComboBox Name="comboControl"
+    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="2,2">
+      <TextBlock Text="Databases:" Margin="4,2"/>
+      <ComboBox Name="comboControl"
                   ItemsSource="{Binding Path=Databases}" 
                   SelectedValue="{Binding Path=DatabaseName, Mode=TwoWay}" 
                   SelectedValuePath="OpenName" 
                   DisplayMemberPath="Display"
                   ToolTip="Choose a Catalog" />
-      </StackPanel>
-    </Border>
+    </StackPanel>
 
     <!-- Treeview catalog display -->
     <TreeView Name="treeViewControl" Grid.Row="1" 

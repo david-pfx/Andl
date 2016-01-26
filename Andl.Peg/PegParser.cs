@@ -86,10 +86,9 @@ namespace Andl.Peg {
       if (bol > _last_location) {
         _linestarts.Add(bol);
         Symbols.FindIdent("$lineno$").Value = NumberValue.Create(state.Line);
-        if (Logger.Level > 1)
-          Output.WriteLine("{0,3} {1,5}: {2}", state.Line, bol, GetLine(state.Subject, bol));
-        else if (Logger.Level > 0 || force)
-          Output.WriteLine("{0,3}: {1}", state.Line, GetLine(state.Subject, bol));
+        if (Logger.Level >= 1 || force)
+          Output.WriteLine("{0,3}: {1} {2}", state.Line, GetLine(state.Subject, bol),
+            (Logger.Level >= 2) ? " <bol="+bol.ToString()+">" : "");
         _last_location = bol;
       }
       return true;
@@ -207,8 +206,12 @@ namespace Andl.Peg {
       return Symbols.IsSource(name);
     }
 
-    bool IsDefinable(string name) {
-      return Symbols.IsDefinable(name);
+    bool CanDefGlobal(string name) {
+      return Symbols.CanDefGlobal(name);
+    }
+
+    bool CanDefLocal(string name) {
+      return Symbols.CanDefLocal(name);
     }
 
     bool IsField(string name) {

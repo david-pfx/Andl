@@ -7,6 +7,9 @@ using Andl.Gateway;
 using System.IO;
 
 namespace Andl.Client {
+  /// <summary>
+  /// Program that makes direct calls to the gateway
+  /// </summary>
   class Program {
     static void Main(string[] args) {
       Console.WriteLine("Andl.Client");
@@ -30,7 +33,6 @@ namespace Andl.Client {
       _api = GatewayFactory.Create(DatabaseName, _settingsdict);
       Run("fact:0(n:0) => if(n<=1,1,n*fact(n-1))");
       Run("fact(6)");
-      Run("zzz");
     }
 
     internal void Repl() {
