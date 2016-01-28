@@ -1,22 +1,19 @@
 ﻿// Chinook.andl -- using sample database in Sqlite
 // 
 
-#catalog new
-
 db Album(), Employee(), InvoiceLine(), PlaylistTrack(), Artist(), Genre(), MediaType()
 db Track(), Customer(), Invoice(), Playlist()
-//def Album:db(), Employee:db(), InvoiceLine:db(), PlaylistTrack:db(), Artist:db(), Genre:db(), MediaType:db()
-//def Track:db(), Customer:db(), Invoice:db(), Playlist:db()
 
 Album.schema
 //Employee.schema
 //Genre.schema
 MediaType.schema
-Track.schema
-Customer.schema
+//Track.schema
+//Customer.schema
 //Invoice.schema
 //Playlist.schema
 
 (Track join Album [?(Title =~ "Bach")]) [{Title, UnitPrice}]
 (Track join Album [?(Title =~ "Bach")] join MediaType)// [{Title, UnitPrice, Name}]
 (Album [?(Title =~ "Bach")] join Track join InvoiceLine join Invoice join Customer) [{Title, LastName}]
+(Album join Artist) [ {Name, HowMany:=fold(+,1)} ] [?(HowMany > 5) $(-HowMany)]

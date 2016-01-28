@@ -82,7 +82,7 @@ namespace Andl.Runtime {
 
       addins.Add(AddinInfo.Create("binary", 1, DataTypes.Binary, "Binary"));
       addins.Add(AddinInfo.Create("bool", 1, DataTypes.Bool, "Bool"));
-      addins.Add(AddinInfo.Create("number", 1, DataTypes.Number, "Number"));
+      addins.Add(AddinInfo.Create("number", 1, DataTypes.Number, "Number,NumberT"));
       addins.Add(AddinInfo.Create("time", 1, DataTypes.Time, "Time,TimeD")); //FIX:
       addins.Add(AddinInfo.Create("text", 1, DataTypes.Text, "Text"));
 
@@ -754,11 +754,17 @@ namespace Andl.Runtime {
       return BoolValue.Default;
     }
 
+    // Parse string as number
     public NumberValue Number(TextValue value) {
       decimal d;
       if (Decimal.TryParse(value.Value, out d)) return NumberValue.Create(d);
       ProgramError.Error("Convert", "not a valid number");
       return NumberValue.Default;
+    }
+
+    // Convert time value to seconds
+    public NumberValue NumberT(TimeValue value) {
+      return NumberValue.Create(value.Value.Ticks / 10000000.0m);
     }
 
     public TimeValue Time(TextValue value) {

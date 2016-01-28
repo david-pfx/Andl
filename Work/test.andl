@@ -24,10 +24,18 @@ sandsp := S [{ * sp := {{*}} compose SP}]
 parts
 sandsp
 
-fib:number(n:number) => if(n < 2,n, fib(n-1) + fib(n-2))
-fib5 := fib(5)
-t:=now()
+fact:number(n:number) => if(n < 2, n, n * fact(n-1))
+fact(7)
+fib:number(n:number) => if(n < 2, n, fib(n-1) + fib(n-2))
+fib(7)
+tfact(n:number) => do {
+  t := now().number
+  fact(20)
+  1000*(now().number-t)
+}
+tfact(50)
 
+t:=now()
 def utx(b:bool, s:text, n:number, t:time, r:{{a:text,b:text}})
 utv:=utx(true,'hello world', 42, now(), {{a:='aaaa',b:='bbbb'},{a:='aaaaa',b:='bbbbb'}})
 
