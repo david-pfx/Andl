@@ -39,48 +39,63 @@ PanicDirective = "panic" IDX #ERROR{ "panic" };
 BadDirective = &{ Error(state, "bad directive") };
 
 //--- statements
-Statement <AstStatement> = v:(<AstStatement> Deferred / Typedef / Import / UpdateJoin / UpdateTransform / Assignment / Expression / BadStatement) { v };
+Statement <AstStatement> = v:(Deferred 
+    / Typedef 
+    / Import 
+    / Update
+    / Assignment 
+    / Expression 
+    / BadStatement) { v };
+
+BadStatement <AstStatement> = WSO RC &{ Error(state, "mismatched right brace") }  { null }
+    / . &{ Error(state, "bad statement") }  { null };
 
 Typedef <AstDefine> = DEF v:(UserType / Subtype)<0,,SEP> { AST(state).DefBlock(v) };
 UserType <AstDefine> = v:DefGlobalExp LP 
     &{ AST(state).Enter() } w:FieldList &{ AST(state).Exit() } RPexp 
     { AST(state).UserType(v, w.ToArray()) } ;
-Subtype <AstDefine> = v:DefGlobalExp COLON w:Type 
+Subtype <AstDefine> = v:DefGlobalExp COLON w:TypeRef 
     { AST(state).SubType(v, w) };
-Type <AstType> = v:Typename &{ IsTypename(v) } { AST(state).FindType(v) }
-    / v:SimplePrimary { AST(state).GetType(v) }
-    / &{ Error(state, "type expected") } { null };
 
-Import <AstBlock> = DB v:ImportSource<0,,SEP> { AST(state).Block(v) };
+Import <AstBlock> = VAR v:ImportSource<0,,SEP> { AST(state).Block(v) };
 ImportSource <AstStatement> = v:DefGlobalExp LP w:SourceName RPexp { AST(state).Source(v, AST(state).Text(w)) };
 SourceName = v:Ident  &{ IsSourceName(v) } { v }
     / &RP { "" }
     / &{ Error(state, "source name expected") } { "" };
+
+Update <AstStatement> = 
+      UPDATE v:CatVar w:Funcop x:Funcop? y:ExpressionExp { AST(state).UpdateSetop(v,w,Single(x),y) }
+    / UPDATE v:CatVar &{ AST(state).Enter(v) } 
+             w:Where? x:Transformer &{ AST(state).Exit(true) } { AST(state).UpdateWhere(v,Single(w),x) }
+    / UPDATE v:CatVar &{ AST(state).Enter(v) } 
+             w:Where? &{ AST(state).Exit(true) } DOT DELETE { AST(state).UpdateWhere(v,Single(w),null) }
+    / UPDATE &{ Error(state, "bad update") }  { null };
+CatVar <AstValue> = v:CatIdent { AST(state).Variable(v) };
 
 Assignment <AstStatement> = &(Ident LA) v:DefGlobalExp LA w:Expression { AST(state).Assignment(v,w) }
     / DefGlobal LA &{ Error(state, "expression expected") } { null };
 
 // must be able to backtrack from RA to pick up function call
 Deferred <AstStatement> = v:Ident 
-    w:(<AstType> COLON a:Type { a } / { null }) 
+    w:(<AstType> COLON a:TypeRef { a } / { null }) 
     x:(<IList<AstField>> LP b:FieldList RP { b })? RA 
     &{ AST(state).Enter(v, w, Single(x)) } y:DeferredBody &{ AST(state).Exit(true) } { AST(state).Deferred(v,w,Single(x),y) };
 
-DeferredBody <AstBodyStatement> = 
-    v:(UpdateJoin 
-    / UpdateTransform 
-    / OpenAttrExpr 
-    / BadStatement) { AST(state).BodyStatement(v) };
+DeferredBody <AstBodyStatement> = v:OpenAttrExpr { AST(state).BodyStatement(v) }
+    / BadStatement { null };
+
+//    v:(UpdateJoin 
+//    / UpdateTransform 
+//    / OpenAttrExpr 
+//    / BadStatement) { AST(state).BodyStatement(v) };
 
 // prefer: &{ w.IsJoinOp() } 
-UpdateJoin <AstStatement> = 
-    v:CatVar LA &("union" / "minus") w:Funcop x:ExpressionExp
-    { AST(state).UpdateJoin(v,w,x) };
-UpdateTransform <AstStatement> = 
-    v:CatVar LA &LB &{ AST(state).Enter(AST(state).Variable(v)) } w:TransformTailExp &{ AST(state).Exit(true) } 
-    { AST(state).UpdateTransform(v,w) };
-BadStatement <AstStatement> = WSO RC &{ Error(state, "mismatched right brace") }  { null }
-    / . &{ Error(state, "bad statement") }  { null };
+//UpdateJoin <AstStatement> = 
+//    v:CatVar LA &("union" / "minus") w:Funcop x:ExpressionExp
+//    { AST(state).UpdateJoin(v,w,x) };
+//UpdateTransform <AstStatement> = 
+//    v:CatVar LA &LB &{ AST(state).Enter(AST(state).Variable(v)) } w:TransformTailExp &{ AST(state).Exit(true) } 
+//    { AST(state).UpdateTransform(v,w) };
 
 //----- expressions
 OpenAttrExprExp = (OpenAttrExpr 
@@ -97,32 +112,61 @@ BinopTail <AstOpCall> = v:Binop WSC w:Primary { AST(state).OpCall(v,w) }
 
 Primary <AstValue> = "-" v:Primary { AST(state).Function("u-",v) }
     / v:Unop w:Primary { AST(state).Function(v,w) }
-    / v:SimplePrimary &{ AST(state).Enter(v) } w:PostFixTail* &{ AST(state).Exit(true) } { AST(state).PostFix(v,w) };
+    / v:SimplePrimary &{ AST(state).Enter(v) } w:PostFixOp* &{ AST(state).Exit(true) } { AST(state).PostFix(v,w) };
 
-PostFixTail <AstCall> = RECURSE LPexp v:ExpressionExp RPexp { AST(state).OpCall("recurse",AST(state).Number(0),v) }
-    / &LB v:TransformTailExp { v }
+//--- post fix operators
+PostFixOp <AstCall> = &(WSL DOT) WSC v:PostFixOpBody { v }
+    / DOT &{ Error(state, "component or function expected") } { null };
+
+PostFixOpBody <AstCall> = v:Recurser { v }
+    / v:Transformer { v }
+    / v:Where { v }
+    / v:Orderer { v }
     / DOT v:Funcop { AST(state).DotFunc(v) }
     / DOT v:Component { AST(state).DotComponent(v) }
     / DOT v:FieldIdent { AST(state).DotField(v) }
-    / DOT &{ Error(state, "component or function expected") } { null };
 
-//--- Transforms
-TransformTailExp = TransformTail
-    / LB &{ Error(state, "transform arguments expected") } { null };
-TransformTail <AstTranCall> = LB v:Where? WSC w:Orderer? WSC x:Transformer? RBexp { AST(state).TransformTail(Single(v), Single(w), Single(x)) };
+//--- Tuple generators
 
-Where <AstValue> = QUERY LPexp v:OpenExpression RPexp { AST(state).Where(v) };
+Recurser <AstOpCall> = DOT WHILE LPexp v:ExpressionExp RPexp { AST(state).While(v) }
+//Recurser <AstCall> = DOT WHILE LPexp v:ExpressionExp RPexp { AST(state).OpCall("recurse",AST(state).Number(0),v) }
 
-Orderer <AstOrderer> = DOLLAR LPexp v:OrderTermList RPexp { AST(state).Orderer(v) };
+Where <AstWhere> = DOT WHERE LPexp v:OpenExpression RPexp { AST(state).Where(v) };
+
+Orderer <AstOrderer> = DOT ORDER LPexp v:OrderTermList RPexp { AST(state).Orderer(v) };
 OrderTermList = OrderTerm<0,,SEP>;
-OrderTerm <AstOrder> = w:PERCENT? v:MINUS? x:FieldIdent { AST(state).Order(x, v.Count > 0, w.Count > 0) };
+OrderTerm <AstOrderField> = w:PERCENT? v:MINUS? x:FieldIdent { AST(state).OrderField(x, v.Count > 0, w.Count > 0) };
 
-Transformer <AstTransformer> = LC WSC v:STAR? WSC w:TransformList SEP? RCexp { AST(state).Transformer(v.Count > 0, w) }
+Transformer <AstTransformer> = DOT LC WSC v:STAR? WSC w:TransformList SEP? RCexp { AST(state).Transformer(v.Count > 0, w) }
 TransformList = Transform<0,,SEP>;
-Transform <AstField> = !RC v:FieldIdent &(SEP / RC) { AST(state).Transfield(v) }
-    / !RC v:Ident LA WSC w:FieldIdent &(SEP / RC) { AST(state).Transfield(v, w) }
-    / !RC v:Ident LA WSC w:OpenAttrExprExp { AST(state).Transfield(v, null, w) }
-    / !RC v:OpenAttrExprExp { AST(state).Transfield(null, null, v) };
+Transform <AstField> = !RC v:FieldIdent &(SEP / RC) { AST(state).Transfield(v) }        // project
+    / !RC v:Ident LA WSC w:FieldIdent &(SEP / RC) { AST(state).Transfield(v, w) }       // rename
+    / !RC v:Ident LA WSC w:OpenAttrExprExp { AST(state).Transfield(v, null, w) }        // extend
+    / !RC v:OpenAttrExprExp { AST(state).Transfield(null, null, v) };                   // lift
+
+//PostFixTail <AstCall> = RECURSE LPexp v:ExpressionExp RPexp { AST(state).OpCall("recurse",AST(state).Number(0),v) }
+//    / &LB v:TransformTailExp { v }
+//    / DOT v:Funcop { AST(state).DotFunc(v) }
+//    / DOT v:Component { AST(state).DotComponent(v) }
+//    / DOT v:FieldIdent { AST(state).DotField(v) }
+//    / DOT &{ Error(state, "component or function expected") } { null };
+
+//TransformTailExp = TransformTail
+//    / LB &{ Error(state, "transform arguments expected") } { null };
+//TransformTail <AstTranCall> = LB v:Where? WSC w:Orderer? WSC x:Transformer? RBexp { AST(state).TransformTail(Single(v), Single(w), Single(x)) };
+
+//Where <AstValue> = QUERY LPexp v:OpenExpression RPexp { AST(state).Where(v) };
+//
+//Orderer <AstOrderer> = DOLLAR LPexp v:OrderTermList RPexp { AST(state).Orderer(v) };
+//OrderTermList = OrderTerm<0,,SEP>;
+//OrderTerm <AstOrder> = w:PERCENT? v:MINUS? x:FieldIdent { AST(state).Order(x, v.Count > 0, w.Count > 0) };
+//
+//Transformer <AstTransformer> = LC WSC v:STAR? WSC w:TransformList SEP? RCexp { AST(state).Transformer(v.Count > 0, w) }
+//TransformList = Transform<0,,SEP>;
+//Transform <AstField> = !RC v:FieldIdent &(SEP / RC) { AST(state).Transfield(v) }
+//    / !RC v:Ident LA WSC w:FieldIdent &(SEP / RC) { AST(state).Transfield(v, w) }
+//    / !RC v:Ident LA WSC w:OpenAttrExprExp { AST(state).Transfield(v, null, w) }
+//    / !RC v:OpenAttrExprExp { AST(state).Transfield(null, null, v) };
 
 //----- Primaries
 SimplePrimary = DoBlock 
@@ -144,36 +188,55 @@ DoBlock <AstValue> = DO v:DoBody { v }
 
 Function <AstValue> = v:Funcop LP w:ExpressionList RPexp { AST(state).Function(v, w.ToArray()) };
 
-Table <AstValue> = &(LC LC) &{ AST(state).Enter() } v:TableBody &{ AST(state).Exit() } { v }
+Table <AstValue> = &(REL / LC LC) &{ AST(state).Enter() } v:TableBody &{ AST(state).Exit() } { v }
     / LC LC &{ Error(state, "invalid table body") } { null };
 
 TableBody <AstValue> = LC LC STAR RCexp RCexp  { AST(state).Table() }
-    / LC &LC v:TableHeading WSC w:RowValueList SEP? RCexp { AST(state).Table(v,w) }
-    / LC &LC v:RowList RCexp { AST(state).Table(null, v) };
-TableHeading <AstValue> = LC COLON RC { AST(state).Heading(null) }
-    / LC &(Ident COLON) v:FieldList RCexp { AST(state).Heading(v) };
+    / LC &LC v:RowList RCexp { AST(state).Table(v) }
+    / REL LPexp v:RowList RPexp { AST(state).Table(v) };
 
-RowValueList = v:RowValue<0,,SEP>;
-RowValue <AstValue> = LP v:ExpressionList SEP? RPexp { AST(state).RowValues(v) };
+//RowValueList = v:RowValue<0,,SEP>;
+//RowValue <AstValue> = LP v:ExpressionList SEP? RPexp { AST(state).RowValues(v) };
 
 RowList = v:Row<0,,SEP>;
 Row <AstValue> = LC STAR RCexp { AST(state).Row() }
     / LC v:RowTransList RCexp { AST(state).Row(AST(state).Transformer(false, v)) }
+    / TUP LPexp v:Expression RPexp { AST(state).Row(v) }
+    / v:VarIdent  { AST(state).Variable(v) };
+
 RowTransList = RowTrans<0,,SEP>;
 RowTrans <AstField> = v:FieldIdent &(SEP / RC) { AST(state).Transfield(v) }
     / v:Ident LA w:Expression { AST(state).Transfield(v, null, w) }
 
-//----- definitions
-FieldList = v:FieldTerm<0,,SEP>;
-FieldTerm <AstField> = v:DefLocal COLON w:Type { AST(state).FieldTerm(v, w) }
-    / v:DefLocal { AST(state).FieldTerm(v, null) };
+//--- type reference
+TypeRef <AstType> = v:Typename &{ IsTypename(v) } { AST(state).FindType(v) }
+    / TUP COLON v:Heading { AST(state).TupType(v) }
+    / REL COLON v:Heading { AST(state).RelType(v) }
+    / v:SimplePrimary { AST(state).GetType(v) }
+    / &{ Error(state, "type expected") } { null };
 
+Heading <AstValue> = LC COLON RC { AST(state).Heading(null) }
+    / LC &(Ident COLON) v:FieldList RCexp { AST(state).Heading(v) };
+
+FieldList = v:FieldTerm<0,,SEP>;
+FieldTerm <AstField> = v:DefLocal COLON w:TypeRef { AST(state).FieldTerm(v, w) }
+    / v:DefLocalExp { AST(state).FieldTerm(v, null) };
+
+//--- expecteds
 DefGlobalExp = DefGlobal 
     / v:Ident &{ Error(state, "previously defined '{0}'", v) } { null }
-// cannot use this because Deferred needs to be able to backtrack if no RA
-//DefLocalExp = DefLocal 
-//    / v:Ident &{ Error(state, "already defined in this scope '{0}'", v) } { null }
+DefLocalExp = DefLocal 
+    / v:Ident &{ Error(state, "already defined in this scope '{0}'", v) } { null }
+LCexp = (WSC LC / &{ Error(state, "left brace expected") } );
+RCexp = (WSC RC / &{ Error(state, "right brace expected") } );
+//RBexp = (WSC RB / &{ Error(state, "right bracket expected") } );
+LPexp = (WSC LP / &{ Error(state, "left parenthesis expected") } );
+RPexp = (WSC RP / &{ Error(state, "right parenthesis expected") } );
+//LAexp = (WSC LA / &{ Error(state, ":= expected") } );
+SEPexp = (WSC SEP / &{ Error(state, "comma expected") } );
+EOLchk = (&EOL / &{ Error(state, "end of line expected") } );
 
+//----- terminals
 Typename = v:Ident &{ IsTypename(v) } { v };
 Foldableop = v:Funcop &{ IsFoldableop(v) } { v };
 Binop = v:Funcop &{ IsBinop(v) } { v };
@@ -182,21 +245,11 @@ Funcop = v:(Ident / Operator) &{ IsFuncop(v) } { v };
 Component = v:Ident &{ IsComponent(v) } { v };
 FieldIdent = v:Ident &{ IsField(v) } { v };
 VarIdent = v:Ident &{ IsVariable(v) } { v };
-CatVar = v:Ident &{ IsCatVar(v) } { v };
+CatIdent = v:Ident &{ IsCatVar(v) } { v };
 DefGlobal = v:Ident &{ CanDefGlobal(v) } { v };
 DefLocal = v:Ident &{ CanDefLocal(v) } { v };
 
-// expecteds
-LCexp = (WSC LC / &{ Error(state, "left brace expected") } );
-RCexp = (WSC RC / &{ Error(state, "right brace expected") } );
-RBexp = (WSC RB / &{ Error(state, "right bracket expected") } );
-LPexp = (WSC LP / &{ Error(state, "left parenthesis expected") } );
-RPexp = (WSC RP / &{ Error(state, "right parenthesis expected") } );
-//LAexp = (WSC LA / &{ Error(state, ":= expected") } );
-SEPexp = (WSC SEP / &{ Error(state, "comma expected") } );
-EOLchk = (&EOL / &{ Error(state, "end of line expected") } );
-
-// Terminals -- each swallows following whitespace
+//--- terminals -- each swallows following whitespace
 Ident = !KEYWORD v:IdentName WSO { v };
 IdentName = v:IdentQuoted WSO w:TextString { v + w }
     / IdentQuoted 
@@ -212,20 +265,26 @@ Literals<AstValue> = TRUE { AST(state).Bool("true") }
     / v:TextString { AST(state).Text(v) };
 Integer = IntegerString WSO;
 
-KEYWORD = DO / DEF / DB / TRUE / FALSE;
+KEYWORD = DEF / DO / VAR / TUP / REL / TRUE / FALSE;
 
 // note: tokens followed by WSC will swallow an EOL
-DB = "db" IDX;
-DEF = "def" IDX;
 DO = "do" IDX;
+DEF = "def" IDX;
+REL = ("rel" / "relation") IDX;
+TUP = ("tup" / "tuple") IDX;
+VAR = "var" IDX;
+
+IF = "if" IDX;
+DELETE = "delete" IDX;
+FOLD = "fold" IDX;
+ORDER = "order" IDX;
+UPDATE = "update" IDX;
+WHERE = "where" IDX;
+WHILE = "while" IDX;
 
 TRUE = "true" IDX;
 FALSE = "false" IDX;
-RECURSE = "recurse" IDX;
-IF = "if" IDX;
-FOLD = "fold" IDX;
 
-//NOT = "not" IDX;
 RA = "=>" WSO;
 LA = ":=" WSO;
 COLON = ':' !OpChar WSO;
@@ -235,17 +294,16 @@ LC = '{' WSO;
 RC = '}' WSO;   // note: gets its own handling
 LP = '(' WSC;
 RP = ')' WSO;
-LB = '[' WSO;
-RB = ']' WSO;
+//LB = '[' WSO;
+//RB = ']' WSO;
 STAR = '*' !OpChar WSO;
-QUERY = '?' WSO;
-DOLLAR = '$' WSO;
 PERCENT = '%' WSO;
 MINUS = '-' !OpChar WSO;
 
 IDX = !ID WS*;              // end of ident possibly followed by WS
 
 Skip = (!EOL .)* (EOFX / EOLX);       // skip the rest of the line and hope it then makes sense
+WSL = WSO (EOL WSO)*;       // suitable for lookahead
 WSC = WSO (EOLX WSO)*;      // continuation, take eol if found, plus WS
 WSO = WS*;                  // optional whitespace between tokens
 WS = (SP / Comment) { "" };

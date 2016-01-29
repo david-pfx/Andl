@@ -547,6 +547,10 @@ namespace Andl.Runtime {
     public override DataType DataType { get { return _datatype; } }
     protected DataTypeUser _datatype;
 
+    public override DataHeading Heading {
+      get { return DataType.Heading; }
+    }
+
     static UserValue() {
       Default = Create(new TypedValue[0], DataTypeUser.Empty);
     }

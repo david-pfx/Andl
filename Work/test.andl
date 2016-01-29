@@ -1,5 +1,73 @@
-﻿x:=42
-write(x.text)
+﻿#noisy 2
+var S(csv), P(csv), SP(csv)
+vs:='asdf'
+vn := 99
+vt := { x:=17, y:=21 }
+vr := {{ x:=33, y:=51 }}
+def udt(city:'', size:0)
+vu := udt('Paris',20)
+
+#noisy 3
+vt .x
+S .{ fold(+,STATUS) } 
+
+#stop
+vr
+update vr union {{ x:=34, y:=599 }}
+vr
+update vr .where(x=34) .{ *x:=35 }
+vr
+update vr .where(x=33) .delete
+vr
+{{ X := 0 }} .while (S .where(X<100) .{ X := X + STATUS }) .where(X>=100)
+S .order(CITY)
+  .{ CITY, qty:=fold(+,STATUS) }
+S .order(CITY) .where(STATUS>=20)
+S .where(STATUS>=20) .order(CITY) 
+S.order(CITY)
+S.where(STATUS>20)
+S.count
+vt.x
+#stop
+
+{}
+{name := 'Smith', age := 17}
+{name := vs, age := vn}
+
+tup(vt)
+tup(vr)
+tup(vu)
+tup({name := 'Smith', age := 17})
+tup({name := vs, age := vn})
+
+{{name := 'Smith', age := 17},{name := 'Jones', age := 35},{age :=199,name:='Frankenstein' }}
+{{name := vs, age := 17},{name := 'Jones', age := vn},{age :=199,name:='Frankenstein' }}
+rel(vr)
+rel(vt)
+rel(vu)
+rel({name := 'Smith', age := 17},{name := 'Jones', age := 35},{age :=199,name:='Frankenstein' })
+#stop
+
+// Relations - used heavily
+{{:}}       // empty relation, no attributes, no tuples
+{{:}()}     // ditto, one tuple
+{{}}        // same, with type derived by inference
+//{{},{},{},{},{},{},{},{}}        // exactly the same value (duplicates discarded)
+{{:}(),(),(),(),(),(),()}         // exactly the same value (heading format)
+wait
+
+// Relation literal can be just a comma separate list of tuples
+// all the same -- order does not matter
+{{name := 'Smith', age := 17},{name := 'Jones', age := 35},{age :=199,name:='Frankenstein' }}
+{{name := 'Smith', age := 17},{age :=199,name:='Frankenstein' },{age := 35, name := 'Jones'}}
+
+// or it can have a header and a list of selectors with values in the same order
+{{name:text,age:number}
+    ('Smith', 17),
+    ('Jones', 35),
+    ('Frankenstein', 199)
+}
+
 #stop
 // test.andl -- is automatically loaded and run if no other file is specified
 // 

@@ -218,22 +218,6 @@ namespace Andl.Runtime {
       return ret;
     }
 
-    // Create a row from values and a heading
-    public TupleValue Row2(TypedValue hdgarg, params TypedValue[] valueargs) {
-      var heading = hdgarg.AsHeading();
-      var newrow = DataRow.Create(heading, valueargs);
-      Logger.WriteLine(3, "[Row={0}]", newrow);
-      return TupleValue.Create(newrow);
-    }
-
-    // Create a Table from row values and a heading
-    // Each row has its own heading, which must match.
-    public RelationValue Table2(HeadingValue hdgarg, params TypedValue[] rowargs) {
-      var newtable = DataTable.Create(hdgarg.Value, rowargs.Select(r => r.AsRow()));
-      Logger.WriteLine(3, "[Table={0}]", newtable);
-      return RelationValue.Create(newtable);
-    }
-
     // Create a row by evaluating named expressions against a heading
     // TODO:no heading
     public TupleValue Row(TypedValue hdgarg, params CodeValue[] exprargs) {
@@ -244,13 +228,72 @@ namespace Andl.Runtime {
       return TupleValue.Create(newrow);
     }
 
+    // Create a row from values and a heading
+    public TupleValue RowV(TypedValue hdgarg, params TypedValue[] valueargs) {
+      var heading = hdgarg.AsHeading();
+      var newrow = DataRow.Create(heading, valueargs);
+      Logger.WriteLine(3, "[Row={0}]", newrow);
+      return TupleValue.Create(newrow);
+    }
+
+    // Create a row from a heading by converting a value 
+    public TupleValue RowC(TypedValue hdgarg, TypedValue[] valuearg) {
+      var heading = hdgarg.AsHeading();
+      var value = valuearg[0];
+      DataRow newrow = null;
+      if (value.DataType is DataTypeTuple)
+        newrow = value.AsRow();
+      else if (value.DataType is DataTypeUser) {
+        var user = value as UserValue;
+        newrow = DataRow.Create(user.Heading, user.Value);
+      } else if (value.DataType is DataTypeRelation) {
+        var rel = value.AsTable();
+        newrow = rel.GetRows().FirstOrDefault();
+        if (newrow == null)
+          ProgramError.Error("Builtin", "relation is empty");
+      }
+      Logger.Assert(newrow != null, "RowT");
+      Logger.WriteLine(3, "[Row={0}]", newrow);
+      return TupleValue.Create(newrow);
+    }
+
     // Create a Table from a list of expressions that will yield rows
     // Each row has its own heading, which must match.
-    // TODO:no heading
     public RelationValue Table(HeadingValue hdgarg, params CodeValue[] exprargs) {
       var exprs = exprargs.Select(e => e.AsEval).ToArray();
 
       var newtable = DataTable.Create(hdgarg.Value, exprs);
+      Logger.WriteLine(3, "[Table={0}]", newtable);
+      return RelationValue.Create(newtable);
+    }
+
+    // Create a Table from row values and a heading
+    // Each row has its own heading, which must match.
+    public RelationValue TableV(HeadingValue hdgarg, params TypedValue[] rowargs) {
+      var newtable = DataTable.Create(hdgarg.Value, rowargs.Select(r => r.AsRow()));
+      Logger.WriteLine(3, "[Table={0}]", newtable);
+      return RelationValue.Create(newtable);
+    }
+
+    // Create a Table by converting a value
+    // Each row has its own heading, which must match.
+    public RelationValue TableC(HeadingValue hdgarg, params TypedValue[] valueargs) {
+      var heading = hdgarg.AsHeading();
+      var value = valueargs[0];
+      DataTable newtable = null;
+      if (value.DataType is DataTypeTuple)
+        newtable = DataTableLocal.Create(heading, new DataRow[] {
+          value.AsRow()
+        });
+      else if (value.DataType is DataTypeUser) {
+        var user = value as UserValue;
+        newtable = DataTableLocal.Create(heading, new DataRow[] {
+          DataRow.Create(heading, user.Value)
+        });
+      } else if (value.DataType is DataTypeRelation) {
+        newtable = value.AsTable();
+      }
+      Logger.Assert(newtable != null, "TableC");
       Logger.WriteLine(3, "[Table={0}]", newtable);
       return RelationValue.Create(newtable);
     }

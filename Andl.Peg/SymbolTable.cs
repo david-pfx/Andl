@@ -41,6 +41,7 @@ namespace Andl.Peg {
     RECURSE,
     VALUE,
     RANK,
+    RESTRICT,
   }
 
   /// <summary>
@@ -114,11 +115,15 @@ namespace Andl.Peg {
     public const string Import = ":import";
     public const string Lift = ":lift";
     public const string Project = ":project";
+    public const string Recurse = ":recurse";
     public const string Rename = ":rename";
     public const string Restrict = ":restrict";
     public const string RowE = ":rowe";
     public const string RowV = ":rowv";
+    public const string RowC = ":rowc";
     public const string Table = ":table";
+    public const string TableV = ":tablev";
+    public const string TableC = ":tablec";
     public const string Transform = ":transform";
     public const string TransAgg = ":transagg";
     public const string TransOrd = ":transord";
@@ -172,6 +177,7 @@ namespace Andl.Peg {
     public bool IsUserSel { get { return CallKind == CallKinds.SFUNC; } }
     public bool IsDefFunc { get { return CallKind == CallKinds.EFUNC; } }
     public bool IsOrdFunc { get { return FuncKind == FuncKinds.VALUE || FuncKind == FuncKinds.RANK; } }
+    public bool IsRestFunc { get { return FuncKind == FuncKinds.RESTRICT; } }
     public bool IsRecurse { get { return FuncKind == FuncKinds.RECURSE; } }
     public bool IsCallable { get { return CallKind != CallKinds.NUL; } }
     public bool IsOperator { get { return IsCallable && Precedence != 0; } }
@@ -449,13 +455,17 @@ namespace Andl.Peg {
       AddFunction(SymNames.Project, 2, DataTypes.Table, CallKinds.VFUNC, "Project");
       AddFunction(SymNames.Rename, 2, DataTypes.Table, CallKinds.VFUNC, "Rename");
       AddFunction(SymNames.RowE, 2, DataTypes.Row, CallKinds.VFUNC, "Row");
-      AddFunction(SymNames.RowV, 2, DataTypes.Row, CallKinds.VFUNCT, "Row2");
-      AddFunction(SymNames.Restrict, 2, DataTypes.Table, CallKinds.VFUNC, "Restrict");
+      AddFunction(SymNames.RowV, 2, DataTypes.Row, CallKinds.VFUNCT, "RowV");
+      AddFunction(SymNames.RowC, 2, DataTypes.Row, CallKinds.VFUNCT, "RowC");
+      AddFunction(SymNames.Recurse, 3, DataTypes.Unknown, CallKinds.FUNC, "Recurse", FuncKinds.RECURSE);
+      AddFunction(SymNames.Restrict, 2, DataTypes.Table, CallKinds.VFUNC, "Restrict", FuncKinds.RESTRICT);
       AddFunction(SymNames.Transform, 2, DataTypes.Table, CallKinds.VFUNC, "Transform");
       AddFunction(SymNames.TransAgg, 2, DataTypes.Table, CallKinds.VFUNC, "TransAgg");
       AddFunction(SymNames.TransOrd, 2, DataTypes.Table, CallKinds.VFUNC, "TransOrd");
       AddFunction(SymNames.TransTuple, 2, DataTypes.Table, CallKinds.VFUNC, "TransTuple");
-      AddFunction(SymNames.Table, 2, DataTypes.Table, CallKinds.VFUNCT, "Table2");
+      AddFunction(SymNames.Table, 2, DataTypes.Table, CallKinds.VFUNC, "Table");
+      AddFunction(SymNames.TableV, 2, DataTypes.Table, CallKinds.VFUNCT, "TableV");
+      AddFunction(SymNames.TableC, 2, DataTypes.Table, CallKinds.VFUNCT, "TableC");
       AddFunction(SymNames.UpdateJoin, 3, DataTypes.Bool, CallKinds.FUNC, "UpdateJoin");
       AddFunction(SymNames.UpdateTransform, 3, DataTypes.Bool, CallKinds.VFUNC, "UpdateTrans");
       AddFunction(SymNames.UserSelector, 2, DataTypes.User, CallKinds.VFUNCT, "UserSelector");
@@ -466,7 +476,6 @@ namespace Andl.Peg {
       //AddFunction("fold", 0, DataTypes.Unknown, CallKinds.FUNC, "Fold", FuncKinds.FOLD);
       AddFunction("cfold", 2, DataTypes.Unknown, CallKinds.FUNC, "CumFold", FuncKinds.FOLD);
       AddFunction(SymNames.If, 3, DataTypes.Unknown, CallKinds.FUNC, "If", FuncKinds.IF);
-      AddFunction("recurse", 3, DataTypes.Unknown, CallKinds.FUNC, "Recurse", FuncKinds.RECURSE);
 
       AddFunction("ord", 0, DataTypes.Number, CallKinds.LFUNC, "Ordinal");
       AddFunction("ordg", 0, DataTypes.Number, CallKinds.LFUNC, "OrdinalGroup");

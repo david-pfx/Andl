@@ -87,7 +87,7 @@
     <None Include="test-50.andl" />
   </ItemGroup>
   <ItemGroup>
-    <PegGrammar Include="Andl.grammar.txt" />
+    <PegGrammar Include="Andl.grammar.peg" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include=".NETFramework,Version=v4.5.2">

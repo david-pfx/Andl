@@ -95,7 +95,7 @@ namespace Andl.Peg {
       if (datatype == null) Parser.ParseError("cannot find '{0}' as '{1}'", ident, value);
       Symbols.AddVariable(ident, datatype, SymKinds.CATVAR);
       Symbols.AddCatalog(Symbols.FindIdent(ident));
-      return FunCall(FindFunc(SymNames.Import), Args(value, Text(ident), Text(Parser.Cat.SourcePath)));
+      return GenFunCall(FindFunc(SymNames.Import), Args(value, Text(ident), Text(Parser.Cat.SourcePath)));
     }
 
     public AstStatement Deferred(string ident, AstType rettype, IList<AstField> arguments, AstBodyStatement body) {
@@ -106,68 +106,87 @@ namespace Andl.Peg {
         op.Foldable = FoldableFlags.ANY;
       Symbols.AddCatalog(op);
       Types.CheckTypeMatch(body.DataType, op.DataType);
-      return FunCall(FindFunc(SymNames.Defer), Args(Code(body.Statement as AstValue, Headingof(arguments), ident, body.AccumCount, true)));
+      return GenFunCall(FindFunc(SymNames.Defer), Args(Code(body.Statement as AstValue, Headingof(arguments), ident, body.AccumCount, true)));
     }
 
     public AstStatement Assignment(string ident, AstValue value) {
       Symbols.AddVariable(ident, value.DataType, SymKinds.CATVAR);
       Symbols.AddCatalog(Symbols.FindIdent(ident));
-      return FunCall(FindFunc(SymNames.Assign), Args(Text(ident), value));
+      return GenFunCall(FindFunc(SymNames.Assign), Args(Text(ident), value));
     }
 
-    public AstStatement UpdateJoin(string ident, string joinop, AstValue expr) {
+    // UPDATE rel <set op> relexpr
+    public AstStatement UpdateSetop(AstValue relvar, string joinop, string joinop2, AstValue expr) {
       var joinsym = FindFunc(joinop);
       var joinnum = Number((int)joinsym.JoinOp);
-      return FunCall(FindFunc(SymNames.UpdateJoin), DataTypes.Void, Args(Variable(ident), expr, joinnum));
+      return FunCall(FindFunc(SymNames.UpdateJoin), DataTypes.Void, Args(relvar, expr, joinnum));
     }
 
-    public AstStatement UpdateTransform(string ident, AstTranCall arg) {
-      var tran = arg.Transformer ?? Transformer(false, null);
-      return FunCall(FindFunc(SymNames.UpdateTransform), DataTypes.Void, Args(Variable(ident), Args(arg.Where, tran.Elements)),
-        tran.Elements.Length);
+    // UPDATE rel .where(pred) .{ sets }
+    public AstStatement UpdateWhere(AstValue relvar, AstValue wherearg, AstTransformer tran) {
+      var where = (wherearg != null) ? (wherearg as AstWhere).Arguments[0] : null;
+      if (tran != null) {
+        if (tran.DataType.Heading != relvar.DataType.Heading) Parser.ParseError("field mismatch");
+        return FunCall(FindFunc(SymNames.UpdateTransform), DataTypes.Void, Args(relvar, Args(where, tran.Elements)),
+          tran.Elements.Length);
+      } else return FunCall(FindFunc(SymNames.UpdateTransform), DataTypes.Void, Args(relvar, Args(where)), 0);
     }
 
     // body statement in deferred might need an accumulator
     public AstBodyStatement BodyStatement(AstStatement value) {
       return new AstBodyStatement {
         DataType = value.DataType, Statement = value, AccumCount = _accum.Total
-        //DataType = value.DataType, Statement = value, AccumCount = _accum.Count
       };
     }
 
-    // Wrap transform tail for later handling
-    // update scope for type inference, and to lose any defined symbols
-    public AstTranCall TransformTail(AstValue where, AstOrderer order, AstTransformer trans) {
-      Reenter(trans == null ? null : trans.DataType);
-      return new AstTranCall {
-        DataType = DataTypeRelation.Get(CurrentHeading()),
-        Where = where, Orderer = order, Transformer = trans,
+    public AstOpCall While(AstValue expr) {
+      return new AstOpCall() {
+        Func = FindFunc(SymNames.Recurse),
+        DataType = Types.Relof(CurrentHeading()),
+        Arguments = Args(Number(0), expr),
       };
     }
 
-    // handle a Where rule simply as code (may have fold)
-    public AstValue Where(AstValue value) {
-      var lookup = DataHeading.Create(Symbols.CurrentScope.LookupItems.Items);
+    // Where is just a funcall with a code predicate (that may have a fold)
+    public AstWhere Where(AstValue predicate) {
+      var lookup = CurrentHeading();
       var accums = _accum.Total;
       _accum = _accum.Push();
-      return Code(value, lookup, "?", accums);
+      return new AstWhere {
+        Func = FindFunc(SymNames.Restrict),
+        DataType = Types.Relof(CurrentHeading()),
+        Arguments = Args(Code(predicate, lookup, "?", accums))
+      };
     }
 
-    // create ordering node
-    public AstOrderer Orderer(IList<AstOrder> argslist) {
-      var args = argslist.ToArray();
-      return new AstOrderer { Elements = args, DataType = Typeof(args) };
+    // create ordering node as a call
+    public AstOrderer Orderer(IList<AstOrderField> argslist) {
+      return new AstOrderer {
+        DataType = Types.Relof(CurrentHeading()),
+        Elements = argslist.ToArray(),
+      };
     }
 
-    // Take a list of transforms, check allbut & lift, return transformer and type for later
-    public AstTransformer Transformer(bool allbut, IList<AstField> argslist = null) {
+    // handle an Order rule as a call
+    public AstOrderField OrderField(string name, bool desc, bool group) {
+      return new AstOrderField {
+        Name = name,
+        DataType = FindField(name).DataType,
+        Descending = desc,
+        Grouped = group
+      };
+    }
+
+    // Take a list of transforms, check allbut & lift, return transformer as simply a call
+    public AstTransformer Transformer(bool allbut, IList<AstField> argslist = null, DataHeading heading = null) {
       var args = (argslist == null) ? new AstField[0] : argslist.ToArray();
+      var hdg = heading ?? CurrentHeading();
       var lift = args.Any(a => a is AstLift);
       if (lift) {
         if (allbut || argslist.Count != 1) Parser.ParseError("invalid lift");
         return new AstTransformer { Elements = args, Lift = true, DataType = argslist[0].DataType };
       }
-      if (allbut) args = Allbut(CurrentHeading(), args);
+      if (allbut) args = Allbut(hdg, args);
       return new AstTransformer { Elements = args, DataType = Typeof(args) };
     }
 
@@ -191,84 +210,42 @@ namespace Andl.Peg {
       };
     }
 
-    // handle an Order rule
-    public AstOrder Order(string name, bool desc, bool group) {
-      return new AstOrder { Name = name, DataType = FindField(name).DataType, Descending = desc, Grouped = group };
-    }
-
-    public AstValue Row(AstTransformer transformer) {
-      return new AstTabCall {
-        Func = FindFunc(SymNames.RowE), DataType = Types.Tupof(transformer.DataType), Arguments = transformer.Elements,
-      };
-    }
-    public AstValue RowValues(IList<AstValue> values) {
-      return new AstTabCall {
-        Func = FindFunc(SymNames.RowV), DataType = DataTypes.Unknown, Arguments = values.ToArray(),
-      };
-    }
-
-    public AstValue Table(AstValue heading, IList<AstValue> rows) {
-      var rowtype = (heading != null) ? Types.Tupof(heading.DataType)
-        : rows.Count > 0 ? rows[0].DataType
-        : DataTypeTuple.Empty;
-      foreach (var r in rows) {
-        if (heading != null) r.DataType = rowtype;
-        if (r.DataType != rowtype) Parser.ParseError("row type mismatch");
-      }
-      return new AstTabCall {
-        Func = FindFunc(SymNames.Table), DataType = Types.Relof(rowtype), Arguments = rows.ToArray()
-      };
-    }
-
-    public AstValue Heading(IList<AstField> fields) {
-      var type = (fields == null) ? DataTypeRelation.Empty : Typeof(fields);
-      return new AstValue { DataType = type };
-    }
-
-    public AstValue Table() {
-      var row = Row();
-      return new AstTabCall {
-        Func = FindFunc(SymNames.Table), DataType = Types.Relof(row.DataType), Arguments = Args(row),
-      };
-    }
-
-    public AstValue Row() {
-      var trans = Transformer(true, null);
-      return new AstTabCall {
-        Func = FindFunc(SymNames.RowE), DataType = Types.Tupof(trans.DataType), Arguments = trans.Elements,
-      };
-    }
-
-    ///--------------------------------------------------------------------------------------------
-    /// Headings etc
-    /// 
-
-    public AstField FieldTerm(string ident, AstType type) {
-      return new AstField() {
-        Name = ident,
-        DataType = (type == null) ? Types.Find("text") : type.DataType
-      };
-    }
-
     ///--------------------------------------------------------------------------------------------
     /// Calls with arguments
     /// 
+
+    // Handle a list of infix operators
     public AstValue Binop(AstValue value, IList<AstOpCall> ops) {
       var ret = Binop(value, ops.ToArray());
       if (Logger.Level >= 4) Logger.WriteLine("Binop {0}", ret);
       return ret;
     }
 
-    // construct a FunCall from the first OpCall, then invoke tail on result
+    // Handle a list of postfix operators
+    // construct a FunCall from the first OpCall (or first two), then invoke tail on result
     public AstValue PostFix(AstValue value, IList<AstCall> ops) {
       if (ops.Count == 0) return value;
       var newvalue = value;
-      if (ops[0] is AstTranCall) {
-        if (value.DataType is DataTypeRelation) newvalue = PostFixTranRel(value, ops[0] as AstTranCall);
-        else if (value.DataType is DataTypeTuple) newvalue = PostFixTranTup(value, ops[0] as AstTranCall);
+      var tail = ops.Skip(1).ToList();
+      // special handling for Transformer, possibly preceded by Orderer
+      if (ops[0] is AstTransformer) {
+        var tran = ops[0] as AstTransformer;
+        if (value.DataType is DataTypeRelation) newvalue = PostFixTranRel(value, tran as AstTransformer, null);
+        else if (value.DataType is DataTypeTuple) newvalue = PostFixTranTup(value, tran as AstTransformer);
         else Parser.ParseError("relation or tuple type expected");
-      } else newvalue = PostFix(value, ops[0] as AstOpCall);
-      return PostFix(newvalue, ops.Skip(1).ToList()); // tail
+        if (tran.Lift)
+          newvalue = FunCall(FindFunc(SymNames.Lift), tran.DataType, Args(newvalue));
+      } else if (ops[0] is AstOrderer) {
+        if (!(value.DataType is DataTypeRelation)) Parser.ParseError("relation type expected");
+        if (tail.Count > 0 && tail[0] is AstTransformer) {
+          newvalue = PostFixTranRel(value, ops[0] as AstTransformer, tail[0] as AstOrderer);
+          tail = tail.Skip(1).ToList();
+        } else newvalue = PostFixTranRel(value, null, ops[0] as AstOrderer);
+      } else {
+        var op = ops[0] as AstOpCall;
+        newvalue = GenFunCall(op.Func, Args(value, op.Arguments));
+      }
+      return PostFix(newvalue, tail);
     }
 
     // Dot that is a function call
@@ -309,13 +286,87 @@ namespace Andl.Peg {
 
     public AstFunCall Function(string name, params AstValue[] args) {
       var op = FindFunc(name);
-      return FunCall(op, args);
+      return GenFunCall(op, args);
     }
 
     public AstOpCall OpCall(string name, params AstValue[] args) {
       var op = FindFunc(name);
       var type = op.DataType;
       return new AstOpCall() { Func = op, Arguments = args, DataType = type };
+    }
+
+    ///--------------------------------------------------------------------------------------------
+    /// Tables and Rows
+    /// 
+
+    // Current row {*}
+    public AstValue Row() {
+      var trans = Transformer(true, null);
+      return new AstTabCall {
+        Func = FindFunc(SymNames.RowE), DataType = Types.Tupof(trans.DataType), Arguments = trans.Elements,
+      };
+    }
+
+    // Row by Transform
+    public AstValue Row(AstTransformer transformer) {
+      return new AstTabCall {
+        Func = FindFunc(SymNames.RowE), DataType = Types.Tupof(transformer.DataType), Arguments = transformer.Elements,
+      };
+    }
+
+    // Row by list of values
+    public AstValue Row(IList<AstValue> values) {
+      return new AstTabCall {
+        Func = FindFunc(SymNames.RowV), DataType = DataTypes.Unknown, Arguments = values.ToArray(),
+      };
+    }
+    public AstValue Row(AstValue value) {
+      if (!value.DataType.HasHeading) Parser.ParseError("value has no heading");
+      return new AstTabCall {
+        Func = FindFunc(SymNames.RowC), DataType = DataTypeTuple.Get(value.DataType.Heading), Arguments = Args(value),
+      };
+    }
+
+    // {{*}} singleton
+    public AstValue Table() {
+      var row = Row();
+      return new AstTabCall {
+        Func = FindFunc(SymNames.TableV), DataType = Types.Relof(row.DataType), Arguments = Args(row),
+      };
+    }
+
+    // Relation as set of rows
+    public AstValue Table(IList<AstValue> rows) {
+      if (rows.Count == 1) return Table(rows[0]);
+      var rowtype = rows.Count > 0 ? rows[0].DataType : DataTypeTuple.Empty;
+      if (rows.Any(r => r.DataType != rowtype)) Parser.ParseError("row type mismatch");
+      return new AstTabCall {
+        Func = FindFunc(SymNames.TableV), DataType = Types.Relof(rowtype), Arguments = rows.ToArray()
+      };
+    }
+
+    // Relation by conversion
+    public AstValue Table(AstValue value) {
+      if (!value.DataType.HasHeading) Parser.ParseError("value has no heading");
+      return new AstTabCall {
+        Func = FindFunc(SymNames.TableC), DataType = Types.Relof(value.DataType), Arguments = Args(value),
+      };
+    }
+
+    public AstValue Heading(IList<AstField> fields) {
+      var type = (fields == null) ? DataTypeRelation.Empty : Typeof(fields);
+      return new AstValue { DataType = type };
+    }
+
+    ///--------------------------------------------------------------------------------------------
+    /// Headings etc
+    /// 
+
+    public AstField FieldTerm(string ident, AstType type) {
+      return new AstField() {
+        Name = ident,
+        DataType = (type == null) ? Types.Find("text") : type.DataType
+      };
     }
 
     ///--------------------------------------------------------------------------------------------
@@ -327,61 +378,53 @@ namespace Andl.Peg {
       };
     }
 
+    // Handle Binop with precedence
     AstValue Binop(AstValue value, AstOpCall[] ops) {
       Logger.WriteLine(4, "expr {0} op={1}", value, String.Join(",", ops.Select(o => o.ToString())));
       if (ops.Length == 0) return value;
       var op = ops[0];
-      if (ops.Length == 1) return FunCall(op.Func, Args(value, op.Arguments));
+      if (ops.Length == 1) return GenFunCall(op.Func, Args(value, op.Arguments));
       var opnext = ops[1];
       var optail = ops.Skip(1);
       //Func<AstCall, AstCall, bool> op high = (op1, op2) => !op1.Func.IsOperator || op1.Func.Precedence >= op2.Func.Precedence;
       if (!op.Func.IsOperator || op.Func.Precedence >= opnext.Func.Precedence)
-        return Binop(FunCall(op.Func, Args(value, op.Arguments)), optail.ToArray());
+        return Binop(GenFunCall(op.Func, Args(value, op.Arguments)), optail.ToArray());
       // The hard case -- rewrite the tree
       // extract higher precedence ops and do those first; then lower
       var hiprec = optail.TakeWhile(o => !o.Func.IsOperator || o.Func.Precedence > op.Func.Precedence);
       var hivalue = Binop(op.Arguments[0] as AstValue, hiprec.ToArray());
       var loprec = optail.SkipWhile(o => !o.Func.IsOperator || o.Func.Precedence > op.Func.Precedence);
-      return Binop(FunCall(op.Func, Args(value, hivalue)), loprec.ToArray());
+      return Binop(GenFunCall(op.Func, Args(value, hivalue)), loprec.ToArray());
     }
 
-    // translate set of transform calls into a function call (or two)
-    AstValue PostFixTranRel(AstValue value, AstTranCall tran) {
+    // translate transform call and possible order into a function call
+    AstValue PostFixTranRel(AstValue value, AstTransformer tran, AstOrderer order) {
       Types.CheckTypeMatch(DataTypes.Table, value.DataType);
       var newvalue = value;
-      if (tran.Where != null)
-        newvalue = FunCall(FindFunc(SymNames.Restrict), value.DataType, Args(value, tran.Where), 1);
       var args = new List<AstNode> { newvalue };
-      if (tran.Orderer != null) args.AddRange(tran.Orderer.Elements);
-      if (tran.Transformer != null) args.AddRange(tran.Transformer.Elements);
-      else if (tran.Orderer != null) args.AddRange(Allbut(value.DataType.Heading, new AstField[0]));
+      var datatype = (tran != null) ? tran.DataType : value.DataType;
+      if (order != null) args.AddRange(order.Elements);
+      if (tran != null) args.AddRange(tran.Elements);
+      else if (order != null) args.AddRange(Allbut(value.DataType.Heading, new AstField[0]));
       if (args.Count > 1) {
-        var opname = (tran.Orderer != null) ? SymNames.TransOrd
-          : tran.Transformer.Elements.Any(e => e is AstExtend && (e as AstExtend).Accums > 0) ? SymNames.TransAgg
-          : tran.Transformer.Elements.Any(e => e is AstExtend) ? SymNames.Transform
-          : tran.Transformer.Elements.All(e => e is AstRename) && tran.Transformer.Elements.Length == value.DataType.Heading.Degree ? SymNames.Rename
+        var opname = (order != null) ? SymNames.TransOrd
+          : tran.Elements.Any(e => e is AstExtend && (e as AstExtend).Accums > 0) ? SymNames.TransAgg
+          : tran.Elements.Any(e => e is AstExtend) ? SymNames.Transform
+          : tran.Elements.All(e => e is AstRename) && tran.Elements.Length == value.DataType.Heading.Degree ? SymNames.Rename
           : SymNames.Project;
-        newvalue = FunCall(FindFunc(opname), tran.DataType, args.ToArray(), args.Count - 1);
-        if (tran.Transformer != null && tran.Transformer.Lift)
-          newvalue = FunCall(FindFunc(SymNames.Lift), tran.Transformer.DataType, Args(newvalue));
+        newvalue = FunCall(FindFunc(opname), datatype, args.ToArray(), args.Count - 1);
+        //if (tran != null && tran.Lift)
+        //  newvalue = FunCall(FindFunc(SymNames.Lift), tran.DataType, Args(newvalue));
       }
       return newvalue;
     }
 
-    // translate set of transform calls into a function call (or two)
-    AstValue PostFixTranTup(AstValue value, AstTranCall tran) {
+    // translate transform calls on tuple into a function call
+    AstValue PostFixTranTup(AstValue value, AstTransformer tran) {
       Types.CheckTypeMatch(DataTypes.Row, value.DataType);
-      var newvalue = value;
-      if (tran.Where != null) Parser.ParseError("restrict not permitted");
-      if (tran.Orderer != null) Parser.ParseError("order not permitted");
-      if (tran.Transformer == null) return value;
-      if (tran.Transformer.Lift) Parser.ParseError("lift not permitted");
-      var args = Args(value, tran.Transformer.Elements);
+      if (tran == null) return value;
+      var args = Args(value, tran.Elements);
       return FunCall(FindFunc(SymNames.TransTuple), tran.DataType, args, args.Length - 1);
-    }
-
-    AstValue PostFix(AstValue value, AstOpCall op) {
-      return FunCall(op.Func, new AstValue[] { value }.Concat(op.Arguments).ToArray()); // cons
     }
 
     // implement allbut: remove projects, add renames, extends and other columns as projects
@@ -399,13 +442,14 @@ namespace Andl.Peg {
     }
 
     // Generic function call, handles type checking, overloads and def funcs
-    AstFunCall FunCall(Symbol op, AstNode[] args) {
+    AstFunCall GenFunCall(Symbol op, AstNode[] args) {
       if (op.IsComponent) return Component(op, args);
       if (op.IsField) return FieldOf(op, args);
       DataType datatype;
       CallInfo callinfo;
       Types.CheckTypeError(op, out datatype, out callinfo, args.Select(a => a.DataType).ToArray());
       if (op.IsDefFunc) return DefCall(op, datatype, args, callinfo);
+      if (op.IsRestFunc) return FunCall(op, datatype, Args(args[0], Code(args[1] as AstValue, CurrentHeading())), 1);
       if (op.IsOrdFunc) return FunCall(op, datatype, Args(Code(args[0] as AstValue, CurrentHeading()), args.Skip(1).ToArray()));
       if (op.IsRecurse) return FunCall(op, datatype, Args(args[0], args[1], Code(args[2] as AstValue, CurrentHeading())));
       if (op.IsUserSel) return UserCall(op, args);
@@ -526,6 +570,14 @@ namespace Andl.Peg {
     }
     public AstType GetType(AstValue value) {
       return new AstType { DataType = value.DataType };
+    }
+    public AstType TupType(AstValue value) {
+      if (!value.DataType.HasHeading) Parser.ParseError("value has no heading");
+      return new AstType { DataType = DataTypeTuple.Get(value.DataType.Heading) };
+    }
+    public AstType RelType(AstValue value) {
+      if (!value.DataType.HasHeading) Parser.ParseError("value has no heading");
+      return new AstType { DataType = DataTypeRelation.Get(value.DataType.Heading) };
     }
 
     public Symbol FindCatVar(string name) {

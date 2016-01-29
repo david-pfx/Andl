@@ -52,6 +52,7 @@ namespace Andl.Peg {
     bool _started = false;
     public bool Start() {
       if (_started) return false;
+      Logger.WriteLine(4, "Start parse");
       Cat.Start();
       Symbols.ResetScope();
       Symbols.Import(Cat.GlobalVars);
@@ -61,7 +62,7 @@ namespace Andl.Peg {
 
     // Called to restart parse after error
     public AstStatement Restart(ref Cursor state) {
-      Logger.WriteLine(3, "Restart skip={0} line={1} column={2} location={3}", _skip, state.Line, state.Column, state.Location);
+      Logger.WriteLine(4, "Restart parse skip={0} line={1} column={2} location={3}", _skip, state.Line, state.Column, state.Location);
       var cursor = state.WithMutability(mutable: false);
       // next line only needed if memoize active
       //this.storage = new Dictionary<CacheKey, object>();
@@ -88,7 +89,7 @@ namespace Andl.Peg {
         Symbols.FindIdent("$lineno$").Value = NumberValue.Create(state.Line);
         if (Logger.Level >= 1 || force)
           Output.WriteLine("{0,3}: {1} {2}", state.Line, GetLine(state.Subject, bol),
-            (Logger.Level >= 2) ? " <bol="+bol.ToString()+">" : "");
+            (Logger.Level >= 4) ? " <bol="+bol.ToString()+">" : "");
         _last_location = bol;
       }
       return true;
@@ -108,7 +109,7 @@ namespace Andl.Peg {
 
     // common error handling -- set skip and throw
     void ParseError(Cursor state, string message, params object[] args) {
-      Logger.WriteLine(3, "Error msg='{0}' line={1} column={2} location={3}", message, state.Line, state.Column, state.Location);
+      Logger.WriteLine(4, "Error msg='{0}' line={1} column={2} location={3}", message, state.Line, state.Column, state.Location);
       PrintLine(state, true);
       var offset = state.Location - _linestarts.Last();
       if (offset > 0) Output.WriteLine("      {0}^", new string(' ', offset));

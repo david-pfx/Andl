@@ -92,7 +92,7 @@ namespace Andl.Peg {
     }
   }
 
-  public class AstOrder : AstField {
+  public class AstOrderField : AstField {
     public bool Descending { get; set; }
     public bool Grouped { get; set; }
     public override string ToString() {
@@ -170,10 +170,14 @@ namespace Andl.Peg {
       else e.OutSeg(eb);
     }
   }
+
+  // A Call identifies a function and how to call it
   public class AstCall : AstValue {
     public Symbol Func { get; set; }
     public CallInfo CallInfo { get; set; }
   }
+
+  // A FunCall is a function with arguments
   public class AstFunCall : AstCall {
     public AstNode[] Arguments { get; set; }
     public int NumVarArgs { get; set; }
@@ -187,6 +191,9 @@ namespace Andl.Peg {
       e.OutCall(Func, NumVarArgs, CallInfo);
     }
   }
+
+  // An OpCall is a FunCall missing its first argument
+  public class AstOpCall : AstFunCall { }
 
   public class AstDefCall : AstFunCall {
     public Symbol DefFunc { get; set; }
@@ -228,6 +235,8 @@ namespace Andl.Peg {
     }
   }
 
+  // Emit code for table and row calls
+  // signature must be heading plus varargs
   public class AstTabCall : AstFunCall {
     public override void Emit(Emitter e) {
       Logger.Assert(DataType is DataTypeRelation || DataType is DataTypeTuple);
@@ -248,20 +257,16 @@ namespace Andl.Peg {
     }
   }
 
-  public class AstTranCall : AstCall {
-    public AstValue Where { get; set; }
-    public AstOrderer Orderer { get; set; }
-    public AstTransformer Transformer { get; set; }
-  }
+  public class AstWhere : AstOpCall { }
 
-  public class AstOrderer : AstValue {
-    public AstOrder[] Elements { get; set; }
+  public class AstOrderer : AstCall {
+    public AstOrderField[] Elements { get; set; }
     public override string ToString() {
       return string.Format("$({0})", String.Join(",", Elements.Select(e => e.ToString())));
     }
   }
 
-  public class AstTransformer : AstValue {
+  public class AstTransformer : AstOpCall {
     public bool Lift { get; set; }
     public AstField[] Elements { get; set; }
     public override string ToString() {
@@ -287,5 +292,4 @@ namespace Andl.Peg {
     }
   }
 
-  public class AstOpCall : AstFunCall { }
 }

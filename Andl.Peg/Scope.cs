@@ -54,7 +54,8 @@ namespace Andl.Peg {
     }
     DataHeading _heading;
 
-    // Used to track lookup within scope
+    // Used to track lookup of fields within scope
+    // Should always be a subset of Heading
     public LookupItems LookupItems { get { return _lookupitems; } } 
     LookupItems _lookupitems = new LookupItems();
 

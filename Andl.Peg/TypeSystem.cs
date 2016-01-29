@@ -32,6 +32,9 @@ namespace Andl.Peg {
     internal DataType Relof(DataType type) {
       return DataTypeRelation.Get(type.Heading);
     }
+    internal DataType Relof(DataHeading heading) {
+      return DataTypeRelation.Get(heading);
+    }
 
     ///============================================================================================
     /// Type checking
