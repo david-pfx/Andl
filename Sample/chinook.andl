@@ -1,8 +1,8 @@
 ﻿// Chinook.andl -- using sample database in Sqlite
 // 
 
-db Album(), Employee(), InvoiceLine(), PlaylistTrack(), Artist(), Genre(), MediaType()
-db Track(), Customer(), Invoice(), Playlist()
+var Album(), Employee(), InvoiceLine(), PlaylistTrack(), Artist(), Genre(), MediaType()
+var Track(), Customer(), Invoice(), Playlist()
 
 Album.schema
 //Employee.schema
@@ -13,7 +13,7 @@ MediaType.schema
 //Invoice.schema
 //Playlist.schema
 
-(Track join Album [?(Title =~ "Bach")]) [{Title, UnitPrice}]
-(Track join Album [?(Title =~ "Bach")] join MediaType)// [{Title, UnitPrice, Name}]
-(Album [?(Title =~ "Bach")] join Track join InvoiceLine join Invoice join Customer) [{Title, LastName}]
-(Album join Artist) [ {Name, HowMany:=fold(+,1)} ] [?(HowMany > 5) $(-HowMany)]
+(Track join Album .where(Title =~ "Bach")) .{Title, UnitPrice}
+(Track join Album .where(Title =~ "Bach") join MediaType)// .{Title, UnitPrice, Name}
+(Album .where(Title =~ "Bach") join Track join InvoiceLine join Invoice join Customer) .{Title, LastName}
+(Album join Artist)  .{Name, HowMany:=fold(+,1)} .where(HowMany > 5) .order(-HowMany)

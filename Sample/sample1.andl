@@ -94,7 +94,7 @@ write(v1)
 //output := 'You typed <' & vin & '>'
 
 // read a file as a relation of lines of text {{ Line:text }}
-db test(txt)
+var test(txt)
 test
 
 wait
@@ -117,7 +117,7 @@ v3
 
 // Deferred evaluation with do block and arguments defines a function
 // Note that local variables names can be reused
-v4(a) => do {
+v4(a:'') => do {
   vx := a
   vx
 }

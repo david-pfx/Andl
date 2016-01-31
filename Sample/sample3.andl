@@ -9,40 +9,40 @@ sum(n:0) => fold(+,n)
 //--- nested relation
 nr1 := {{ name := 'S', contents := S }}
 nr1
-nr2 := { { name := 'S1', contents := S [?( CITY = 'London')] },
-         { name := 'S2', contents := S [?( CITY = 'Paris')] },
-         { name := 'S2', contents := S [?( CITY = 'Athens')] } }
+nr2 := { { name := 'S1', contents := S .where( CITY = 'London') },
+         { name := 'S2', contents := S .where( CITY = 'Paris') },
+         { name := 'S2', contents := S .where( CITY = 'Athens') } }
 nr2
 // retrieve one row as relation
-nr2 [?(name='S1') { contents }]
+nr2 .where(name='S1') .{ contents }
 // put the relation back together again using fold and union
-nr2 [ { fold(union,contents) } ]
+nr2  .{ fold(union,contents) } 
 
 wait
 
 // --- Nest: replace each tuple of S by one converted into a tuple or singleton relation
 // {*} means 'the current tuple as a tuple'
 // {{*}} means 'the current tuple as a singleton relation'
-ES1 := S [{ embed := {*} }]
+ES1 := S .{ embed := {*} }
 ES1
-ES2 := S [{ embed := {{*}} }]
+ES2 := S .{ embed := {{*}} }
 ES2
 
 // --- Unnest: using fold union and lift -- advanced usage!
 // Embedded tuple as a relation for union
-ES1 [{ fold(union,{{ embed := embed }}) }]
-//ES1 [{ fold(union,{{embed}}) }]
+ES1 .{ fold(union,{{ embed := embed }}) }
+//ES1 .{ fold(union,{{embed}}) }
 // Embedded relation as is
-ES2 [{ fold(union,embed) }]
+ES2 .{ fold(union,embed) }
 
 wait
 // --- Image relation -- extend S with a partion of SP, removing common fields
 // note that supplier S5 gets a partition that is an empty relation
-ES3 := S [{ * partition := ( {{*}} rdivide SP) }]
+ES3 := S .{ * partition := ( {{*}} rdivide SP) }
 ES3
 
 // Report total no of parts and qty (including S5 which supplies no parts)
-ES3 [{ S#, parts:=partition.count, qtys:=partition[{sum(QTY)}] }]
+ES3 .{ S#, parts:=partition.count, qtys:=partition .{sum(QTY)} }
 
 wait
 // ===== Updates =====
@@ -50,11 +50,11 @@ wait
 // Define the 3 updates
 
 // Insert: argument is relation of same heading
-up1 => S := union {{ S#:='S9', SNAME:='Moriarty', STATUS:=99, CITY:='Timbuktu' }}
+up1 => update S union {{ S#:='S9', SNAME:='Moriarty', STATUS:=99, CITY:='Timbuktu' }}
 // Delete: read as replace matching rows by nothing
-up2 => S := [ ?(S#='S3') ]
+up2 => update S .where(S#='S3') .delete
 // Update: make changes to matching rows
-up3 => S := [ ?(S#='S4') { *STATUS:= -10 } ]
+up3 => update S .where(S#='S4') .{ *STATUS:= -10 } 
 // Now perform each update in turn
 S // original
 up1

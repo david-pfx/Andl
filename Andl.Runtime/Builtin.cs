@@ -278,6 +278,7 @@ namespace Andl.Runtime {
     // Create a Table by converting a value
     // Each row has its own heading, which must match.
     public RelationValue TableC(HeadingValue hdgarg, params TypedValue[] valueargs) {
+      Logger.Assert(valueargs.Length == 1, "TableC");
       var heading = hdgarg.AsHeading();
       var value = valueargs[0];
       DataTable newtable = null;
@@ -387,6 +388,7 @@ namespace Andl.Runtime {
 
     // Lift a value out of a relation
     public TypedValue Lift(RelationValue relarg) {
+      Logger.WriteLine(3, "Lift {0}", relarg);
       return relarg.Value.Lift();
     }
 

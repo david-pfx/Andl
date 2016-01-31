@@ -61,67 +61,67 @@ S.degree
 
 wait
 //==== monadics =====
-// all monadic operations are inside brackets in a fixed sequence [?()$(%-){*}]
+// all monadic operations are inside brackets in a fixed sequence .where()$(%-).{*}
 
 // restriction - remove rows
-S [ ?(CITY = 'Paris') ]
-S [ ?(STATUS > 15 or CITY = 'London') ]
-S [ ?(SNAME =~ 'a.*k') ]    // regular expression
+S  .where(CITY = 'Paris') 
+S  .where(STATUS > 15 or CITY = 'London') 
+S  .where(SNAME =~ 'a.*k')     // regular expression
 
 // --- rename - change column names
 // rename all
-S [ { F1 := S#, F2 := SNAME, F3 := STATUS, F4 := CITY }]
+S  .{ F1 := S#, F2 := SNAME, F3 := STATUS, F4 := CITY }
 // rename some, the * means keep the rest unchanged
-S [ { * F1 := SNAME }]
+S  .{ * F1 := SNAME }
 
 // --- projection - remove columns
 // name all to be kept
-S [ { S#, SNAME, CITY }]
+S  .{ S#, SNAME, CITY }
 // * means keep all but the ones named
-S [ { * SNAME, CITY }]
+S  .{ * SNAME, CITY }
 
 wait
 // --- extension - add new columns
 // Here * means keep all, add new ones
-S [ { * Initial := left(SNAME, 1) }]
+S  .{ * Initial := left(SNAME, 1) }
 
 // --- combine all three
-S [ { CITY, F := STATUS, Initial := left(SNAME, 1) }]
-S [ { * SNAME, Initial := left(SNAME, 1) }]
+S  .{ CITY, F := STATUS, Initial := left(SNAME, 1) }
+S  .{ * SNAME, Initial := left(SNAME, 1) }
 
 wait
 // --- aggregated projection - projection with totalling
-S [ { CITY, 
+S  .{ CITY, 
     total := fold(+,STATUS), 
     max := fold(max,STATUS), 
     min := fold(min,STATUS), 
     average := fold(+,STATUS)/fold(+,1) 
-} ]
+} 
 
 // Note: fold() is only allowed in projection, but looks nicer in a function
 sum(n:0) => fold(+,n)
 hi(n:0) => fold(max,n)
 lo(n:0) => fold(min,n)
 ave(n:0) => fold(+,n)/fold(+,1)
-S [ { CITY, total := sum(STATUS), max := hi(STATUS), min := lo(STATUS), average := ave(STATUS) } ]
+S  .{ CITY, total := sum(STATUS), max := hi(STATUS), min := lo(STATUS), average := ave(STATUS) } 
 
 // --- ordering for display sort
-P[$(WEIGHT)]
-P[$(COLOR,-WEIGHT)]     // descending
+P .order(WEIGHT)
+P .order(COLOR,-WEIGHT)     // descending
 
 // --- lift anonymous value out of singleton relation
-S [ { fold(+,STATUS) } ]    // aggregated value
-S [ { ave(STATUS) } ]       // via defined function
-S [ { (STATUS) } ]          // first tuple (indeterminate)
-S [?(false) { (STATUS) } ]  // no tuples so default value
+S  .{ fold(+,STATUS) }     // aggregated value
+S  .{ ave(STATUS) }        // via defined function
+S  .{ (STATUS) }           // first tuple (indeterminate)
+S .where(false) .{ (STATUS) }   // no tuples so default value
 wait
 
 //==== dyadics =====
 
 // prepare some subsets
-S3 := S [?( S# = 'S3')]    // one single supplier S3
-SX := S [?( S# <> 'S3')]   // all suppliers except S3 to make this work better
-SY := S [?( S# <> 'S1')]   // all suppliers except S1
+S3 := S .where( S# = 'S3')    // one single supplier S3
+SX := S .where( S# <> 'S3')   // all suppliers except S3 to make this work better
+SY := S .where( S# <> 'S1')   // all suppliers except S1
 
 // set membership -- all true
 S3 sub S        // subset

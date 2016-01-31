@@ -9,6 +9,6 @@ wait => pause(prompt)
 // Load some data (courtesy Date & Darwen)
 // Supplier dataset in CSV format
 
-db S(csv), P(csv), SP(csv), J(csv), SPJ(csv)
+var S(csv), P(csv), SP(csv), J(csv), SPJ(csv)
 
 // end

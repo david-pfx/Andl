@@ -1,30 +1,30 @@
 // recursive.andl
 
-{{ z:=0 }} recurse( {{z:=z+1}} [?(z<10)] )
+{{ z:=0 }} .while( {{z:=z+1}} .where(z<10) )
 
-{{ x:= 1 }} recurse( {{ x:=x*2 }} [?(x<=5000000000)] )
+{{ x:= 1 }} .while( {{ x:=x*2 }} .where(x<=5000000000) )
 
-db orgchart(csv)
+var orgchart(csv)
 orgchart
-ua := {{ name:= 'Alice', level := 0 }} recurse( {{ boss := name, level := level+1 }} compose orgchart)
+ua := {{ name:= 'Alice', level := 0 }} .while( {{ boss := name, level := level+1 }} compose orgchart)
 ua
-ua [{ t:=fill('.', level*3) & name }]
+ua .{ t:=fill('.', level*3) & name }
 
-//{{ name:= 'Alice', level := 0 }} recurse(
-//    ({{ boss := name, level := level+1 }} compose orgchart)[$(-level)]
+//{{ name:= 'Alice', level := 0 }} .while(
+//    ({{ boss := name, level := level+1 }} compose orgchart)$(-level)
 //    )
 
-db family_tree(csv)
+var family_tree(csv)
 family_tree
 
-family_tree [ ?(id=1) { id, firstname, lastname, level:=0 }
-  ] recurse( {{ father_id:=id, level:=level+1 }} compose family_tree[{id, firstname, lastname,father_id}] )
+family_tree  .where(id=1) .{ id, firstname, lastname, level:=0 }
+   .while( {{ father_id:=id, level:=level+1 }} compose family_tree.{id, firstname, lastname,father_id} )
 
-db MM(csv)
+var MM(csv)
 MM
-MM recurse( {{ z:=MAJOR_P#, MINOR_P# }} compose MM[{ MAJOR_P#, z:=MINOR_P# }] )
-MM recurse( {{ MAJOR_P#, z:=MINOR_P# }} compose MM[{ z:=MAJOR_P#, MINOR_P# }] )
-//{{ MAJOR_P#:'',MINOR_P#:'' }} recurse( {{ z:=MAJOR_P#, MINOR_P# }})
+MM .while( {{ z:=MAJOR_P#, MINOR_P# }} compose MM.{ MAJOR_P#, z:=MINOR_P# } )
+MM .while( {{ MAJOR_P#, z:=MINOR_P# }} compose MM.{ z:=MAJOR_P#, MINOR_P# } )
+//{{ MAJOR_P#:'',MINOR_P#:'' }} .while( {{ z:=MAJOR_P#, MINOR_P# }})
 
 // from this SQL
 //WITH RECURSIVE

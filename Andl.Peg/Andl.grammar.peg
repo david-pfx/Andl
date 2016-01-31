@@ -66,36 +66,26 @@ SourceName = v:Ident  &{ IsSourceName(v) } { v }
 Update <AstStatement> = 
       UPDATE v:CatVar w:Funcop x:Funcop? y:ExpressionExp { AST(state).UpdateSetop(v,w,Single(x),y) }
     / UPDATE v:CatVar &{ AST(state).Enter(v) } 
-             w:Where? x:Transformer &{ AST(state).Exit(true) } { AST(state).UpdateWhere(v,Single(w),x) }
-    / UPDATE v:CatVar &{ AST(state).Enter(v) } 
-             w:Where? &{ AST(state).Exit(true) } DOT DELETE { AST(state).UpdateWhere(v,Single(w),null) }
+             w:Where? x:TransformOrDelete &{ AST(state).Exit(true) } { AST(state).UpdateWhere(v,Single(w),x) }
     / UPDATE &{ Error(state, "bad update") }  { null };
+
+TransformOrDelete <AstTransformer> = x:Transformer { x }
+    / DOT DELETE { null };
+
 CatVar <AstValue> = v:CatIdent { AST(state).Variable(v) };
 
 Assignment <AstStatement> = &(Ident LA) v:DefGlobalExp LA w:Expression { AST(state).Assignment(v,w) }
     / DefGlobal LA &{ Error(state, "expression expected") } { null };
 
-// must be able to backtrack from RA to pick up function call
+// Deferred requires a field list either empty or ident colon
+// otherwise backtrack to function call
 Deferred <AstStatement> = v:Ident 
     w:(<AstType> COLON a:TypeRef { a } / { null }) 
-    x:(<IList<AstField>> LP b:FieldList RP { b })? RA 
+    x:(<IList<AstField>> LP &(RP RA / Ident COLON) b:FieldList RP { b })? RA 
     &{ AST(state).Enter(v, w, Single(x)) } y:DeferredBody &{ AST(state).Exit(true) } { AST(state).Deferred(v,w,Single(x),y) };
 
-DeferredBody <AstBodyStatement> = v:OpenAttrExpr { AST(state).BodyStatement(v) }
+DeferredBody <AstBodyStatement> = v:Statement { AST(state).BodyStatement(v) }
     / BadStatement { null };
-
-//    v:(UpdateJoin 
-//    / UpdateTransform 
-//    / OpenAttrExpr 
-//    / BadStatement) { AST(state).BodyStatement(v) };
-
-// prefer: &{ w.IsJoinOp() } 
-//UpdateJoin <AstStatement> = 
-//    v:CatVar LA &("union" / "minus") w:Funcop x:ExpressionExp
-//    { AST(state).UpdateJoin(v,w,x) };
-//UpdateTransform <AstStatement> = 
-//    v:CatVar LA &LB &{ AST(state).Enter(AST(state).Variable(v)) } w:TransformTailExp &{ AST(state).Exit(true) } 
-//    { AST(state).UpdateTransform(v,w) };
 
 //----- expressions
 OpenAttrExprExp = (OpenAttrExpr 
@@ -129,7 +119,6 @@ PostFixOpBody <AstCall> = v:Recurser { v }
 //--- Tuple generators
 
 Recurser <AstOpCall> = DOT WHILE LPexp v:ExpressionExp RPexp { AST(state).While(v) }
-//Recurser <AstCall> = DOT WHILE LPexp v:ExpressionExp RPexp { AST(state).OpCall("recurse",AST(state).Number(0),v) }
 
 Where <AstWhere> = DOT WHERE LPexp v:OpenExpression RPexp { AST(state).Where(v) };
 
@@ -143,30 +132,6 @@ Transform <AstField> = !RC v:FieldIdent &(SEP / RC) { AST(state).Transfield(v) }
     / !RC v:Ident LA WSC w:FieldIdent &(SEP / RC) { AST(state).Transfield(v, w) }       // rename
     / !RC v:Ident LA WSC w:OpenAttrExprExp { AST(state).Transfield(v, null, w) }        // extend
     / !RC v:OpenAttrExprExp { AST(state).Transfield(null, null, v) };                   // lift
-
-//PostFixTail <AstCall> = RECURSE LPexp v:ExpressionExp RPexp { AST(state).OpCall("recurse",AST(state).Number(0),v) }
-//    / &LB v:TransformTailExp { v }
-//    / DOT v:Funcop { AST(state).DotFunc(v) }
-//    / DOT v:Component { AST(state).DotComponent(v) }
-//    / DOT v:FieldIdent { AST(state).DotField(v) }
-//    / DOT &{ Error(state, "component or function expected") } { null };
-
-//TransformTailExp = TransformTail
-//    / LB &{ Error(state, "transform arguments expected") } { null };
-//TransformTail <AstTranCall> = LB v:Where? WSC w:Orderer? WSC x:Transformer? RBexp { AST(state).TransformTail(Single(v), Single(w), Single(x)) };
-
-//Where <AstValue> = QUERY LPexp v:OpenExpression RPexp { AST(state).Where(v) };
-//
-//Orderer <AstOrderer> = DOLLAR LPexp v:OrderTermList RPexp { AST(state).Orderer(v) };
-//OrderTermList = OrderTerm<0,,SEP>;
-//OrderTerm <AstOrder> = w:PERCENT? v:MINUS? x:FieldIdent { AST(state).Order(x, v.Count > 0, w.Count > 0) };
-//
-//Transformer <AstTransformer> = LC WSC v:STAR? WSC w:TransformList SEP? RCexp { AST(state).Transformer(v.Count > 0, w) }
-//TransformList = Transform<0,,SEP>;
-//Transform <AstField> = !RC v:FieldIdent &(SEP / RC) { AST(state).Transfield(v) }
-//    / !RC v:Ident LA WSC w:FieldIdent &(SEP / RC) { AST(state).Transfield(v, w) }
-//    / !RC v:Ident LA WSC w:OpenAttrExprExp { AST(state).Transfield(v, null, w) }
-//    / !RC v:OpenAttrExprExp { AST(state).Transfield(null, null, v) };
 
 //----- Primaries
 SimplePrimary = DoBlock 
@@ -189,20 +154,23 @@ DoBlock <AstValue> = DO v:DoBody { v }
 Function <AstValue> = v:Funcop LP w:ExpressionList RPexp { AST(state).Function(v, w.ToArray()) };
 
 Table <AstValue> = &(REL / LC LC) &{ AST(state).Enter() } v:TableBody &{ AST(state).Exit() } { v }
-    / LC LC &{ Error(state, "invalid table body") } { null };
+    / (REL / LC LC) &{ Error(state, "invalid table body") } { null };
 
 TableBody <AstValue> = LC LC STAR RCexp RCexp  { AST(state).Table() }
-    / LC &LC v:RowList RCexp { AST(state).Table(v) }
-    / REL LPexp v:RowList RPexp { AST(state).Table(v) };
+    / LC &LC v:TableHeading WSC w:RowValueList SEP? RCexp { AST(state).Table(v,w) }
+    / LC &LC v:RowList RCexp { AST(state).Table(v) };
 
-//RowValueList = v:RowValue<0,,SEP>;
-//RowValue <AstValue> = LP v:ExpressionList SEP? RPexp { AST(state).RowValues(v) };
+TableHeading <AstValue> = LC COLON RC { AST(state).Heading(null) }
+    / LC &(Ident COLON) v:FieldList RCexp { AST(state).Heading(v) };
+
+RowValueList = v:RowValue<0,,SEP>;
+RowValue <AstValue> = LP v:ExpressionList SEP? RPexp { AST(state).RowValues(v) };
 
 RowList = v:Row<0,,SEP>;
 Row <AstValue> = LC STAR RCexp { AST(state).Row() }
-    / LC v:RowTransList RCexp { AST(state).Row(AST(state).Transformer(false, v)) }
-    / TUP LPexp v:Expression RPexp { AST(state).Row(v) }
-    / v:VarIdent  { AST(state).Variable(v) };
+    / LC v:RowTransList RCexp { AST(state).Row(AST(state).Transformer(v)) }
+    / TUP LPexp v:Expression RPexp { AST(state).Row(v) };
+//    / v:VarIdent  { AST(state).Variable(v) };
 
 RowTransList = RowTrans<0,,SEP>;
 RowTrans <AstField> = v:FieldIdent &(SEP / RC) { AST(state).Transfield(v) }
@@ -229,10 +197,8 @@ DefLocalExp = DefLocal
     / v:Ident &{ Error(state, "already defined in this scope '{0}'", v) } { null }
 LCexp = (WSC LC / &{ Error(state, "left brace expected") } );
 RCexp = (WSC RC / &{ Error(state, "right brace expected") } );
-//RBexp = (WSC RB / &{ Error(state, "right bracket expected") } );
 LPexp = (WSC LP / &{ Error(state, "left parenthesis expected") } );
 RPexp = (WSC RP / &{ Error(state, "right parenthesis expected") } );
-//LAexp = (WSC LA / &{ Error(state, ":= expected") } );
 SEPexp = (WSC SEP / &{ Error(state, "comma expected") } );
 EOLchk = (&EOL / &{ Error(state, "end of line expected") } );
 

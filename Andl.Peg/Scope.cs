@@ -120,14 +120,17 @@ namespace Andl.Peg {
 
     // Return to previous scope level
     public void Pop() {
+      Logger.Assert(!IsGlobal, "pop");
       Logger.WriteLine(4, "Pop scope {0}", Level);
       _owner.CurrentScope = _parent;
-      Logger.Assert(_owner.CurrentScope != null);
-	  }
+      Logger.Assert(_owner.CurrentScope != null, "pop");
+    }
+
+    // set current heading and add fields/components to symbol table
     void SetHeading(DataType datatype) {
       Logger.Assert(datatype != null);
+      Logger.WriteLine(4, "Set heading {0}", datatype.Heading);
       _heading = datatype.Heading;
-      Logger.WriteLine(4, "Set heading {0}", _heading);
       foreach (var c in _heading.Columns) {
         Add(new Symbol {
           Kind = (datatype is DataTypeUser) ? SymKinds.COMPONENT : SymKinds.FIELD,

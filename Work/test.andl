@@ -1,4 +1,34 @@
-﻿#noisy 2
+﻿#noisy 4
+
+var S(csv), P(csv), SP(csv)
+S
+show(t:text) => t
+show(S .order(CITY) .{ fold(&,CITY) })
+
+#stop
+//up1 => do { update S union {{ S#:='S9', SNAME:='Moriarty', STATUS:=99, CITY:='Timbuktu' }} }
+up1 => update S union {{ S#:='S9', SNAME:='Moriarty', STATUS:=99, CITY:='Timbuktu' }}
+up1
+S
+up2 => update S .where(S#='S3') .delete
+up2
+S
+up3 => update S .where(S#='S4') .{ *STATUS:= -10 } 
+up3
+S
+#stop
+
+update S union {{ S#:='S9', SNAME:='Moriarty', STATUS:=99, CITY:='Timbuktu' }}
+S
+update S .where(S#='S3') .delete
+S
+update S .where(S#='S4') .{ *STATUS:= -10 } 
+S
+#stop
+
+{name := 'Smith', age := 17}
+t1 := {age := 17, name := 'Smith'}
+t1
 var S(csv), P(csv), SP(csv)
 vs:='asdf'
 vn := 99

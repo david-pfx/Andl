@@ -350,12 +350,13 @@ namespace Andl.Peg {
     //--- setup
 
     void Init() {
-      CurrentScope = _predefscope = Scope.Create(this);
-      AddSymbols();
+      _predefscope = Scope.Create(this);
+      AddPredefinedSymbols();
       foreach (var info in AddinInfo.GetAddinInfo())
         AddBuiltinFunction(info.Name, info.NumArgs, info.DataType, info.Method);
-      _globalscope = CurrentScope.Push();  // reserve a level for imported symbols
-      CurrentScope.IsGlobal = true;
+      _globalscope = _predefscope.Push();  // reserve a level for imported symbols
+      _globalscope.IsGlobal = true;
+      CurrentScope = _globalscope;
     }
 
     public void ResetScope() {
@@ -412,7 +413,7 @@ namespace Andl.Peg {
     //}
 
     // Load and initialise the symbol table
-    void AddSymbols() {
+    void AddPredefinedSymbols() {
       AddIdent("true", SymKinds.CONST, BoolValue.True, DataTypes.Bool);
       AddIdent("false", SymKinds.CONST, BoolValue.False, DataTypes.Bool);
       AddIdent("$lineno$", SymKinds.CONST, NumberValue.Zero, DataTypes.Number);
