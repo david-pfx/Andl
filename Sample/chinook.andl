@@ -1,19 +1,25 @@
 ﻿// Chinook.andl -- using sample database in Sqlite
-// 
+//
+// C>Andl.exe Chinook.ansl Chinook_sqlite.sqandl
 
-var Album(), Employee(), InvoiceLine(), PlaylistTrack(), Artist(), Genre(), MediaType()
-var Track(), Customer(), Invoice(), Playlist()
+// these lines were used to import these tables, which are now in the catalog
+//var Album(), Employee(), InvoiceLine(), PlaylistTrack(), Artist(), Genre(), MediaType()
+//var Track(), Customer(), Invoice(), Playlist()
 
+// Display selected schemas
 Album.schema
+//Customer.schema
 //Employee.schema
 //Genre.schema
+//Invoice.schema
 MediaType.schema
 //Track.schema
-//Customer.schema
-//Invoice.schema
 //Playlist.schema
 
-(Track join Album .where(Title =~ "Bach")) .{Title, UnitPrice}
-(Track join Album .where(Title =~ "Bach") join MediaType)// .{Title, UnitPrice, Name}
-(Album .where(Title =~ "Bach") join Track join InvoiceLine join Invoice join Customer) .{Title, LastName}
+// Some random queries
+(Track join Album .where(Title =~ "Concert")) .{Title, UnitPrice, Composer}
+Album .where(Title =~ 'Rock') join Artist
+(Album .where(Title =~ "Bach") join Track join InvoiceLine join Invoice join Customer) .{Title, FirstName, LastName}
+
+// The top 5 artists by number of albums
 (Album join Artist)  .{Name, HowMany:=fold(+,1)} .where(HowMany > 5) .order(-HowMany)

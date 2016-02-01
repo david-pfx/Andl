@@ -161,12 +161,12 @@ namespace Andl.Peg {
     public MergeOps MergeOp { get { return (MergeOps)(JoinOp & JoinOps.MERGEOPS); } }
     
     public override string ToString() {
-      return String.Format("{0}:{1}:{2}", Name, Kind, Level);
+      return String.Format("{0}:{1}:{2}:{3}", Name, Kind, CallKind, Level);
     }
 
     // series of tests used by parser
     public bool IsConst { get { return Kind == SymKinds.CONST; } }
-    public bool IsCatVar { get { return Kind == SymKinds.CATVAR; } }
+    public bool IsCatVar { get { return Kind == SymKinds.CATVAR; } } // note: includes deferred
     public bool IsField { get { return Kind == SymKinds.FIELD; } }
     public bool IsParam { get { return Kind == SymKinds.PARAM; } }
     public bool IsComponent { get { return Kind == SymKinds.COMPONENT; } }

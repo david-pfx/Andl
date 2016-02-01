@@ -40,8 +40,8 @@ assert($lineno$, 1=degree(S rminus SP))
 assert($lineno$, 1=degree(S symdiff SP))
 assert($lineno$, 1=degree(S union SP))
 
-sr := P [?(COLOR='Red')]
-snr := P [?(PNAME='Screw')]
+sr := P .where(COLOR='Red')
+snr := P .where(PNAME='Screw')
 assert($lineno$, 3=sr.count)
 assert($lineno$, 2=snr.count)
 

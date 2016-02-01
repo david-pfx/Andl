@@ -14,10 +14,10 @@ assert(lineno:0, condition:bool) => do {
         }
     ) 
 }
-start(filename) => do {
+start(filename:'') => do {
     write( now() & " Test suite for '" & filename & "'")
 }
-finish(filename) => do { 
+finish(filename:'') => do { 
     write( now() & " Test suite for '" & filename & "' complete. Tests = " & test_count & " errors = " & error_count)
 }
 

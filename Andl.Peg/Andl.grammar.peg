@@ -74,8 +74,9 @@ TransformOrDelete <AstTransformer> = x:Transformer { x }
 
 CatVar <AstValue> = v:CatIdent { AST(state).Variable(v) };
 
-Assignment <AstStatement> = &(Ident LA) v:DefGlobalExp LA w:Expression { AST(state).Assignment(v,w) }
-    / DefGlobal LA &{ Error(state, "expression expected") } { null };
+// Assignment -- does its own type check
+Assignment <AstStatement> = &(Ident LA) v:Ident LA w:Expression { AST(state).Assignment(v,w) }
+    / Ident LA &{ Error(state, "expression expected") } { null };
 
 // Deferred requires a field list either empty or ident colon
 // otherwise backtrack to function call

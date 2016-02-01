@@ -110,8 +110,14 @@ namespace Andl.Peg {
     }
 
     public AstStatement Assignment(string ident, AstValue value) {
-      Symbols.AddVariable(ident, value.DataType, SymKinds.CATVAR);
-      Symbols.AddCatalog(Symbols.FindIdent(ident));
+      if (Symbols.CanDefGlobal(ident)) {
+        Symbols.AddVariable(ident, value.DataType, SymKinds.CATVAR);
+        Symbols.AddCatalog(Symbols.FindIdent(ident));
+      } else {
+        var sym = FindCatVar(ident);
+        if (sym == null || sym.IsCallable) Parser.ParseError("cannot assign to '{0}'", sym.Name);
+        if (sym.DataType != value.DataType) Parser.ParseError("type mismatch: '{0}'", sym.Name);
+      }
       return GenFunCall(FindFunc(SymNames.Assign), Args(Text(ident), value));
     }
 
