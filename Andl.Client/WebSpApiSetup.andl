@@ -1,47 +1,54 @@
-﻿// webhostspsetup.andl -- set up for access by Web Host (WCF)
+﻿// WebSpApiSetup.andl
 // 
 #catalog new update
 
-'webhostspsetup.andl -- set up for access by Web Host REST API'
+'WebSpApiSetup.andl -- set up for Web API SP sample'
 
 // load initial data
 var S(csv), P(csv), SP(csv)
 
+// Assume these will be accessed directly
 supplier := S .{ *Sid:=S# }
 part := P .{ *Pid := P# }
 supplies := SP .{ *Sid := S#, Pid:= P# }
 
 // CRUD interface for supplier table
 
-get_supplier_id(sid:text) => do {
+find_supplier(sid:text) => do {
     supplier .where(Sid = sid)
 }
 
-get_supplier() => do {
+findall_supplier() => do {
     supplier .order(Sid)
 }
 
-add_supplier(s:supplier) => do {
+create_supplier(s:supplier) => do {
     update supplier union s
 }
 
-delete_supplier_id(sid:text) => do {
+delete_supplier(sid:text) => do {
     update supplier .where(Sid = sid) .delete
 }
 
-put_supplier_id(sid:text, s:supplier) => do {
+update_supplier(sid:text, s:supplier) => do {
     update supplier .where(Sid = sid) .delete
     update supplier union s
 }
 
-get_part() => part
+//--- part
 
-get_part_q(query:{{ Key:text,Value:text }}) => do {
+findall_part() => part
+
+find_part_by_name(name:text) => do {
+    part .where(PNAME =~ name)
+}
+
+tquery := {{ Key:text,Value:text }}
+findsome_part(query:tquery) => do {
     pattern := query .where(Key = 'PNAME') .{ (Value) }
     part .where(PNAME =~ pattern)
 }
 
-get_supplies => supplies
+findall_supplies => supplies
 
-andl_catalog
-//andl_operator()
+andl_operator()

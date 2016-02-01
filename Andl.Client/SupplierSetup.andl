@@ -1,0 +1,11 @@
+﻿// SupplierSetup.andl
+// 
+#catalog new update
+
+'SupplierSetup.andl -- set up for supplier data'
+
+// load initial data
+var S(csv), P(csv), SP(csv)
+
+andl_catalog
+#stop

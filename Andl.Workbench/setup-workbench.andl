@@ -1,12 +1,12 @@
 // setup for Workshop
+//
 
-#noisy 1
 #catalog new update
 
-db S(csv), P(csv), SP(csv)
+var S(csv), P(csv), SP(csv)
 
-suppliersbyname(name:text) => S [ ?(SNAME =~ name) { *Sid:=S# }] 
-addsuppliers(adds:S) => S := union adds
+suppliersbyname(name:text) => S  .where(SNAME =~ name) .{ *Sid:=S# } 
+addsuppliers(adds:S) => update S union adds
 fib:number(n:number) => if(n < 2,n, fib(n-1) + fib(n-2))
 
 VR:={{ S#:='S99', SNAME:="Freddo", STATUS:=99, CITY:="Ur"}}
@@ -15,12 +15,5 @@ VT:={ S#:='S99', SNAME:="Freddo", STATUS:=99, CITY:="Ur"}
 def utx(b:bool, s:text, n:number, t:time, r:{{a:text,b:text}})
 utv:=utx(true,'hello world', 42, now(), {{a:='aaaa',b:='bbbb'},{a:='aaaaa',b:='bbbbb'}})
 
-// an attempt to replicate the data required for Workshop
-
-// relations
 andl_catalog
-andl_variable()
-andl_operator()
-andl_member()
-
-#stop
+//andl_variable()

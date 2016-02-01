@@ -20,7 +20,7 @@ namespace Andl.Workbench {
   /// Interaction logic for MainWindow.xaml
   /// </summary>
   public partial class MainWindow : Window {
-    const string DefaultScriptName = "test.andl";
+    const string DefaultScriptName = "workbench.andl";
 
     public TreeDataViewModel DataModel { get; set; }
 

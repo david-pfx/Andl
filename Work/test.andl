@@ -1,5 +1,17 @@
 ﻿#noisy 2
 
+v1:={{}}
+v2:={{ x:=1 }}
+v3:={
+    { x:=1 }
+}
+VR5 := {
+    { AB := true, AD := t'30/10/2015', AI := 55667, AN := 123.45001, AS := "An attribute string 2" },
+    { AB := true, AD := t'30/09/2015', AI := 55668, AN := 123.45002, AS := "An attribute string 3" },
+}
+update VR5 asdf
+
+#stop
 j := 1
 j
 j := 2

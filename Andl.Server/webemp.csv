@@ -1,0 +1,12 @@
+EmpNo:number,EmpName,DeptName,Designation,Salary:number
+ 3,  Grace,   Management, President, 4000
+ 2,  Olivia,  Management, Vice President, 4400
+ 4,  Jim,     Production, Line Manager, 3700
+ 5,  Alice,   Production, Supervisor, 3500
+ 6,  Michael, Production, Worker, 3600
+ 1,  Matthew, Management, Assistant, 4500
+ 8,  Kevin,   Production, Worker, 4000
+ 9,  Elvis,   Service,    Driver, 4100
+10,  Sophia,  Sales,      Sales Manager, 4300
+11,  Samantha,Sales,      Salesman, 4100
+ 7,  Tom,     Production, Worker, 3800

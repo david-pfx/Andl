@@ -5,35 +5,34 @@
 'WebSpApiSetup.andl -- set up for Web API SP sample'
 
 // load initial data
-db S(csv), P(csv), SP(csv)
-//def S:db(csv), P:db(csv), SP:db(csv)
+var S(csv), P(csv), SP(csv)
 
 // Assume these will be accessed directly
-supplier := S [{ *Sid:=S# }]
-part := P [{ *Pid := P# }]
-supplies := SP [{ *Sid := S#, Pid:= P# }]
+supplier := S .{ *Sid:=S# }
+part := P .{ *Pid := P# }
+supplies := SP .{ *Sid := S#, Pid:= P# }
 
 // CRUD interface for supplier table
 
 find_supplier(sid:text) => do {
-    supplier [?(Sid = sid)]
+    supplier .where(Sid = sid)
 }
 
 findall_supplier() => do {
-    supplier [$(Sid)]
+    supplier .order(Sid)
 }
 
 create_supplier(s:supplier) => do {
-    supplier := union s
+    update supplier union s
 }
 
 delete_supplier(sid:text) => do {
-    supplier := [?(Sid = sid)]
+    update supplier .where(Sid = sid) .delete
 }
 
 update_supplier(sid:text, s:supplier) => do {
-    supplier := [?(Sid = sid)]
-    supplier := union s
+    update supplier .where(Sid = sid) .delete
+    update supplier union s
 }
 
 //--- part
@@ -41,24 +40,16 @@ update_supplier(sid:text, s:supplier) => do {
 findall_part() => part
 
 find_part_by_name(name:text) => do {
-    part[?(PNAME =~ name)]
+    part.where(PNAME =~ name)
 }
 
 tquery := {{ Key:text,Value:text }}
 findsome_part(query:tquery) => do {
-    pattern := query [?(Key = 'PNAME') { (Value) }]
-    part [?(PNAME =~ pattern)]
+    pattern := query .where(Key = 'PNAME') .{ (Value) }
+    part .where(PNAME =~ pattern)
 }
 
 findall_supplies => supplies
 
-//supplier
-//part
-//supplies
-//findsome_part({{ Key := 'PNAME', Value := 'S.*' }})
-
-//andl_catalog
-//andl_variable
-andl_operator()
-//andl_member
-#stop
+andl_catalog
+//andl_operator()

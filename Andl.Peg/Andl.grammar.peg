@@ -70,7 +70,8 @@ Update <AstStatement> =
     / UPDATE &{ Error(state, "bad update") }  { null };
 
 TransformOrDelete <AstTransformer> = x:Transformer { x }
-    / DOT DELETE { null };
+    / DOT DELETE { null }
+    / . &{ Error(state, "missing update action") }  { null };
 
 CatVar <AstValue> = v:CatIdent { AST(state).Variable(v) };
 
@@ -154,12 +155,13 @@ DoBlock <AstValue> = DO v:DoBody { v }
 
 Function <AstValue> = v:Funcop LP w:ExpressionList RPexp { AST(state).Function(v, w.ToArray()) };
 
-Table <AstValue> = &(REL / LC LC) &{ AST(state).Enter() } v:TableBody &{ AST(state).Exit() } { v }
-    / (REL / LC LC) &{ Error(state, "invalid table body") } { null };
+Table <AstValue> = &(LC WSL LC) &{ AST(state).Enter() } LC WSC v:TableBody RCexp &{ AST(state).Exit() } { v }
+    / REL LP &{ AST(state).Enter() } v:TableBody RPexp &{ AST(state).Exit() } { v }
+    / (REL / LC WSC LC) &{ Error(state, "invalid table body") } { null };
 
-TableBody <AstValue> = LC LC STAR RCexp RCexp  { AST(state).Table() }
-    / LC &LC v:TableHeading WSC w:RowValueList SEP? RCexp { AST(state).Table(v,w) }
-    / LC &LC v:RowList RCexp { AST(state).Table(v) };
+TableBody <AstValue> = LC STAR RCexp  { AST(state).Table() }
+    / v:TableHeading WSC w:RowValueList SEP? { AST(state).Table(v,w) }
+    / v:RowList SEP? { AST(state).Table(v) };
 
 TableHeading <AstValue> = LC COLON RC { AST(state).Heading(null) }
     / LC &(Ident COLON) v:FieldList RCexp { AST(state).Heading(v) };

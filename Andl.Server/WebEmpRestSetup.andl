@@ -5,38 +5,35 @@
 'WebEmpApiSetup.andl -- set up for Web REST employee sample'
 
 // load initial data
-db WebEmp(csv)
+var WebEmp(csv)
 //def WebEmp:db(csv)
 //WebEmp
 
-newempno := WebEmp [{ fold(max,EmpNo)}]
+newempno := WebEmp .{ fold(max,EmpNo)}
 //newempno
 
 // this is the CRUD interface using REST
 get_employee_id(empno:text) => do {
-    WebEmp [?(EmpNo.text = empno)]
+    WebEmp .where(EmpNo.text = empno)
 }
 
 get_employee() => do {
-    WebEmp [$(EmpNo)]
+    WebEmp .order(EmpNo)
 }
 
 add_employee(emp:WebEmp) => do {
-    WebEmp := union emp [{ * EmpNo := newempno}]
+    update WebEmp union emp .{ * EmpNo := newempno}
     newempno := newempno+1
 }
 
 delete_employee_id(empno:text) => do {
-    WebEmp := [?(EmpNo.text = empno)]
+    update WebEmp .where(EmpNo.text = empno) .delete
 }
 
 put_employee_id(empno:text, emp:WebEmp) => do {
-    WebEmp := [?(EmpNo.text = empno)]
-    WebEmp := union emp
+    update WebEmp .where(EmpNo.text = empno) .delete
+    update WebEmp union emp
 }
 
-//andl_catalog
-//andl_variable
-andl_operator()
-//andl_member
-#stop
+andl_catalog
+//andl_operator()

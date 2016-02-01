@@ -1,0 +1,65 @@
+// translation of sample application from http://search.cpan.org/dist/DBIx-Class/lib/DBIx/Class/Manual/Example.pod
+
+// create the database relvars
+artist  := {{ artistid:0, name:'' }}
+cd      := {{ cdid:0, artistid:0, title:'', year:0 }}
+track   := {{ trackid:0, cdid:0, title:'' }}
+
+// some data in temporary relvars, with auto-generated ordinals
+$artist_data := {{name:''}
+  ( 'Michael Jackson' ), 
+  ( 'Eminem' ),
+} .{ *artistid := ord() }
+
+$cd_data := {{ title:'', name:'' }
+  ( 'Thriller',                'Michael Jackson' ),
+  ( 'Bad',                     'Michael Jackson' ),
+  ( 'The Marshall Mathers LP', 'Eminem' ),
+} .{ *cdid := ord() }
+
+$track_data := {{ title:'', cd:'' }
+   ( 'Beat It'         , 'Thriller' ),
+   ( 'Billie Jean'     , 'Thriller' ),
+   ( 'Dirty Diana'     , 'Bad' ),
+   ( 'Smooth Criminal' , 'Bad' ),
+   ( 'Leave Me Alone'  , 'Bad' ),
+   ( 'Stan'            , 'The Marshall Mathers LP' ),
+   ( 'The Way I Am'    , 'The Marshall Mathers LP' ),
+ } .{ *trackid := ord() }
+
+// update the database relvars
+update artist union $artist_data
+update cd union ($cd_data join artist) .{ title, cdid, artistid, year:=0}
+update track union ($track_data join cd .{ *cd := title }) .{ trackid, title, cdid }
+
+// functions to answer various queries
+get_tracks_by_cd(t:'') => cd .where(title = t) .{ *title }  join track
+get_tracks_by_artist(a:'') => (artist .where(name = a) .{ *name } join cd) .{ cdid } join track
+get_cd_by_track(t:'') => track  .where(title = t) .{ cdid }  join cd
+get_cds_by_artist(a:'') => artist .where(name = a) .{ artistid }  join cd
+get_artist_by_track(t:'') => (track .where(title = t) .{ cdid } join cd) .{ artistid } join artist
+get_artist_by_cd(t:'') => (cd .where(title = t) .{ cdid } join cd) .{ artistid } join artist
+
+// first show the raw data
+
+crlf := h'd a'
+write(crlf & "=== Sample data ===" & crlf)
+write(artist.pp)
+write(crlf.pp)
+write(cd.pp)
+write(crlf.pp)
+write(track.pp)
+
+// now do the queries
+
+show(title:'', data:{{ str:'' }}) => do {
+    output := title & crlf & data .{fold(&, "  " & str & crlf)} 
+}
+
+output := crlf & "=== Query results ===" & crlf
+show("Track title:", get_tracks_by_cd('Bad')  .{str:=title} )
+show("Track title:", get_tracks_by_artist('Michael Jackson')  .{str:=title} )
+show("CD title:", get_cd_by_track('Stan')  .{str:=title} )
+show("CD title:", get_cds_by_artist('Michael Jackson')  .{str:=title} )
+show("Artist:", get_artist_by_track('Dirty Diana')  .{str:=name} )
+show("Artist:", get_artist_by_cd('The Marshall Mathers LP')  .{str:=name} )

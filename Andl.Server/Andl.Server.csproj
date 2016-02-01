@@ -237,9 +237,7 @@
     <Content Include="Views\Home\appspapi.cshtml" />
     <Content Include="WebEmpRestSetup.andl" />
     <Content Include="WebSpApiSetup.andl" />
-    <Content Include="WebSpApiShow.andl" />
     <Content Include="WebSpRestSetup.andl" />
-    <Content Include="WebSpRestShow.andl" />
     <Content Include="Views\Home\apprepl.cshtml" />
   </ItemGroup>
   <ItemGroup>

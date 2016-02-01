@@ -1,0 +1,13 @@
+﻿#noisy 1
+// workbench.andl -- is automatically loaded by Andl Workbench
+// 
+// Note: assumes Workbench catalog loaded by running setup
+// Press F5 to run, and F7 to reload the catalog
+
+fib(15)
+
+suppliersbyname('a')
+addsuppliers(VR)
+S
+S  .{ fold(+,STATUS) }     // aggregated value
+//end
