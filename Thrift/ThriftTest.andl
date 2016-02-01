@@ -2,14 +2,19 @@
 
 // Test routines for Thrift interface
 
+// Run Andl\Thrift\setup.bat to do some cleanup and the first two steps.
+// This is the complete list.
 // 1. Compile this with -t
 // 2. Compile with Thrift --gen csharp ThriftTest.thrift
-// 3. Client is VS C# AndlClient.ThriftTest (links to generated code)
+// 3. Run the Thrift server: andl.Thrift.exe
+// 4. Build the ThriftTest client: AndlClient.ThriftTest (links to generated code)
+// 5. Run the ThriftTest client: AndlClient.ThriftTest.exe
+//
 
 #catalog new update
 
 def ut2(AN:number,AS:text)
-def ut5(AB:bool,AD:time,AN:number,AS:text)
+def ut4(AB:bool,AD:time,AN:number,AS:text)
 def ut3(AN:number,AS:text,AU:ut2)
 
 VB := true
@@ -17,7 +22,7 @@ VD := t'31/12/2015'
 VI := 98765
 VN := 123579.68
 VS := "This is a string"
-VU := ut5(true,t'31/10/2015',123.45009,"A component string")
+VU := ut4(true,t'31/10/2015',123.45009,"A component string")
 VUU := ut3(1234.567, "A nested string", ut2(1234.568, "An inner string"))
 
 // two that match
@@ -52,7 +57,7 @@ GetVT4 => VT4
 GetVR2 => VR2
 GetVT2 => VT2
 GetVConcat => VB & VD & VI & VN & VS
-//GetTofR5 => VR5 [ {*} ]
+//GetTofR5 => VR5  .{*} 
 
 GetFB(v:VB) => v
 GetFD(v:VD) => v
@@ -69,47 +74,57 @@ GetFT2(v:VT2) => v
 GetFR2(v:VR2) => v 
 GetFConcat(v1:VB,v2:VD,v3:VI,v4:VN,v5:VS) => v1 & v2 & v3 & v4 & v5
 
+AddVR2(r:VR2) => do {
+    update VR2 union r
+}
+AddVR4(r:VR4) => do {
+    update VR4 union r
+}
+AddVR5(r:VR5) => do {
+    update VR5 union r
+}
+
 DoErrorA => '123ab'.number
 DoErrorB => fail('test', 'this is a fail')
 
 // now we call them
 
-GetVB 
-GetVD 
-GetVI 
-GetVN 
-GetVS 
-GetVU
-GetVUU
-GetVT5
-GetVR5
-GetVR4
-GetVT4
-GetVR2
-GetVT2
-GetVConcat
-//GetTofR5
-GetFB(false)
-GetFD(t'30/08/2015')
-GetFI(554433)
-GetFN(12344.3322)
-GetFS("This is an argument string")
-GetFU(ut5(false,t'31/07/2015',123.45010,"An argument string"))
-GetFUU(ut3(1234.569, "A nested string", ut2(1234.5699, "An inner string")))
-GetFT4( { AB := true, AD := t'30/07/2015', AI := 55666, AS := "An attribute string 7" } )
-GetFR4({{ AB := true, AD := t'30/05/2015', AN := 123.45055, AS := "An attribute string 9" },
-        { AB := true, AD := t'30/04/2015', AN := 123.45044, AS := "An attribute string 10" },
-})
-GetFT5({ AB := true, AD := t'30/06/2015', AI := 55665, AN := 123.45100, AS := "An attribute string 8" })
-GetFR5({{ AB := true, AD := t'30/03/2015', AI := 55663, AN := 123.45033, AS := "An attribute string 12" },
-        { AB := true, AD := t'30/01/2015', AI := 55662, AN := 123.45022, AS := "An attribute string 13" },
-})
-GetFT2( { AN := 185, AU := ut2(1830, "ut2 string x") } )
-GetFR2({ { AN := 186, AU := ut2(1830, "ut2 string y") }, { AN := 187, AU := ut2(1830, "ut2 string z") } })
-GetFConcat(true, t'31/01/2015', 554435, 123.45011, "An argument string 14")
+//GetVB 
+//GetVD 
+//GetVI 
+//GetVN 
+//GetVS 
+//GetVU
+//GetVUU
+//GetVT5
+//GetVR5
+//GetVR4
+//GetVT4
+//GetVR2
+//GetVT2
+//GetVConcat
+////GetTofR5
+//GetFB(false)
+//GetFD(t'30/08/2015')
+//GetFI(554433)
+//GetFN(12344.3322)
+//GetFS("This is an argument string")
+//GetFU(ut4(false,t'31/07/2015',123.45010,"An argument string"))
+//GetFUU(ut3(1234.569, "A nested string", ut2(1234.5699, "An inner string")))
+//GetFT4( { AB := true, AD := t'30/07/2015', AI := 55666, AS := "An attribute string 7" } )
+//GetFR4({{ AB := true, AD := t'30/05/2015', AN := 123.45055, AS := "An attribute string 9" },
+//        { AB := true, AD := t'30/04/2015', AN := 123.45044, AS := "An attribute string 10" },
+//})
+//GetFT5({ AB := true, AD := t'30/06/2015', AI := 55665, AN := 123.45100, AS := "An attribute string 8" })
+//GetFR5({{ AB := true, AD := t'30/03/2015', AI := 55663, AN := 123.45033, AS := "An attribute string 12" },
+//        { AB := true, AD := t'30/01/2015', AI := 55662, AN := 123.45022, AS := "An attribute string 13" },
+//})
+//GetFT2( { AN := 185, AU := ut2(1830, "ut2 string x") } )
+//GetFR2({ { AN := 186, AU := ut2(1830, "ut2 string y") }, { AN := 187, AU := ut2(1830, "ut2 string z") } })
+//GetFConcat(true, t'31/01/2015', 554435, 123.45011, "An argument string 14")
 
 //DoErrorA
 
-//andl_catalog
-andl_operator()
+andl_catalog
+//andl_operator()
 

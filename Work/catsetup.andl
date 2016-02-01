@@ -1,0 +1,26 @@
+﻿// catsetup.andl -- compile stuff and update catalog
+
+#catalog new update
+
+_vartext := 'testing 1,2,3,4...'
+_varnum := 42.00
+_varrel := { {name:text,age:number}('Smith', 17),('Jones', 35),('Frankenstein', 199) }
+_func(a:'') => do { a }
+def _udt(b:bool, s:text)
+
+vartext := _vartext
+varnum := _varnum
+varrel := _varrel
+@varrel := _varrel
+func(a:'') => do { a }
+def udt(b:bool, s:text)
+udv := udt(true, 'not false')
+
+f@varrel => @varrel
+fvarrel => varrel
+fudv => udv
+
+andl_catalog
+//andl_variable()
+//andl_operator()
+//andl_member()

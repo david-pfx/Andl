@@ -1,0 +1,16 @@
+// SQL Window functions - http://en.wikibooks.org/wiki/Structured_Query_Language/Window_functions
+
+// SELECT id,
+//        emp_name,
+//        dep_name,
+//        -- The functions FIRST_VALUE() and LAST_VALUE() explain itself by their name. They act within the actual frame.
+//        FIRST_VALUE(id) OVER (PARTITION BY dep_name ORDER BY id) AS frame_first_row,
+//        LAST_VALUE(id)  OVER (PARTITION BY dep_name ORDER BY id) AS frame_last_row,
+//        COUNT(*)        OVER (PARTITION BY dep_name ORDER BY id) AS frame_count,
+//        -- The functions LAG() and LEAD() explain itself by their name. They act within the actual partition.
+//        LAG(id)         OVER (PARTITION BY dep_name ORDER BY id) AS prev_row,
+//        LEAD(id)        OVER (PARTITION BY dep_name ORDER BY id) AS next_row
+// FROM   employee;
+
+var employee(csv)
+employee
