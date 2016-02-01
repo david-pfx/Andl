@@ -1,3 +1,0 @@
-This is exactly three lines of test data.
-<ignore this lines>
-This is the last line of test data.
