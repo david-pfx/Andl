@@ -1,15 +1,10 @@
 ﻿//################################################################################################################
 //#noisy 1
 
-db enrolment(csv), is_called(csv), is_enrolled_on(csv), course(csv), exam_mark(csv)
-
-//exam_mark [?(StudentId = 'S1')]
-//exam_mark [{StudentId, CourseId, Mark, double :=Mark*2,treble:=Mark*3,square:=Mark*Mark}]
-exam_mark [ { StudentId, totalmark := fold(+,Mark) } ]
-//exam_mark [ { Mark, CourseId, marks := {{ Mark }} } ]
-#stop
-
 // Basic smoke test
+
+var enrolment(csv), is_called(csv), is_enrolled_on(csv), course(csv), exam_mark(csv)
+var S(csv), P(csv), SP(csv)
 
 'hello world!'
 v := 'hello world!'
@@ -45,7 +40,7 @@ pot(20)
 
 // relational
 {{}}
-{{}} [?(false)]
+{{}} .where(false)
 {name := 'Smith', age := 17}
 {{name := 'Smith', age := 17}}
 {{name := 'Smith', age := 17},{name := 'Jones', age := 35},{age :=199,name:='Frankenstein' }}
@@ -56,67 +51,64 @@ pot(20)
 {{name:text,age:number}('Smith', 17)}
 {{name:'',age:0} ('Smith', 17),('Jones', 35),('Frankenstein',199) }
 
-db enrolment(csv), is_called(csv), is_enrolled_on(csv), course(csv), exam_mark(csv)
-db S(csv), P(csv), SP(csv)
-
 write(S.pp)
-write(S[{CITY}].pp)
+write(S.{CITY}.pp)
 
 SP .schema
 SP.count
 
 // relational functions
-seq(5) [{nnn := 17 + N * 0.3}]
+seq(5) .{nnn := 17 + N * 0.3}
 schema(is_called)
 
 // dyadics
-course[{CID := CourseId }]
-exam_mark [{CourseId}]
-exam_mark [{*CourseId}]
+course.{CID := CourseId }
+exam_mark .{CourseId}
+exam_mark .{*CourseId}
 
-exam_mark [?(StudentId = 'S1')]
-exam_mark [{StudentId, CourseId, Mark, double :=Mark*2,treble:=Mark*3,square:=Mark*Mark}]
-exam_mark [ { StudentId, totalmark := fold(+,Mark) } ]
-exam_mark [ { Mark, CourseId, marks := {{ Mark }} } ]
+exam_mark .where(StudentId = 'S1')
+exam_mark .{StudentId, CourseId, Mark, double :=Mark*2,treble:=Mark*3,square:=Mark*Mark}
+exam_mark  .{ StudentId, totalmark := fold(+,Mark) } 
+exam_mark  .{ Mark, CourseId, marks := {{ Mark }} } 
 
 course join exam_mark
 course ajoin exam_mark
 course union exam_mark
 
 exam_mark sub exam_mark
-not(exam_mark sub exam_mark[?(StudentId='S1')])
-exam_mark sup exam_mark[?(StudentId='S1')]
+not(exam_mark sub exam_mark.where(StudentId='S1'))
+exam_mark sup exam_mark.where(StudentId='S1')
 not(exam_mark sep exam_mark)
-exam_mark[?(StudentId='S1')] sep exam_mark[?(StudentId <>'S1')]
+exam_mark.where(StudentId='S1') sep exam_mark .where(StudentId <>'S1')
 
-course join exam_mark [{CourseId}]
-course join exam_mark [{*CourseId}]
-(course join exam_mark) [{CourseId}]
-(course join exam_mark) [{*CourseId}]
+course join exam_mark .{CourseId}
+course join exam_mark .{*CourseId}
+(course join exam_mark) .{CourseId}
+(course join exam_mark) .{*CourseId}
 
-exam_mark [ { StudentId, CourseId, marks := {{ Mark := Mark }} } ]
-//exam_mark [ { StudentId, totalmark := sum(Mark) } ] //???
+exam_mark  .{ StudentId, CourseId, marks := {{ Mark := Mark }} } 
+//exam_mark  .{ StudentId, totalmark := sum(Mark) }  //???
 
-exam_mark [ { StudentId, totalmark := fold(+,Mark) } ]
-exam_mark [ { StudentId, totalmark := fold(+,Mark), avgmark := fold(+,Mark)/fold(+,1) } ]
-exam_mark [ { StudentId, marks := fold(union,{{ Mark := Mark }}) } ]
-exam_mark [ { StudentId, marks := fold(union,{{ CourseId := CourseId, Mark := Mark }}) } ]
-exam_mark [ { StudentId, highmark := fold(max,Mark), lowmark := fold(min,Mark), ratio := fold(max,Mark)/fold(min,Mark) } ]
+exam_mark  .{ StudentId, totalmark := fold(+,Mark) } 
+exam_mark  .{ StudentId, totalmark := fold(+,Mark), avgmark := fold(+,Mark)/fold(+,1) } 
+exam_mark  .{ StudentId, marks := fold(union,{{ Mark := Mark }}) } 
+exam_mark  .{ StudentId, marks := fold(union,{{ CourseId := CourseId, Mark := Mark }}) } 
+exam_mark  .{ StudentId, highmark := fold(max,Mark), lowmark := fold(min,Mark), ratio := fold(max,Mark)/fold(min,Mark) } 
 
-exam_mark [ ?({{ x := Mark }} = exam_mark [{ x := fold(min,Mark) }]) ]
+exam_mark  .where({{ x := Mark }} = exam_mark .{ x := fold(min,Mark) }) 
 
-xx := course [{ CourseId, ExamResult := {{ CourseId }} joinlr exam_mark}]
+xx := course .{ CourseId, ExamResult := {{ CourseId }} joinlr exam_mark}
 xx
-xx [{ExamResult}]
-xx [{ exres := fold(union,ExamResult) }]
-xx [{ fold(union,ExamResult) }]
+xx .{ExamResult}
+xx .{ exres := fold(union,ExamResult) }
+xx .{ fold(union,ExamResult) }
 
-course [{ CourseId, ExamResult := {{ * }} joinr exam_mark}]
+course .{ CourseId, ExamResult := {{ * }} joinr exam_mark}
 
 // updates
-up1 => exam_mark := union {{StudentId:='fred', CourseId:='pub', Mark:=99}}
-up2 => exam_mark := [ ?(StudentId = 'S1')]
-up3 => exam_mark := [ ?(StudentId = 'fred') {* Mark := 100 }]
+up1 => update exam_mark union {{StudentId:='fred', CourseId:='pub', Mark:=99}}
+up2 => update exam_mark .where(StudentId = 'S1') .delete
+up3 => update exam_mark .where(StudentId = 'fred') .{* Mark := 100 }
 exam_mark
 up1
 exam_mark
@@ -126,12 +118,12 @@ up3
 exam_mark
 
 // Ordered
-P[$(WEIGHT)]
-P[$(COLOR,-WEIGHT)]
+P.order(WEIGHT)
+P.order(COLOR,-WEIGHT)
 
 // employees
-db employee(csv)
-employee [ $(%dep_name,-age) { *
+var employee(csv)
+employee  .order(%dep_name,-age) .{ *
     ord:=ord(),
     ordg:=ordg(),
     lagsal:=lag(salary,1), 
@@ -139,14 +131,14 @@ employee [ $(%dep_name,-age) { *
     nthsal:=nth(salary,1), 
     salsum:=fold(+,salary),
     count:=fold(+,1)
-}]
+}
 
 // Transitive closure
-db MM(csv)
+var MM(csv)
 MM
 XYT := {{X:='',Y:=''}}
 TRANCLO:XYT(XY:XYT) => do {
-        TTT := XY[{*Z := Y}] compose XY[{*Z := X}] union XY
+        TTT := XY.{*Z := Y} compose XY .{*Z := X} union XY
         if(TTT = XY, TTT, TRANCLO(TTT))
     }
-TRANCLO(MM[ {X:=MAJOR_P#, Y:= MINOR_P# } ]) [{MAJOR_P#:=X, MINOR_P#:=Y }]
+TRANCLO(MM .{X:=MAJOR_P#, Y:= MINOR_P# } ) .{MAJOR_P#:=X, MINOR_P#:=Y }

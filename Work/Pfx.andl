@@ -1,16 +1,15 @@
 ﻿// test data from PFX samples
 
-db member(csv), council(csv), teams(csv), country(csv)
-//def member:db(csv), council:db(csv), teams:db(csv), country:db(csv)
+var member(csv), council(csv), teams(csv), country(csv)
 
 // Schemas
-member[?(false)]
-council[?(false)]
-teams[?(false)]
-country[?(false)]
+member.schema
+council.schema
+teams.schema
+country.schema
 
-member [ ?(Joined < t'01/01/1970') $(Surname) {* No} ]
-(council join member[{*Member:=No}]) [{*No,Member, Mailcode,Sex}]
-teams join member[{*Member:=No}]
-member [ { Sex, First := fold(min,Joined), Last := fold(max,Joined) } ]
-(member join country[{*Country := Name}]) [{*No,Sex}]
+member  .where(Joined < t'01/01/1970') .order(Surname) .{* No} 
+(council join member.{*Member:=No}) .{*No,Member, Mailcode,Sex}
+teams join member .{*Member:=No}
+member  .{ Sex, First := fold(min,Joined), Last := fold(max,Joined) } 
+(member join country.{*Country := Name}) .{*No,Sex}

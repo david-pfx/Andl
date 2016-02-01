@@ -42,13 +42,13 @@ is_num1:bool(s:text) => do {
 
 // converts string to relation, tests all together
 is_num2(s:text) => do {
-    chars := seq(s.length) [{ ch := left(right(s, s.length-N),1)}]
+    chars := seq(s.length) .{ ch := left(right(s, s.length-N),1)}
     (chars minus nchars).count = 0
 }
 
 // define an unpack function for convenience
 unpack(s:text) => do {
-    seq(s.length) [{ CH := left(right(s, s.length-N),1)}]
+    seq(s.length) .{ CH := left(right(s, s.length-N),1)}
 }
 nchars2 := unpack('0123456789')
 is_num(s:text) => if(s.length=0, false, (unpack(s) minus nchars2).count = 0)
@@ -67,8 +67,8 @@ ts100 := fill('12345', 100)
 ts100
 test(ts100 & 'x')
 test('x' & ts100)
-seq(2) [{ xx := is_num(ts100) }]
-multi(n:0) => do { seq(n) [{ xx := is_num(ts100) }] }
+seq(2) .{ xx := is_num(ts100) }
+multi(n:0) => do { seq(n) .{ xx := is_num(ts100) } }
 multi(100).count
 
 // takes about 6 seconds for 5000 tests

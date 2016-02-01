@@ -1,6 +1,6 @@
 ﻿// Databases, Types and the Relational Model
 
-#include SupplierData.andl
+var S(csv), P(csv), SP(csv)
 S
 P
 SP
@@ -8,18 +8,18 @@ SP
 // p 40
 // EXTEND S ADD ( 3 * STATUS AS TRIPLE )
 
-S [{*TRIPLE:=3*STATUS}]
+S .{*TRIPLE:=3*STATUS}
 
 // p41
 // SUMMARIZE SP PER ( S { S# } ) ADD ( COUNT ( ) AS P_COUNT )
 
-(S join SP) [{ S#, P_COUNT := fold(+,1) }]                  // wrong: only 4 rows
-S [{ S#, P_COUNT := ( {{*}} join SP ) [{ fold(+,1) }] }]    // right: 5 rows
+(S join SP) .{ S#, P_COUNT := fold(+,1) }                  // wrong: only 4 rows
+S .{ S#, P_COUNT := ( {{*}} join SP ) .{ fold(+,1) } }    // right: 5 rows
 
 // p42
 // SUMMARIZE S BY { CITY } ADD ( AVG ( STATUS ) AS AVG_STATUS )
 
-S [{ CITY, AVG_STATUS := fold(+,STATUS)/fold(+,1) }]
+S .{ CITY, AVG_STATUS := fold(+,STATUS)/fold(+,1) }
 
 // p42
 // COUNT ( S ) /* result 5 */
@@ -28,9 +28,9 @@ S [{ CITY, AVG_STATUS := fold(+,STATUS)/fold(+,1) }]
 // AVG ( S, STATUS ) /* result 22 */
 
 count(S)
-count(S[{CITY}])
-S[{STATUS}] [{ fold(+,STATUS)/fold(+,1) }]
-S[{ fold(+,STATUS)/fold(+,1) }]
+count(S.{CITY})
+S.{STATUS} .{ fold(+,STATUS)/fold(+,1) }
+S.{ fold(+,STATUS)/fold(+,1) }
 
 // p182 - Transitive closure by recursion
 
@@ -56,7 +56,7 @@ MM := {{ MAJOR_P#:text,MINOR_P#:text}
 
 XYT := {{X:='',Y:=''}}
 TRANCLO:XYT(XY:XYT) => do {
-        $TTT := XY[{*Z := Y}] compose XY[{*Z := X}] union XY
+        $TTT := XY .{*Z := Y} compose XY .{*Z := X} union XY
         if($TTT = XY, $TTT, TRANCLO($TTT))
     }
-TRANCLO(MM[ {X:=MAJOR_P#, Y:= MINOR_P# } ]) [{MAJOR_P#:=X, MINOR_P#:=Y }]
+TRANCLO(MM .{X:=MAJOR_P#, Y:= MINOR_P# } ) .{MAJOR_P#:=X, MINOR_P#:=Y }

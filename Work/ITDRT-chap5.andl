@@ -2,7 +2,7 @@
 // Introduction to Relational Database Theory - Hugh Darwen
 // Chapter 5 - updated syntax
 
-#include ITDRT-data.andl
+var enrolment(csv), is_called(csv), is_enrolled_on(csv), course(csv), exam_mark(csv)
 
 // ITRDT Chap 5 p121
 course
@@ -10,72 +10,72 @@ exam_mark
 course join exam_mark
 
 // ITDRT p122
-course join exam_mark [{* StudentId, Mark } ]
+course join exam_mark .{* StudentId, Mark } 
 course notmatching exam_mark
 course joinlc exam_mark
 
 // ITDRT p124
-(course join exam_mark) [{* CourseId } ]
+(course join exam_mark) .{* CourseId } 
 
 // ITDRT p124 Fig 5.3 -- MISMATCH
 course joinlr exam_mark
 
 // ITDRT p127
 count(exam_mark)
-count(exam_mark [ ?(Mark = 93)])
-count(exam_mark [ ?(Mark > 50)])
+count(exam_mark  .where(Mark = 93))
+count(exam_mark  .where(Mark > 50))
 
-exam_mark [ { StudentId, marks := fold(+,Mark) } ]
+exam_mark  .{ StudentId, marks := fold(+,Mark) } 
 
 //==>> WRONG ANSWER
-exam_mark [ ?(StudentId = 'S1') { CourseId, marks := fold(+,Mark) } ]
-exam_mark [ ?(StudentId = 'S1') { CourseId, marks := fold(+,Mark), lowest := fold(min,Mark), highest := fold(max,Mark) } ]
+exam_mark  .where(StudentId = 'S1') .{ CourseId, marks := fold(+,Mark) } 
+exam_mark  .where(StudentId = 'S1') .{ CourseId, marks := fold(+,Mark), lowest := fold(min,Mark), highest := fold(max,Mark) } 
 
 //--- does not agree with book
 
 // ITDRT p130 Fig 5.4
-count(exam_mark [?(CourseId = 'C1')])
-count(exam_mark [?(CourseId = 'C2')])
-count(exam_mark [?(CourseId = 'C3')])
-count(exam_mark [?(CourseId = 'C4')])
+count(exam_mark .where(CourseId = 'C1'))
+count(exam_mark .where(CourseId = 'C2'))
+count(exam_mark .where(CourseId = 'C3'))
+count(exam_mark .where(CourseId = 'C4'))
 // not the the answer -- no zeros this way
-exam_mark [ { CourseId, n:=fold(+,1) } ]
+exam_mark  .{ CourseId, n:=fold(+,1) } 
 
 // ITDRT p131 5.4 Fig 5.5
-//course combine[ exam_mark { ExamResult := {{ StudentId, Mark := Mark }} } ]
-course [{CourseId, ExamResult := {{ CourseId }} joinlr exam_mark } ]
+//course combine exam_mark .{ ExamResult := {{ StudentId, Mark := Mark }} } 
+course .{CourseId, ExamResult := {{ CourseId }} joinlr exam_mark } 
 // perfect match
 
 // ITDRT p132 5.5 Aggregate + Nest
 // ITDRT p132 Ex 5.7
-c_er := course [{CourseId, ExamResult := {{ CourseId }} joinlr exam_mark } ]
-c_er [ { CourseId,n := count(ExamResult) }]
+c_er := course .{CourseId, ExamResult := {{ CourseId }} joinlr exam_mark } 
+c_er  .{ CourseId,n := count(ExamResult) }
 
 // ITDRT p132 Ex 5.8 AVG -- NOT DONE -- WRONG?
-//c_er2 := exam_mark [{CourseId, ExamResult:= {{ CourseId}} joinlr exam_mark }]
+//c_er2 := exam_mark .{CourseId, ExamResult:= {{ CourseId}} joinlr exam_mark }
 
 // ITDRT p134 5.6 SUMMARIZE
 // ITDRT p134 Ex 5.9 PER
-course [{ CourseId, n := count( {{ CourseId }} join exam_mark ) } ]
+course .{ CourseId, n := count( {{ CourseId }} join exam_mark ) } 
 
 // ITDRT p136 Ex 5.9 PER AVG
 // ITDRT p136 Ex 5.11 BY AVG
-exam_mark [ { CourseId, SumMark := fold(+,Mark) } ]
-exam_mark [ { CourseId, AvgMark := fold(+,Mark)/fold(+,1) } ]
+exam_mark  .{ CourseId, SumMark := fold(+,Mark) } 
+exam_mark  .{ CourseId, AvgMark := fold(+,Mark)/fold(+,1) } 
 
 // ITDRT p134 5.7 GROUP and UNGROUP
 
-c_er2 := exam_mark [{CourseId, ExamResult := {{CourseId}} joinlr exam_mark}]
+c_er2 := exam_mark .{CourseId, ExamResult := {{CourseId}} joinlr exam_mark}
 c_er2
-c_er2 [{ fold(union,ExamResult)}]
-c_er2 [{ fold(union,ExamResult join {{CourseId}}) }]
+c_er2 .{ fold(union,ExamResult)}
+c_er2 .{ fold(union,ExamResult join {{CourseId}}) }
 
 // ITDRT p141 5.8 WRAP and UNWRAP
 // data not supplied for example in book
 
-wc_er2 := exam_mark [{ ExamResult:={ StudentId, Mark } }]
+wc_er2 := exam_mark .{ ExamResult:= { StudentId, Mark } }
 wc_er2
-//wc_er2 [{fold(union,ExamResult)}]
-//wc_er2 [{fold(union,{ExamResult})}]
-wc_er2 [{fold(union,{{ExamResult}})}]
+//wc_er2 .{fold(union,ExamResult)}
+//wc_er2 .{fold(union,.{ExamResult})}
+wc_er2 .{fold(union,{{ExamResult}})}
 
