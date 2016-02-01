@@ -1,4 +1,8 @@
-﻿#noisy 2
+﻿//#source xxx
+//#source 'asdf'
+var c(sql)
+#stop
+#noisy 2
 
 v1:={{}}
 v2:={{ x:=1 }}
@@ -11,7 +15,6 @@ VR5 := {
 }
 update VR5 asdf
 
-#stop
 j := 1
 j
 j := 2

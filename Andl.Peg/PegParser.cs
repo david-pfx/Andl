@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Pegasus.Common;
 using System.IO;
 using Andl.Runtime;
+using System.Text.RegularExpressions;
 
 namespace Andl.Peg {
   /// <summary>
@@ -168,6 +169,11 @@ namespace Andl.Peg {
       Logger.Level = int.Parse(level);
       return "";
     }
+    string SourceDirective(Cursor state, string path) {
+      State = state;
+      Cat.SourcePath = (path.Length >= 2) ? Unquote(path) : "";
+      return "";
+    }
     string StopDirective(Cursor state, string level) {
       State = state;
       if (level != "") Logger.Level = int.Parse(level);
@@ -248,9 +254,14 @@ namespace Andl.Peg {
       return sym != null && sym.IsFoldable;
     }
 
-    public string NumToStr(IList<string> strs, int radix) {
+    string NumToStr(IList<string> strs, int radix) {
       var nums = strs.Select(s => Int32.Parse(s, radix == 16 ? System.Globalization.NumberStyles.AllowHexSpecifier : System.Globalization.NumberStyles.None));
       return string.Concat(nums.Select(n => Char.ConvertFromUtf32(n)));
+    }
+    string Unquote(string s) {
+      if (Regex.IsMatch(s, "^'.*'$") || Regex.IsMatch(s, "^\".*\"$"))
+        return s.Substring(1, s.Length - 2);
+      else return s;
     }
 
   }

@@ -67,7 +67,11 @@ namespace Andl.Runtime {
 
     protected override DbDataReader Open(string table) {
       var cmd = new SqlCommand(String.Format("select * from {0}", table), _connection);
-      _connection.Open();
+      try {
+        _connection.Open();
+      } catch (Exception ex) {
+        ProgramError.Fatal("Source sql", ex.Message);
+      }
       return cmd.ExecuteReader();
     }
 
@@ -106,7 +110,11 @@ namespace Andl.Runtime {
     //
     protected override DbDataReader Open(string table) {
       var cmd = new OdbcCommand(String.Format("select * from {0}", table), _connection);
-      _connection.Open();
+      try {
+        _connection.Open();
+      } catch (Exception ex) {
+        ProgramError.Fatal("Source odbc", ex.Message);
+      }
       return cmd.ExecuteReader();
     }
 
@@ -145,7 +153,11 @@ namespace Andl.Runtime {
     //
     protected override DbDataReader Open(string table) {
       var cmd = new OleDbCommand(String.Format("select * from {0}", table), _connection);
-      _connection.Open();
+      try {
+        _connection.Open();
+      } catch (Exception ex) {
+        ProgramError.Fatal("Source OleDb", ex.Message);
+      }
       return cmd.ExecuteReader();
     }
 

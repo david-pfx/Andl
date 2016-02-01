@@ -1,7 +1,7 @@
 ﻿// testing the FromQuicken database
 
 #source 'Data Source=Mona;Initial Catalog=FromQuicken;Integrated Security=True'
-db price(sql), security(sql), trans(sql)
+var price(sql), security(sql), trans(sql)
 price.schema
 security.schema
 trans.schema
@@ -12,17 +12,21 @@ trans.schema
 @d := t'31/12/2007'
 @p := ''
 
-holding := trans [?(Date < @d) {Portfolio,SID, QtyHeld := fold(+,Quantity) }] [?(QtyHeld > 0)]
-holding [$(Portfolio,SID,QtyHeld)]
+holding := trans .where(Date < @d) .{Portfolio,SID, QtyHeld := fold(+,Quantity) } .where(QtyHeld > 0)
+holding .order(Portfolio,SID,QtyHeld)
                                                                                                                                                                                                                  
-lastpricedate := price [ ?(Date < @d) {SID, lastdate:=fold(max,Date)} ][ $(lastdate)] [?(ord()<20)]
+lastpricedate := price  .where(Date < @d) .{SID, lastdate:=fold(max,Date)} .order(lastdate) .where(ord()<20)
 lastpricedate
-lastprice := lastpricedate[{Date:=lastdate}] join price[{SID,Date,Price}]
-lastprice[?(ord()<20) $(Date)]
+lastprice := lastpricedate.{Date:=lastdate} join price .{SID,Date,Price}
+lastprice.where(ord()<20) .order(Date)
 
-pholding := (holding join lastprice join security) [ {Portfolio,SID,Name,Type,Subtype,Date,Price,QtyHeld,Value:=QtyHeld*Price} ][$(Portfolio,Name)]
+pholding := (holding join lastprice join security) 
+  .{Portfolio,SID,Name,Type,Subtype,Date,Price,QtyHeld,Value:=QtyHeld*Price} 
+  .order(Portfolio,Name)
 
-pholding [ {Portfolio,Type,Subtype,GrpValue:=fold(+,QtyHeld*Price)} ][$(Portfolio,Type)]
-pholding [ {Portfolio, AsAt:=@d,TotValue:=fold(+,Value)} ][$(Portfolio)]
+pholding .{Portfolio,Type,Subtype,GrpValue:=fold(+,QtyHeld*Price)} 
+  .order(Portfolio,Type)
+pholding .{Portfolio, AsAt:=@d,TotValue:=fold(+,Value)} 
+  .order(Portfolio)
 
-trans [?(SID='WOWHA' and Date < @d)]
+trans .where(SID='WOWHA' and Date < @d)
