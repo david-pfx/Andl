@@ -1,4 +1,9 @@
-﻿//#source xxx
+﻿var S(csv), P(csv), SP(csv)
+
+P
+P .{ COLOR, TOTAL := fold(+, WEIGHT) }
+
+//#source xxx
 //#source 'asdf'
 var c(sql)
 #stop

@@ -22,6 +22,7 @@ namespace Andl.Main {
   /// Handles command line arguments.
   /// </summary>
   class Program {
+    const string AndlVersion = "Andl 1.0b2";
     static bool _csw = false; // compile only
     static bool _isw = false; // interactive
     static bool _nsw = false;  // new catalog
@@ -50,7 +51,7 @@ namespace Andl.Main {
 
     static void Main(string[] args) {
       Logger.Open(0);   // no default logging
-      Logger.WriteLine("Andl 1.0");
+      Logger.WriteLine(AndlVersion);
       for (var i = 0; i < args.Length; ++i) {
         if (args[i].StartsWith("/") || args[i].StartsWith("-")) {
           if (!Option(args[i].Substring(1))) {
