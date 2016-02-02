@@ -94,8 +94,8 @@ write(v1)
 //output := 'You typed <' & vin & '>'
 
 // read a file as a relation of lines of text {{ Line:text }}
-var test(txt)
-test
+var testinput(txt)
+testinput
 
 wait
 // Deferred assignment -- evaluated every time it is used

@@ -17,6 +17,8 @@
 ..\Debug\Andl /1 %1 >> out.txt family_tree.andl
 ..\Debug\Andl /1 %1 >> out.txt recursive.andl
 ..\Debug\Andl /1 %1 >> out.txt sudoku-logic.andl
+..\Debug\Andl /1 %1 >> out.txt chinook.andl chinook_sqlite.sqandl
+: uncomment to run, but very slow
 :..\Debug\Andl /1 %1 >> out.txt mandelbrot.andl
 
 @grep -n "False" out.txt
