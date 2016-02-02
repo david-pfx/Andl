@@ -1,4 +1,4 @@
-: Quick run through of available samples
+: Quick run through of available samples - dev only
 
 @if exist out.txt rm out.txt
 @if exist testandl.sqlite rm testandl.sqlite

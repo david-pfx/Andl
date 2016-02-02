@@ -8,9 +8,6 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{B8BDB516-8721-4448-AA66-FEA391AF9ABF}"
 	ProjectSection(SolutionItems) = preProject
 		Readme.txt = Readme.txt
-		Sample\test.andl = Sample\test.andl
-		Work\webempsetup.andl = Work\webempsetup.andl
-		Work\webspshow.andl = Work\webspshow.andl
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Andl.Compiler", "Andl.Compiler\Andl.Compiler.csproj", "{C31F55EE-C0B0-4F5D-A84E-E5B466A69276}"

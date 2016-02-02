@@ -8,28 +8,72 @@ system, database updates and other SQL-like capabilities in a novel and highly
 expressive syntax.
 
 FIRST DO THIS
+=============
 
 Grab the binary release and unzip it somewhere.
 
 Go to the Sample folder in a command prompt and run the following commands.
-    C>run /?
-    C>run 
-    C>run setup.andl
+    C>setup.bat         -- set up the sample databases
+    C>setupsql.bat      -- set up to use sqlite, if you have it (see below)
+    C>workbench.bat     -- run the workbench (next section)
+
+If you like to use the command line, then try these
+    C>run /?            -- view the command line arguments
+    C>run               -- run test.andl, a tiny script
     C>run sample1.andl
     C>run sample2.andl
     C>run sample3.andl
     C>run sample4.andl
     C>run sample5.andl
 
-NOW DO THIS
+
+WORKBENCH
+=========
+
+The Workbench is an interactive program to view a database amd its catalog, and 
+to execute queries.  
+
+1. Choose the 'sample' database and see the relations and contents of its catalog.
+2. The Andl program 'workbench.andl' is loaded by default. Press F5 to run it.
+3. Press F7 to reload the catalog and F5 to run it again.
+4. Or try Ctrt+N for a new program and Ctrl+F7 for a new catalog.
+
+Function keys
+-------------
+    F5 to run the current program in its entirety.
+    Select text and F5 to run part of a program as a query.
+    F7 to reload the catalog.
+    Ctrl+F7 to load a new empty catalog.
+
+    Here are the sample programs.
+        sample1.andl            -- scalar expressions
+        sample2.andl            -- basic relational expressions
+        sample3.andl            -- advanced relational expresions
+        sample4.andl            -- more complex examples
+        sample5.andl            -- ordering and grouping (like SQL Window)
+
+    Also take a look at:
+        DbixCdSample.andl       -- converted SQL sample
+        family_tree.andl        -- recursive self-join (like)
+        SPPsample1.andl         -- more converted SQL
+        recursive.andl          -- org chart using while (like SQL CTE recursive)
+        mandelbrot.andl         -- mandelbrot set
+        sudoku-orig.andl        -- sudoku solver
+        chinook.andl            -- sqlite database
+
+GETTING SQLITE
+==============
 
 This version of Andl can use Sqlite. If you don't already have it somewhere 
 accessible, then download it from here: 
 https://www.sqlite.org/2015/sqlite-dll-win32-x86-3081002.zip
-Just put the DLL somewhere accessible, like on your path or next to Andl.exe. 
+Just put the DLL somewhere accessible, like on your path or in the Andl\bin folder.
 That's all you need.
 
-Now run the same scripts again like this to trigger Sql mode, based on Sqlite. 
+MORE SQLITE
+===========
+
+You can run the same scripts again like this to trigger Sql mode, based on Sqlite. 
 Don't try sample5, it won't work in Sql mode.
 
     C>run setup.andl /s
@@ -42,23 +86,16 @@ This time all relations are stored in Sqlite. Apart from performance and one
 unimplemented feature, the behaviour is identical. If you like, you can use 
 the sqlite3.exe program to verify that this is so.
 
-    C>sqlite3.exe andltest.sqlite ".dump"
+    C>sqlite3.exe sample_sqlite.sqandl ".dump"
 
 Now try this, which requires the Chinook database for Sqlite. You can find it 
 here, prebuilt. https://chinookdatabase.codeplex.com/#.
 
-    C>run chinook.andl Chinook_Sqlite.sqlite /s
+    C>ren Chinook.sqlite Chinook_Sqlite.sqandl
+    C>run chinook.andl Chinook_Sqlite.sqandl /s
 
 This uses the widely distributed Chinkook database in its native form. Obviously 
 it only works with /s.
-
-Also take a look at:
-    C>run DbixCdSample.andl
-    C>run family_tree.andl
-    C>run SPPsample1.andl
-    C>run recursive.andl
-    C>run mandelbrot.andl
-    C>run sudoku-orig.andl
 
 BUILDING ANDL
 

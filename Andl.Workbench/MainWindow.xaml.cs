@@ -36,8 +36,11 @@ namespace Andl.Workbench {
 
 
       // set initial visual state
-      if (DataModel.Databases.Length > 0)
-        DataModel.DatabaseName = DataModel.Databases[0].OpenName;
+      if (DataModel.Databases.Length > 0) {
+        var name = DataModel.Databases.Select(d => d.OpenName)
+          .FirstOrDefault(s => s.StartsWith("workbench", StringComparison.InvariantCultureIgnoreCase));
+        DataModel.DatabaseName = name ?? DataModel.Databases[0].OpenName;
+      }
 
       textEditor.Focus();
       if (File.Exists(DefaultScriptName)) {
