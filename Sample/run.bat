@@ -1,4 +1,4 @@
-: Run an Andl script
+: Run an Andl program, with arguments
 
-..\Debug\Andl /i %*
+..\bin\Andl /i %*
 

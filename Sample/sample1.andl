@@ -3,6 +3,7 @@
 
 // Depends on catalog created by setup.andl
 #catalog
+#noisy 1
 
 // Note that a free expression is evaluated and pretty printed immediately
 

@@ -28,7 +28,7 @@ namespace Andl.Workbench {
         new KeyGesture(Key.F7) });
     public static RoutedCommand NewCatalog = new RoutedCommand(
       "_New", typeof(string), new InputGestureCollection() {
-        new KeyGesture(Key.F7, ModifierKeys.Alt) });
+        new KeyGesture(Key.F7, ModifierKeys.Control) });
     public static RoutedCommand SaveCatalog = new RoutedCommand(
       "_Save", typeof(string), new InputGestureCollection() {
         new KeyGesture(Key.F7, ModifierKeys.Shift) });
