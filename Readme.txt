@@ -16,7 +16,7 @@ Go to the Sample folder in a command prompt and run the following commands.
     C>setup.bat         -- set up the sample databases
     C>workbench.bat     -- run the workbench (next section)
 
-If you like to use the command line, then try these
+If you like to use the command line, then try these:
     C>run /?            -- view the command line arguments
     C>run               -- run test.andl, a tiny script
     C>run sample1.andl
