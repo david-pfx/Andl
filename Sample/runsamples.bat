@@ -2,6 +2,7 @@
 
 @if exist out.txt rm out.txt
 @if exist testandl.sqlite rm testandl.sqlite
+for /d %%f in (*.sandl) do rd %%f /s
 
 @date /t >out.txt
 

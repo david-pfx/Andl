@@ -1,4 +1,4 @@
 : Run workbench
 
-..\bin\Andl.Workbench %*
+start ..\bin\Andl.Workbench %*
 

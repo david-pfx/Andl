@@ -43,6 +43,7 @@ namespace Andl.Peg {
 
     public AstFactory AST(Cursor state) {
       State = state;
+      PrintLine(state);
       return Factory;
     }
 
