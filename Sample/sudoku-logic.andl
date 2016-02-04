@@ -11,12 +11,12 @@ units := {{ index := 0, row := 0, col := 0, box := 0 }}
           row := (index + 1) div 9, 
           col := (index + 1) mod 9, 
           box := (index + 1) div 3 mod 3 + (index + 1) div 27 * 3 }} .where(index <= 80) )
-poss := units .{ index } join digits .{ ndigit }
-possu := units join digits .{ ndigit }
+poss := units .set{ index } join digits .set{ ndigit }
+possu := units join digits .set{ ndigit }
 
 // useful functions
 showb(t:text) => do {
-    seq(11) .{ N, line:= 
+    seq(11) .set{ N, line:= 
         if(N mod 4 = 3, 
            fill('-', 9), 
            right(left(t, 9 + (N - N div 4) * 9), 9))}
@@ -25,9 +25,9 @@ showb(t:text) => do {
 // Show a set of knowns. First fill out all index values, then convert to text
 showunk(k:poss) => do {
     t := (k union (units ajoin k)
-      .{ index, ndigit := 0}) join digitsx 
-      .{ ndigit, sdigit }
-    showb(t .order(index) .{ fold(&, sdigit) })
+      .set{ index, ndigit := 0}) join digitsx 
+      .set{ ndigit, sdigit }
+    showb(t .order(index) .set{ fold(&, sdigit) })
 }
 
 // original raw data
@@ -35,8 +35,8 @@ inp := {{ sud := '53..7....6..195....98....6.8...6...34..8.3..17...2...6.6....28
 //inp := {{ sud := '1....7.9..3..2...8..96..5....53..9...1..8...26....4...3......1..4......7..7...3..' }}
 inp
 board := ((units join inp) 
-  .{ * sud, sdigit := right(left(sud, index + 1), 1) } compose digitsx) 
-  .{ index, ndigit }
+  .set{ * sud, sdigit := right(left(sud, index + 1), 1) } compose digitsx) 
+  .set{ index, ndigit }
 knowns := board .where( ndigit <> 0)
 'Knowns=' & knowns.count
 showunk(knowns)
@@ -47,21 +47,21 @@ solution := knowns .while(
     do {
         // start with the 729 possiblities, progressively remove conflicts with knowns
         knownsu := knowns join units
-        allowedu := possu ajoin knownsu.{ index } ajoin 
-	            knownsu.{ row, ndigit } ajoin 
-		    knownsu.{ col, ndigit } ajoin 
-		    knownsu.{ box, ndigit } 
+        allowedu := possu ajoin knownsu .set{ index } ajoin 
+	            knownsu .set{ row, ndigit } ajoin 
+		    knownsu .set{ col, ndigit } ajoin 
+		    knownsu .set{ box, ndigit } 
 
         // algorithm 1 - a cell with only one possible digit must be that digit
-        new1 := allowedu .{ index, tot:=fold(+,1) } 
+        new1 := allowedu .set{ index, tot:=fold(+,1) } 
 	  .where(tot=1) join allowedu
 
         // algorithm 2 - a digit with only one place in a unit must go there
-        new2a := allowedu .{ ndigit, row, tot:=fold(+,1) } .where(tot=1) join allowedu
-        new2b := allowedu .{ ndigit, col, tot:=fold(+,1) } .where(tot=1) join allowedu
-        new2c := allowedu .{ ndigit, box, tot:=fold(+,1) } .where(tot=1) join allowedu
+        new2a := allowedu .set{ ndigit, row, tot:=fold(+,1) } .where(tot=1) join allowedu
+        new2b := allowedu .set{ ndigit, col, tot:=fold(+,1) } .where(tot=1) join allowedu
+        new2c := allowedu .set{ ndigit, box, tot:=fold(+,1) } .where(tot=1) join allowedu
 
-        new1.{ index, ndigit } union new2a union new2b union new2c
+        new1 .set{ index, ndigit } union new2a union new2b union new2c
     }
 )
 showunk(solution)

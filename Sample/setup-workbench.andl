@@ -5,7 +5,7 @@
 
 var S(csv), P(csv), SP(csv)
 
-suppliersbyname(name:text) => S  .where(SNAME =~ name) .{ *Sid:=S# } 
+suppliersbyname(name:text) => S  .where(SNAME =~ name) .set{ *Sid:=S# } 
 addsuppliers(adds:S) => update S union adds
 fib:number(n:number) => if(n < 2,n, fib(n-1) + fib(n-2))
 

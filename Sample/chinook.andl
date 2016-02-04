@@ -17,9 +17,9 @@ MediaType.schema
 //Playlist.schema
 
 // Some random queries
-(Track join Album .where(Title =~ "Concert")) .{Title, UnitPrice, Composer}
+(Track join Album .where(Title =~ "Concert")) .set{ Title, UnitPrice, Composer }
 Album .where(Title =~ 'Rock') join Artist
-(Album .where(Title =~ "Bach") join Track join InvoiceLine join Invoice join Customer) .{Title, FirstName, LastName}
+(Album .where(Title =~ "Bach") join Track join InvoiceLine join Invoice join Customer) .set{ Title, FirstName, LastName }
 
 // The top 5 artists by number of albums
-(Album join Artist)  .{Name, HowMany:=fold(+,1)} .where(HowMany > 5) .order(-HowMany)
+(Album join Artist)  .set{ Name, HowMany:=fold(+,1) } .where(HowMany > 5) .order(-HowMany)

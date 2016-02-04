@@ -62,7 +62,7 @@ S.degree
 
 wait
 //==== monadics =====
-// all monadic operations are inside brackets in a fixed sequence .where()$(%-).{*}
+// monadic operations start with a dot and read from left to right
 
 // restriction - remove rows
 S  .where(CITY = 'Paris') 
@@ -71,28 +71,28 @@ S  .where(SNAME =~ 'a.*k')     // regular expression
 
 // --- rename - change column names
 // rename all
-S  .{ F1 := S#, F2 := SNAME, F3 := STATUS, F4 := CITY }
+S  .set{ F1 := S#, F2 := SNAME, F3 := STATUS, F4 := CITY }
 // rename some, the * means keep the rest unchanged
-S  .{ * F1 := SNAME }
+S  .set{ * F1 := SNAME }
 
 // --- projection - remove columns
 // name all to be kept
-S  .{ S#, SNAME, CITY }
+S  .set{ S#, SNAME, CITY }
 // * means keep all but the ones named
-S  .{ * SNAME, CITY }
+S  .set{ * SNAME, CITY }
 
 wait
 // --- extension - add new columns
 // Here * means keep all, add new ones
-S  .{ * Initial := left(SNAME, 1) }
+S  .set{ * Initial := left(SNAME, 1) }
 
 // --- combine all three
-S  .{ CITY, F := STATUS, Initial := left(SNAME, 1) }
-S  .{ * SNAME, Initial := left(SNAME, 1) }
+S  .set{ CITY, F := STATUS, Initial := left(SNAME, 1) }
+S  .set{ * SNAME, Initial := left(SNAME, 1) }
 
 wait
 // --- aggregated projection - projection with totalling
-S  .{ CITY, 
+S .set{ CITY, 
     total := fold(+,STATUS), 
     max := fold(max,STATUS), 
     min := fold(min,STATUS), 
@@ -104,20 +104,20 @@ sum(n:0) => fold(+,n)
 hi(n:0) => fold(max,n)
 lo(n:0) => fold(min,n)
 ave(n:0) => fold(+,n)/fold(+,1)
-S  .{ CITY, total := sum(STATUS), max := hi(STATUS), min := lo(STATUS), average := ave(STATUS) } 
+S .set{ CITY, total := sum(STATUS), max := hi(STATUS), min := lo(STATUS), average := ave(STATUS) } 
 
 // It can get more complicated
-(SP join P) .{ P#, totweight := sum(QTY * WEIGHT) }
+(SP join P) .set{ P#, totweight := sum(QTY * WEIGHT) }
 #stop
 // --- ordering for display sort
 P .order(WEIGHT)
 P .order(COLOR,-WEIGHT)     // descending
 
 // --- lift anonymous value out of singleton relation
-S  .{ fold(+,STATUS) }     // aggregated value
-S  .{ ave(STATUS) }        // via defined function
-S  .{ (STATUS) }           // first tuple (indeterminate)
-S .where(false) .{ (STATUS) }   // no tuples so default value
+S  .set{ fold(+,STATUS) }     // aggregated value
+S  .set{ ave(STATUS) }        // via defined function
+S  .set{ (STATUS) }           // first tuple (indeterminate)
+S .where(false) .set{ (STATUS) }   // no tuples so default value
 wait
 
 //==== dyadics =====

@@ -5,17 +5,17 @@
 #catalog
 
 // Total and grouped subtotal
-S .{ SS := fold(+,STATUS) }
-S .{ CITY, SS := fold(+,STATUS) }
+S .set{ SS := fold(+,STATUS) }
+S .set{ CITY, SS := fold(+,STATUS) }
 
 // In city order
 // Since there is only one group, this produces running sum
-S  .order(CITY) .{ SS := fold(+,STATUS) }
-S  .order(CITY) .{ CITY, SS := fold(+,STATUS) }
+S  .order(CITY) .set{ SS := fold(+,STATUS) }
+S  .order(CITY) .set{ CITY, SS := fold(+,STATUS) }
 
 // Add grouping by CITY to get separate subtotals
-S  .order(%CITY) .{ SS := fold(+,STATUS) }
-S  .order(%CITY) .{ CITY, SS := fold(+,STATUS) }
+S  .order(%CITY) .set{ SS := fold(+,STATUS) }
+S  .order(%CITY) .set{ CITY, SS := fold(+,STATUS) }
 
 sum(n:0) => fold(+,n)
 hi(n:0) => fold(max,n)
@@ -24,10 +24,10 @@ ave(n:0) => fold(+,n)/fold(+,1)
 
 // --- ordered extension - means extension with access to other rows
 
-S .order(SNAME) .{ SNAME, Running := fold(+,STATUS), lagged := lag(SNAME,1) }
+S .order(SNAME) .set{ SNAME, Running := fold(+,STATUS), lagged := lag(SNAME,1) }
 
 // ordered on CITY but no grouping, so all in one group
-S  .order(CITY) .{ *  
+S  .order(CITY) .set{ *  
     ord:=ord(),     // unique index based on input, not output
     ordg:=ordg(),   // ord value for first member of group
     lag:=lag(STATUS,1),     // previous value in group, or default
@@ -35,7 +35,7 @@ S  .order(CITY) .{ *
     nth:=nth(STATUS,1),     // nth value in group, or default
 } 
 // ordered and grouped on CITY
-S  .order(%CITY) .{ *  
+S  .order(%CITY) .set{ *  
     ord:=ord(),
     ordg:=ordg(),
     lag:=lag(STATUS,1), 
@@ -43,7 +43,7 @@ S  .order(%CITY) .{ *
     nth:=nth(STATUS,1), 
 } 
 // ordered and grouped on CITY descending, with subtotalling/running sum
-S  .order(%-CITY) .{ *  
+S  .order(%-CITY) .set{ *  
     ord:=ord(),
     ordg:=ordg(),
     lag:=lag(STATUS,1), 

@@ -57,7 +57,7 @@ GetVT4 => VT4
 GetVR2 => VR2
 GetVT2 => VT2
 GetVConcat => VB & VD & VI & VN & VS
-//GetTofR5 => VR5  .{*} 
+//GetTofR5 => VR5  .set{*} 
 
 GetFB(v:VB) => v
 GetFD(v:VD) => v

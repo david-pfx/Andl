@@ -15,8 +15,8 @@ suppliersbyname('a')
 
 // relational queries
 S
-(S join SP) .where(QTY >= 300) .{ SNAME, QTY }  
-P  .{ fold(+,WEIGHT) }     // total weight
+(S join SP) .where(QTY >= 300) .set{ SNAME, QTY }  
+P  .set{ fold(+,WEIGHT) }     // total weight
 
 // Lots more samples in sample*.andl
 //end

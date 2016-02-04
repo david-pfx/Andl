@@ -9,13 +9,13 @@ track   := {{ trackid:0, cdid:0, title:'' }}
 $artist_data := {{name:''}
   ( 'Michael Jackson' ), 
   ( 'Eminem' ),
-} .{ *artistid := ord() }
+} .set{ *artistid := ord() }
 
 $cd_data := {{ title:'', name:'' }
   ( 'Thriller',                'Michael Jackson' ),
   ( 'Bad',                     'Michael Jackson' ),
   ( 'The Marshall Mathers LP', 'Eminem' ),
-} .{ *cdid := ord() }
+} .set{ *cdid := ord() }
 
 $track_data := {{ title:'', cd:'' }
    ( 'Beat It'         , 'Thriller' ),
@@ -25,20 +25,20 @@ $track_data := {{ title:'', cd:'' }
    ( 'Leave Me Alone'  , 'Bad' ),
    ( 'Stan'            , 'The Marshall Mathers LP' ),
    ( 'The Way I Am'    , 'The Marshall Mathers LP' ),
- } .{ *trackid := ord() }
+ } .set{ *trackid := ord() }
 
 // update the database relvars
 update artist union $artist_data
-update cd union ($cd_data join artist) .{ title, cdid, artistid, year:=0}
-update track union ($track_data join cd .{ *cd := title }) .{ trackid, title, cdid }
+update cd union ($cd_data join artist) .set{ title, cdid, artistid, year:=0}
+update track union ($track_data join cd .set{ *cd := title }) .set{ trackid, title, cdid }
 
 // functions to answer various queries
-get_tracks_by_cd(t:'') => cd .where(title = t) .{ *title }  join track
-get_tracks_by_artist(a:'') => (artist .where(name = a) .{ *name } join cd) .{ cdid } join track
-get_cd_by_track(t:'') => track  .where(title = t) .{ cdid }  join cd
-get_cds_by_artist(a:'') => artist .where(name = a) .{ artistid }  join cd
-get_artist_by_track(t:'') => (track .where(title = t) .{ cdid } join cd) .{ artistid } join artist
-get_artist_by_cd(t:'') => (cd .where(title = t) .{ cdid } join cd) .{ artistid } join artist
+get_tracks_by_cd(t:'') => cd .where(title = t) .set{ *title }  join track
+get_tracks_by_artist(a:'') => (artist .where(name = a) .set{ *name } join cd) .set{ cdid } join track
+get_cd_by_track(t:'') => track  .where(title = t) .set{ cdid }  join cd
+get_cds_by_artist(a:'') => artist .where(name = a) .set{ artistid }  join cd
+get_artist_by_track(t:'') => (track .where(title = t) .set{ cdid } join cd) .set{ artistid } join artist
+get_artist_by_cd(t:'') => (cd .where(title = t) .set{ cdid } join cd) .set{ artistid } join artist
 
 // first show the raw data
 
@@ -53,13 +53,13 @@ write(track.pp)
 // now do the queries
 
 show(title:'', data:{{ str:'' }}) => do {
-    output := title & crlf & data .{fold(&, "  " & str & crlf)} 
+    output := title & crlf & data .set{ fold(&, "  " & str & crlf) } 
 }
 
 output := crlf & "=== Query results ===" & crlf
-show("Track title:", get_tracks_by_cd('Bad')  .{str:=title} )
-show("Track title:", get_tracks_by_artist('Michael Jackson')  .{str:=title} )
-show("CD title:", get_cd_by_track('Stan')  .{str:=title} )
-show("CD title:", get_cds_by_artist('Michael Jackson')  .{str:=title} )
-show("Artist:", get_artist_by_track('Dirty Diana')  .{str:=name} )
-show("Artist:", get_artist_by_cd('The Marshall Mathers LP')  .{str:=name} )
+show("Track title:", get_tracks_by_cd('Bad') .set{ str:=title } )
+show("Track title:", get_tracks_by_artist('Michael Jackson') .set{ str:=title } )
+show("CD title:", get_cd_by_track('Stan') .set{ str:=title } )
+show("CD title:", get_cds_by_artist('Michael Jackson') .set{ str:=title } )
+show("Artist:", get_artist_by_track('Dirty Diana') .set{ str:=name } )
+show("Artist:", get_artist_by_cd('The Marshall Mathers LP') .set{ str:=name } )

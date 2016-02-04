@@ -20,20 +20,20 @@ var orgchart(csv)
 orgchart
 org := {{ name:= 'Alice', level := 0 }} .while( {{ boss := name, level := level+1 }} compose orgchart)
 org
-org .{ t:=fill('.', level*3) & name }
+org .set{ t:=fill('.', level*3) & name }
 
 // Flatten family tree to show descendants
 var family_tree(csv)
 family_tree
 
-family_tree  .where(id=1) .{ id, firstname, lastname, level:=0 }
-   .while( {{ father_id:=id, level:=level+1 }} compose family_tree.{id, firstname, lastname,father_id} )
+family_tree  .where(id=1) .set{ id, firstname, lastname, level:=0 }
+   .while( {{ father_id:=id, level:=level+1 }} compose family_tree.set{ id, firstname, lastname,father_id } )
 
 // generate transitive closure
 var MM(csv)
 MM
-MM .while( {{ z:=MAJOR_P#, MINOR_P# }} compose MM.{ MAJOR_P#, z:=MINOR_P# } )
-MM .while( {{ MAJOR_P#, z:=MINOR_P# }} compose MM.{ z:=MAJOR_P#, MINOR_P# } )
+MM .while( {{ z:=MAJOR_P#, MINOR_P# }} compose MM .set{ MAJOR_P#, z:=MINOR_P# } )
+MM .while( {{ MAJOR_P#, z:=MINOR_P# }} compose MM .set{ z:=MAJOR_P#, MINOR_P# } )
 
 // from this SQL
 //WITH RECURSIVE

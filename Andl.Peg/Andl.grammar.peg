@@ -76,9 +76,13 @@ Update <AstStatement> =
              w:Where? x:TransformOrDelete &{ AST(state).Exit(true) } { AST(state).UpdateWhere(v,Single(w),x) }
     / UPDATE &{ Error(state, "bad update") }  { null };
 
-TransformOrDelete <AstTransformer> = x:Transformer { x }
-    / DOT DELETE { null }
+TransformOrDelete <AstTransformer> = DOT SET LC RC { null }
+    / x:Transformer { x }
     / . &{ Error(state, "missing update action") }  { null };
+
+//TransformOrDelete <AstTransformer> = x:Transformer { x }
+//    / DOT DELETE { null }
+//    / . &{ Error(state, "missing update action") }  { null };
 
 CatVar <AstValue> = v:CatIdent { AST(state).Variable(v) };
 
@@ -135,7 +139,7 @@ Orderer <AstOrderer> = DOT ORDER LPexp v:OrderTermList RPexp { AST(state).Ordere
 OrderTermList = OrderTerm<0,,SEP>;
 OrderTerm <AstOrderField> = w:PERCENT? v:MINUS? x:FieldIdent { AST(state).OrderField(x, v.Count > 0, w.Count > 0) };
 
-Transformer <AstTransformer> = DOT LC WSC v:STAR? WSC w:TransformList SEP? RCexp { AST(state).Transformer(v.Count > 0, w) }
+Transformer <AstTransformer> = DOT SET LC WSC v:STAR? WSC w:TransformList SEP? RCexp { AST(state).Transformer(v.Count > 0, w) }
 TransformList = Transform<0,,SEP>;
 Transform <AstField> = !RC v:FieldIdent &(SEP / RC) { AST(state).Transfield(v) }        // project
     / !RC v:Ident LA WSC w:FieldIdent &(SEP / RC) { AST(state).Transfield(v, w) }       // rename
@@ -243,17 +247,18 @@ Integer = IntegerString WSO;
 
 KEYWORD = DEF / DO / VAR / TUP / REL / TRUE / FALSE;
 
-// note: tokens followed by WSC will swallow an EOL
-DO = "do" IDX;
+// these are reserved words
 DEF = "def" IDX;
+DO = "do" IDX;
 REL = ("rel" / "relation") IDX;
 TUP = ("tup" / "tuple") IDX;
 VAR = "var" IDX;
 
-IF = "if" IDX;
-DELETE = "delete" IDX;
+// these are predefined and reserved in context
 FOLD = "fold" IDX;
+IF = "if" IDX;
 ORDER = "order" IDX;
+SET = "set" IDX;
 UPDATE = "update" IDX;
 WHERE = "where" IDX;
 WHILE = "while" IDX;
@@ -261,6 +266,7 @@ WHILE = "while" IDX;
 TRUE = "true" IDX;
 FALSE = "false" IDX;
 
+// note: tokens followed by WSC will swallow an EOL, WSO just whitespace
 RA = "=>" WSO;
 LA = ":=" WSO;
 COLON = ':' !OpChar WSO;

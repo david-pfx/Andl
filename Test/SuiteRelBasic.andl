@@ -73,8 +73,8 @@ assert($lineno$, S .where(false) = {{S# := '', SNAME := '', STATUS := 0, CITY :=
 assert($lineno$, S .where(false) = {{STATUS := 0, CITY := '', S# := '', SNAME := ''}} .where(false))
 
 Sstatus := {{STATUS := 20}, {STATUS := 10}, {STATUS := 30} }
-assert($lineno$, S.{STATUS} = Sstatus)
-assert($lineno$, S.{X := STATUS} = Sstatus .{X := STATUS})
+assert($lineno$, S .set{ STATUS } = Sstatus)
+assert($lineno$, S .set{ X := STATUS } = Sstatus .set{ X := STATUS })
 
 Ss4 := {{ S# := 'S4', CITY := 'London', STATUS := 020, SNAME := 'Clark' }}
 assert($lineno$, S .where(S# = 'S4') = Ss4)
