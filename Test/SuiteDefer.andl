@@ -1,4 +1,4 @@
-// Test Suite 1 -- basic testing of language features
+// Test Suite -- deferred variables and functions, blocks, user types
 
 #catalog
 
@@ -12,6 +12,7 @@ a1 := 22
 d2 => a1*2 + d1*2
 assert($lineno$, 88 = d2)
 
+//--- arguments
 f1(x:0) => x*10
 assert($lineno$, 30 = f1(3))
 
@@ -21,6 +22,7 @@ assert($lineno$, seq(4) = f3(4))
 fact:0(n:0) => if(n<=1,1,n*fact(n-1))
 assert($lineno$, 720 = fact(6))
 
+//--- do blocks
 pot:0(n:0) => do { if(n<=0,1,10*pot(n-1)) }
 assert($lineno$, 1000000 = pot(6))
 
@@ -31,6 +33,7 @@ dfact:0(n:0) => do {
 assert($lineno$, 720 = dfact(6))
 assert($lineno$, 2432902008176640000 = dfact(20))
 
+//--- scopes
 scope0(t:'') => do {
   a := t & 'xxx'
   a

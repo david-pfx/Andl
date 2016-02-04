@@ -1,9 +1,10 @@
-// Test Suite 4 -- testing of aggregation
+// Test Suite -- testing of aggregation
 
 #catalog
 
 start($filename$)
 
+// simple folds
 assert($lineno$, 30 = S .{ fold(max,STATUS) })
 assert($lineno$, 10 = S .{ fold(min,STATUS) })
 assert($lineno$, false = S .{ fold(and,STATUS = 10) })
@@ -14,16 +15,21 @@ assert($lineno$, false = S .{ fold(or,STATUS < 10) })
 assert($lineno$, 20+10+30+20+30 = S .{ fold(+,STATUS) })
 assert($lineno$, 20*10*30*20*30 = S .{ fold(*,STATUS) })
 
-// will not compile
-//assert($lineno$, true and 20 and 10 and 30 and 20 and 30 = S .{ fold(and,STATUS) })
-//assert($lineno$, false or 20 or 10 or 30 or 20 or 30 = S .{ fold(or,STATUS) })
+// will not compile - cannot invoke overloaded operator
+//assert($lineno$, 0 and 20 and 10 and 30 and 20 and 30 = S .{ fold(and,STATUS) })
+//assert($lineno$, 0 or 20 or 10 or 30 or 20 or 30 = S .{ fold(or,STATUS) })
+//assert($lineno$, 20&10&30&20&30 = S  .order(S#) .{ fold(&,STATUS) })
 
+// this way works
+bitand(a:0,b:0) => a and b
+bitor(a:0,b:0) => a or b
+assert($lineno$, (0 and 20 and 10 and 30 and 20 and 30) = S .{ fold(bitand,STATUS) })
+assert($lineno$, (0 or 20 or 10 or 30 or 20 or 30) = S .{ fold(bitor,STATUS) })
+assert($lineno$, 20&10&30&20&30 = S  .order(S#) .{ fold(&,STATUS.text) })
+
+// more operators
 assert($lineno$, 1/20/10/30/20/30 = S  .order(S#) .{ fold(/,STATUS) })
 assert($lineno$, 0-20-10-30-20-30 = S  .order(S#) .{ fold(-,STATUS) })
-
-// will not compile
-//assert($lineno$, 20&10&30&20&30 = S  .order(S#) .{ fold(&,STATUS) })
-assert($lineno$, 20&10&30&20&30 = S  .order(S#) .{ fold(&,STATUS.text) })
 
 // above and below fold
 assert($lineno$, 110 = S .{ fold(+,STATUS) })
@@ -54,6 +60,12 @@ fdocat2(s:'') => do {
 }
 assert($lineno$, 300 = S .{ fdomax2(STATUS) })
 assert($lineno$, '20x10x30x20x30x' = S  .order(S#) .{ fdocat2(STATUS.text) })
+
+// These previously placed in catalog
+//fold_sum(n:0) => fold(+,n)
+//fold_ave(n:0) => fold(+,n)/fold(+,1)
+assert($lineno$, 110 = S .{ fold_sum(STATUS)  })
+assert($lineno$, 22 = S .{ fold_ave(STATUS)  })
 
 feven:0(n1:0, n2:0) => if(n2 mod 20 = 0, n1+n2, n1-n2)
 fcomma(s1:'', s2:'') => if(s1='',s2, s1 & ', ' & s2)

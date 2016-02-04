@@ -431,6 +431,7 @@ namespace Andl.Runtime {
       Logger.WriteLine(3, "Transform {0} {1}", relarg, exprargs.Select(e => e.AsEval.Kind.ToString()).ToArray());
       var rel = relarg.Value;
       var exprs = exprargs.Select(e => (e as CodeValue).AsEval).ToArray();
+      Logger.Assert(!exprs.Any(e => e.HasFold), "transform folded");
       var heading = DataHeading.Create(exprs);
       var relnew = rel.Transform(heading, exprs);
       Logger.WriteLine(3, "[Tr {0}]", relnew);

@@ -64,11 +64,12 @@ namespace Andl.Peg {
     }
 
     // Create for user defined
-    public static CallInfo Create(string name, DataType rettype, DataColumn[] argcols) {
+    public static CallInfo Create(string name, DataType rettype, DataColumn[] argcols, int accums = 0) {
       var ci = new CallInfo {
         Name = name,
         ReturnType = rettype,
         Arguments = argcols,
+        AccumCount = accums,
       };
       return ci;
     }

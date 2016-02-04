@@ -21,6 +21,10 @@ finish(filename:'') => do {
     write( now() & " Test suite for '" & filename & "' complete. Tests = " & test_count & " errors = " & error_count)
 }
 
+// These functions are here to check they save properly in the catalog
+fold_sum(n:0) => fold(+,n)
+fold_ave(n:0) => fold(+,n)/fold(+,1)
+
 // Supplier data set in Andl format
 // This is the standard data set used in books by Date and Darwen
 S := {{ S#:text, SNAME:text, STATUS:number,CITY:text }
