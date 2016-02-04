@@ -1,5 +1,5 @@
 // Andl samples 6 -- subtypes
-// *** Currently not working correctly ***
+// *** Depends on subtypes, work in progress ***
 
 // Depends on catalog created by setup.andl
 #catalog
@@ -7,6 +7,9 @@
 // Date: system defined
 d1 := dateymd(2015,1,31)
 d2 := date(now())
+d1
+d2
+
 "Date: " & d1 & " Year:" & d1.year & " month:" & d1.month & " day:" & d1.day & " dow:" & d1.dow
 "Date: " & d2 & " Year:" & d2.year & " month:" & d2.month & " day:" & d2.day & " dow:" & d2.dow
 time(date(time(d1)))

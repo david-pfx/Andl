@@ -14,7 +14,7 @@ Grab the binary release and unzip it somewhere.
 
 Go to the Sample folder in a command prompt and run the following commands.
     C>setup.bat         -- set up the sample databases
-    C>workbench.bat     -- run the workbench (next section)
+    C>runwb.bat     -- run the workbench (next section)
 
 If you like to use the command line, then try these:
     C>run /?            -- view the command line arguments
@@ -24,6 +24,7 @@ If you like to use the command line, then try these:
     C>run sample3.andl
     C>run sample4.andl
     C>run sample5.andl
+    C>run sample6.andl
 
 WORKBENCH
 =========
@@ -53,14 +54,15 @@ Here are the sample programs.
     sample3.andl            -- advanced relational expresions
     sample4.andl            -- more complex examples
     sample5.andl            -- ordering and grouping (like SQL Window)
+    sample6.andl            -- subtyping (work in progress)
 
 Also take a look at:
     DbixCdSample.andl       -- converted SQL sample
-    family_tree.andl        -- recursive self-join (like)
+    family_tree.andl        -- self-join using functions
     SPPsample1.andl         -- more converted SQL
-    recursive.andl          -- org chart using while (like SQL CTE recursive)
-    mandelbrot.andl         -- mandelbrot set
-    sudoku-orig.andl        -- sudoku solver
+    recursive.andl          -- self-joins using while (like SQL CTE recursive)
+    mandelbrot.andl         -- mandelbrot set using while
+    sudoku-orig.andl        -- sudoku solver using while
     chinook.andl            -- sqlite database
 
 SQLITE

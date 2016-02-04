@@ -1,22 +1,22 @@
-﻿sum(n:0) => fold(+,n)
-hi(n:0) => fold(max,n)
-lo(n:0) => fold(min,n)
-ave(n:0) => fold(+,n)/fold(+,1)
-
-#noisy 3
-S  .{ CITY, total := sum(STATUS), max := hi(STATUS), min := lo(STATUS), average := ave(STATUS) } 
-
-#noisy 1
-// workbench.andl -- is automatically loaded by Andl Workbench
+﻿// workbench.andl -- is automatically loaded by Andl Workbench
 // 
 // Note: assumes Workbench catalog loaded by running setup
 // Press F5 to run, and F7 to reload the catalog
 
+#noisy 1
+
+// A few simple expressions, evaluated and pretty printed immediately
+'Hello world!'
+if (1 < 2, 'Yes!', "Oops!")
+
+// predefined functions -- see catalog
 fib(15)
-
 suppliersbyname('a')
-addsuppliers(VR)
-S
-S  .{ fold(+,STATUS) }     // aggregated value
-//end
 
+// relational queries
+S
+(S join SP) .where(QTY >= 300) .{ SNAME, QTY }  
+P  .{ fold(+,WEIGHT) }     // total weight
+
+// Lots more samples in sample*.andl
+//end
