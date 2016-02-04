@@ -6,8 +6,6 @@
         xmlns:local="clr-namespace:Andl.Workbench"
         mc:Ignorable="d"
         Height="750" Width="1000" Closing="Window_Closing" >
-  <!--Title="{Binding Path=MainTitle}" Height="750" Width="1000" Closing="Window_Closing"-->
-  <!-- Command and input bindings -->
   <Window.CommandBindings>
     <CommandBinding Command="ApplicationCommands.New" Executed="New_Executed" />
     <CommandBinding Command="ApplicationCommands.Open" Executed="Open_Executed" />
@@ -29,19 +27,20 @@
     <KeyBinding Key="F5" Modifiers="Alt" Command="local:CustomCommands.ReloadCatalog" />
   </Window.InputBindings>
 
+  <!-- Styles including border colour -->
   <Window.Resources>
     <local:TitleConverter x:Key="TitleConverter" />
     <Style TargetType="Border">
       <Setter Property="BorderThickness" Value="3" />
-      <Setter Property="BorderBrush" Value="Gray" />
       <Style.Triggers>
         <Trigger Property="IsKeyboardFocusWithin" Value="True">
-          <Setter Property="BorderBrush" Value="Red" />
+          <Setter Property="BorderBrush" Value="{DynamicResource {x:Static SystemColors.ActiveBorderBrushKey}}" />
         </Trigger>
       </Style.Triggers>
     </Style>
   </Window.Resources>
 
+  <!-- Window title updates to show file and modified status -->
   <Window.Title>
     <MultiBinding Converter="{StaticResource TitleConverter}" UpdateSourceTrigger="PropertyChanged">
       <Binding Path="CurrentFileName" />
@@ -282,15 +281,6 @@
                      Foreground="{Binding Path=OutputTextColour}" 
                      Text="{Binding Path=OutputText}"
                      Background="White" PreviewKeyDown="TextBox_PreviewKeyDown" />
-          <!--<ScrollViewer Name="scrollViewer" Focusable="False"
-                        VerticalScrollBarVisibility="Auto"
-                        HorizontalScrollBarVisibility="Auto" KeyDown="scrollViewer_KeyDown">
-            <TextBox Focusable="True"
-              FontFamily="Consolas" FontSize="10pt"
-              Foreground="{Binding Path=OutputTextColour}" 
-              Text="{Binding Path=OutputText}"
-              IsReadOnly="True" Background="White" />
-          </ScrollViewer>-->
         </Border>
       </Grid>
 

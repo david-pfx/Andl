@@ -17,8 +17,12 @@ namespace Andl.Workbench {
   /// Interaction logic for About.xaml
   /// </summary>
   public partial class About : Window {
+
+    public string AppNameVersion { get; set; }
+
     public About() {
       InitializeComponent();
+      DataContext = this;
     }
   }
 }

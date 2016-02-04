@@ -7,7 +7,7 @@
         mc:Ignorable="d"
         Title="About Andl Workbench" Height="300" Width="300" ResizeMode="NoResize" ShowInTaskbar="False" WindowStartupLocation="CenterOwner">
     <Grid>
-    <TextBlock HorizontalAlignment="Center" Margin="0,75,0,0" Text="Andl Workbench 1.0" VerticalAlignment="Top" FontSize="18.667"/>
+    <TextBlock HorizontalAlignment="Center" Margin="0,75,0,0" Text="{Binding AppNameVersion}" VerticalAlignment="Top" FontSize="18.667"/>
     <TextBlock HorizontalAlignment="Center" TextWrapping="Wrap" Text="Copyright 2016 © David M. Bennett" VerticalAlignment="Top" FontSize="13.333" Margin="0,150,0,0"/>
     <Button x:Name="button" Content="Ok" HorizontalAlignment="Center" Margin="0,0,0,10" VerticalAlignment="Bottom" Width="50" IsCancel="True" IsDefault="True"/>
 

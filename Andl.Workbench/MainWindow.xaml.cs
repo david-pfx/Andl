@@ -20,6 +20,7 @@ namespace Andl.Workbench {
   /// Interaction logic for MainWindow.xaml
   /// </summary>
   public partial class MainWindow : Window {
+    const string AppNameVersion = "Andl Workbench 1.0b2";
     const string DefaultScriptName = "workbench.andl";
 
     public TreeDataViewModel DataModel { get; set; }
@@ -179,7 +180,7 @@ namespace Andl.Workbench {
     }
 
     private void About_Executed(object sender, ExecutedRoutedEventArgs e) {
-      var about = new About();
+      var about = new About() { AppNameVersion = AppNameVersion };
       about.ShowDialog();
     }
 
