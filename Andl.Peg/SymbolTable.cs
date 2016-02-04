@@ -307,9 +307,8 @@ namespace Andl.Peg {
     }
 
     public void AddDeferred(string name, DataType rettype, DataColumn[] args) {
-      CurrentScope.Add(MakeDeferred(name, rettype, args));
+      CurrentScope.Add(MakeDeferred(name, rettype, args, 0));
     }
-
 
     ///-------------------------------------------------------------------
 
@@ -326,6 +325,7 @@ namespace Andl.Peg {
       };
     }
 
+    // Create a symbol for a variable
     public static Symbol MakeVariable(string name, DataType datatype, SymKinds kind) {
       Symbol sym = new Symbol {
         Name = name,
@@ -335,13 +335,14 @@ namespace Andl.Peg {
       return sym;
     }
 
-    public static Symbol MakeDeferred(string name, DataType datatype, DataColumn[] args) {
+    // Create a sumbol for a deferred function
+    public static Symbol MakeDeferred(string name, DataType datatype, DataColumn[] args, int accums) {
       Symbol sym = new Symbol {
         Name = name,
         Kind = SymKinds.CATVAR,
         DataType = datatype,
         CallKind = CallKinds.EFUNC,
-        CallInfo = CallInfo.Create(name, datatype, args),
+        CallInfo = CallInfo.Create(name, datatype, args, accums),
         NumArgs = args.Length,
       };
       return sym;
@@ -364,7 +365,6 @@ namespace Andl.Peg {
       _globalscope = CurrentScope.Push();  // reserve a level for imported symbols
       CurrentScope.IsGlobal = true;
       Logger.WriteLine(3, "[Reset scope: {0}]", this);
-      // CurrentScope.Push(); ???
     }
 
     // Process catalog to add all entries from persistent level
@@ -381,7 +381,8 @@ namespace Andl.Peg {
         else if (entry.Kind == EntryKinds.Value)
           _globalscope.Add(MakeVariable(entry.Name, entry.DataType, SymKinds.CATVAR));
         else if (entry.Kind == EntryKinds.Code)
-          _globalscope.Add(MakeDeferred(entry.Name, entry.DataType, entry.CodeValue.Value.Lookup.Columns));
+          _globalscope.Add(MakeDeferred(entry.Name, entry.DataType, 
+            entry.CodeValue.Value.Lookup.Columns, entry.CodeValue.Value.AccumCount));
       }
       Logger.WriteLine(3, "[SSTI {0}]", this);
     }

@@ -1,4 +1,4 @@
-﻿// Test Suite 1 -- basic testing of language features
+﻿// Test Suite 1 -- basic language features, lexical tokens, scalar types
 
 #catalog
 
@@ -67,19 +67,19 @@ a5 := {{:}}
 assert($lineno$, a5 = {{:}})
 
 //--- builtin
-assert($lineno$, {{N:=0},{N:=1},{N:=2}} 				= seq(3))
-assert($lineno$, {{nnn:=0},{nnn:=1},{nnn:=2}} 			= seq(3) .{nnn:=N} )
-assert($lineno$, {{ Name := 'N', Type := 'number' }} 	= seq(3).schema)
-assert($lineno$, 3 										= seq(3).count)
-assert($lineno$, 1 										= seq(3).degree)
-assert($lineno$, 1 										= seq(3).schema.count)
+assert($lineno$, {{N:=0},{N:=1},{N:=2}}       = seq(3))
+assert($lineno$, {{nnn:=0},{nnn:=1},{nnn:=2}} = seq(3) .{nnn:=N} )
+assert($lineno$, {{ Name := 'N', Type := 'number' }}  = seq(3).schema)
+assert($lineno$, 3                    = seq(3).count)
+assert($lineno$, 1                    = seq(3).degree)
+assert($lineno$, 1                    = seq(3).schema.count)
 
 ar1 := {{ X := 'xxx', Y := 999, Z := t'2016/12/31' }}
 assert($lineno$, {{ X := 'xxx', Y := 999, Z := t'2016/12/31' }} = ar1)
-assert($lineno$, 1 										= ar1.count)
-assert($lineno$, 3 										= ar1.degree)
-assert($lineno$, 3 										= ar1.schema.count)
-assert($lineno$, 2 										= ar1.schema.degree)
+assert($lineno$, 1                    = ar1.count)
+assert($lineno$, 3                    = ar1.degree)
+assert($lineno$, 3                    = ar1.schema.count)
+assert($lineno$, 2                    = ar1.schema.degree)
 
 //--- system type 'date' --- defer for now
 tim1 := t'2015/02/26'
