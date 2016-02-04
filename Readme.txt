@@ -26,6 +26,8 @@ If you like to use the command line, then try these:
     C>run sample5.andl
     C>run sample6.andl
 
+The default program is 'test.andl' and the default catalog is 'data'.
+
 WORKBENCH
 =========
 
@@ -34,9 +36,9 @@ to execute queries.
 
 Andl reads program source code, compiles and executes the program and then stores 
 compiled operators, types and global variables in a catalog, where they can be used by 
-subsequent programs. In the workbench you can see the contents of the catalog.
+other programs. In the Workbench you can see the contents of the catalog.
 
-1. Choose the 'sample' database and see the relations and contents of its catalog.
+1. Choose a database and see the relations and contents of its catalog. Choose Workbench.
 2. The Andl program 'workbench.andl' is loaded by default. Press F5 to run it.
 3. Press F7 to reload the catalog and F5 to run it again.
 4. Or try Ctrt+N for a new program and Ctrl+F7 for a new catalog.
@@ -97,11 +99,13 @@ The Thrift folder contains samples for the Thrift implementation.
 BUILDING ANDL
 =============
 
+The source code can be downloaded from https://github.com/davidandl/Andl.
+
 The project should build 'out of the box' in Visual Studio 2015 with the .NET 
 Framework 4.5, and possibly earlier versions. It builds an executable program 
-that compiles and runs Andl programs. The default program is 'test.andl'.
+that compiles and runs Andl programs, and several other components. 
 
-Additional samples depend on the source release.
+These additional samples require the source release.
 
 HOST
 ====
