@@ -4,8 +4,6 @@
 // Depends on catalog created by setup.andl
 #catalog
 
-sum(n:0) => fold(+,n)
-
 //--- nested relation
 nr1 := {{ name := 'S', contents := S }}
 nr1
@@ -38,6 +36,8 @@ ES2 .{ fold(union,embed) }
 wait
 // --- Image relation -- extend S with a partion of SP, removing common fields
 // note that supplier S5 gets a partition that is an empty relation
+sum(n:0) => fold(+,n)
+
 ES3 := S .{ * partition := ( {{*}} rdivide SP) }
 ES3
 

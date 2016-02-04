@@ -3,6 +3,7 @@
 
 // Depends on catalog created by setup.andl
 #catalog
+#noisy 1
 
 // ===== Relational types =====
 
@@ -105,6 +106,9 @@ lo(n:0) => fold(min,n)
 ave(n:0) => fold(+,n)/fold(+,1)
 S  .{ CITY, total := sum(STATUS), max := hi(STATUS), min := lo(STATUS), average := ave(STATUS) } 
 
+// It can get more complicated
+(SP join P) .{ P#, totweight := sum(QTY * WEIGHT) }
+#stop
 // --- ordering for display sort
 P .order(WEIGHT)
 P .order(COLOR,-WEIGHT)     // descending

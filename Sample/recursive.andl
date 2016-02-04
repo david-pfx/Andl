@@ -1,30 +1,39 @@
-// recursive.andl
+// Sample use of .while
+// Similar to recursive common table expressions in SQL
+//
+// 1. Start with a seed relation value. 
+// 2. Evaluate an expression with every tuple
+// 3. Add any new tuples to the start value.
+// 4. Repeat until there are no more new tuples.
 
+#noisy 1
+
+// Generate some integers
 {{ z:=0 }} .while( {{z:=z+1}} .where(z<10) )
 
-{{ x:= 1 }} .while( {{ x:=x*2 }} .where(x<=5000000000) )
+// Generate some squares
+{{ x:= 1 }} .while( {{ x:=x*2 }} .where(x<=1000) )
 
+
+// Flatten org chart to show levels
 var orgchart(csv)
 orgchart
-ua := {{ name:= 'Alice', level := 0 }} .while( {{ boss := name, level := level+1 }} compose orgchart)
-ua
-ua .{ t:=fill('.', level*3) & name }
+org := {{ name:= 'Alice', level := 0 }} .while( {{ boss := name, level := level+1 }} compose orgchart)
+org
+org .{ t:=fill('.', level*3) & name }
 
-//{{ name:= 'Alice', level := 0 }} .while(
-//    ({{ boss := name, level := level+1 }} compose orgchart)$(-level)
-//    )
-
+// Flatten family tree to show descendants
 var family_tree(csv)
 family_tree
 
 family_tree  .where(id=1) .{ id, firstname, lastname, level:=0 }
    .while( {{ father_id:=id, level:=level+1 }} compose family_tree.{id, firstname, lastname,father_id} )
 
+// generate transitive closure
 var MM(csv)
 MM
 MM .while( {{ z:=MAJOR_P#, MINOR_P# }} compose MM.{ MAJOR_P#, z:=MINOR_P# } )
 MM .while( {{ MAJOR_P#, z:=MINOR_P# }} compose MM.{ z:=MAJOR_P#, MINOR_P# } )
-//{{ MAJOR_P#:'',MINOR_P#:'' }} .while( {{ z:=MAJOR_P#, MINOR_P# }})
 
 // from this SQL
 //WITH RECURSIVE

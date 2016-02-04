@@ -23,6 +23,9 @@ lo(n:0) => fold(min,n)
 ave(n:0) => fold(+,n)/fold(+,1)
 
 // --- ordered extension - means extension with access to other rows
+
+S .order(SNAME) .{ SNAME, Running := fold(+,STATUS), lagged := lag(SNAME,1) }
+
 // ordered on CITY but no grouping, so all in one group
 S  .order(CITY) .{ *  
     ord:=ord(),     // unique index based on input, not output
