@@ -1,4 +1,4 @@
-: rls.btm -- construct a releast
+: zip-rls.bat -- zip release files into upload
 
 setlocal
 set rlsver=v10b2
