@@ -32,6 +32,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Andl.Gateway", "Andl.Gatewa
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Andl.Workbench", "Andl.Workbench\Andl.Workbench.csproj", "{7CAA8FA0-A35A-4036-878A-A42C9FD2C334}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThriftPartSupplier", "ThriftPartSupplier\ThriftPartSupplier.csproj", "{E1AAE15F-D756-4407-B60C-E9941386DAA2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThriftTest", "ThriftTest\ThriftTest.csproj", "{5F392292-ABC4-4C27-919E-D3C6DD327A54}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -86,6 +90,14 @@ Global
 		{7CAA8FA0-A35A-4036-878A-A42C9FD2C334}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7CAA8FA0-A35A-4036-878A-A42C9FD2C334}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7CAA8FA0-A35A-4036-878A-A42C9FD2C334}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E1AAE15F-D756-4407-B60C-E9941386DAA2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E1AAE15F-D756-4407-B60C-E9941386DAA2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E1AAE15F-D756-4407-B60C-E9941386DAA2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E1AAE15F-D756-4407-B60C-E9941386DAA2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5F392292-ABC4-4C27-919E-D3C6DD327A54}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5F392292-ABC4-4C27-919E-D3C6DD327A54}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5F392292-ABC4-4C27-919E-D3C6DD327A54}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5F392292-ABC4-4C27-919E-D3C6DD327A54}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
