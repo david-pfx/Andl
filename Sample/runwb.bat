@@ -1,4 +1,6 @@
 : Run workbench
 
-start ..\bin\Andl.Workbench %*
+call ..\setvars.bat
+
+start %binpath%\Andl.Workbench %*
 

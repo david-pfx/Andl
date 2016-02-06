@@ -4,11 +4,11 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{360CD9B1-360A-4735-80E6-2A6F3F6B1D2C}</ProjectGuid>
+    <ProjectGuid>{E1AAE15F-D756-4407-B60C-E9941386DAA2}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Andl.Thrift</RootNamespace>
-    <AssemblyName>Andl.Thrift</AssemblyName>
+    <RootNamespace>ThriftPartSupplier</RootNamespace>
+    <AssemblyName>ThriftPartSupplier</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
@@ -33,38 +33,30 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
-    <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
-    <Reference Include="Thrift, Version=0.9.3.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\ApacheThrift.0.9.3\lib\Thrift.dll</HintPath>
+    <Reference Include="Thrift, Version=0.9.2.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\ApacheThrift.0.9.2\lib\Thrift.dll</HintPath>
       <Private>True</Private>
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Processor.cs" />
-    <Compile Include="ThriftServer.cs" />
+    <Compile Include="gen-csharp\ThriftSupplierPart\Part.cs" />
+    <Compile Include="gen-csharp\ThriftSupplierPart\Supplier.cs" />
+    <Compile Include="gen-csharp\ThriftSupplierPart\Supplies.cs" />
+    <Compile Include="gen-csharp\ThriftSupplierPart\ThriftSupplierPartService.cs" />
+    <Compile Include="gen-csharp\ThriftSupplierPart\Tquery.cs" />
+    <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="App.config">
-      <SubType>Designer</SubType>
-    </None>
+    <None Include="App.config" />
     <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Andl.Gateway\Andl.Gateway.csproj">
-      <Project>{1201feff-69fc-4720-8b03-059697b41ed3}</Project>
-      <Name>Andl.Gateway</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Andl.Runtime\Andl.Runtime.csproj">
-      <Project>{c7d6d0e8-dc93-4d12-b580-34d09e284873}</Project>
-      <Name>Andl.Runtime</Name>
-    </ProjectReference>
+    <None Include="setupd-sp.bat" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
