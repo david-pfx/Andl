@@ -8,4 +8,4 @@ del *.thrift
 
 %binpath%\andl ThriftTest.andl test -t
 
-..\bin\thrift-0.9.2.exe --gen csharp ThriftTest.thrift
+%thriftexe% --gen csharp ThriftTest.thrift

@@ -39,8 +39,8 @@
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
-    <Reference Include="Thrift, Version=0.9.2.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\ApacheThrift.0.9.2\lib\Thrift.dll</HintPath>
+    <Reference Include="Thrift, Version=0.9.3.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\ApacheThrift.0.9.3\lib\Thrift.dll</HintPath>
       <Private>True</Private>
     </Reference>
   </ItemGroup>
