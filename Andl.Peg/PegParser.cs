@@ -153,10 +153,12 @@ namespace Andl.Peg {
     /// Handle directives
     ///
 
+    // #catalog with options additional to any command line switches !?
     string CatalogDirective(Cursor state, IList<string> options) {
       State = state;
-      Cat.LoadFlag = !options.Any(o => o == "new");
-      Cat.SaveFlag = options.Any(o => o == "update");
+      Cat.LoadFlag |= !options.Any(o => o == "new");
+      Cat.SaveFlag |= options.Any(o => o == "update");
+      Cat.DatabaseSqlFlag |= options.Any(o => o == "sql");
       return "";
     }
     string IncludeDirective(Cursor state, string path) {

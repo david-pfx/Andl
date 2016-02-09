@@ -37,7 +37,7 @@ Directive = "#" &{ PrintLine(state) } (CatalogDirective
     / PanicDirective 
     / BadDirective);
 CatalogDirective = "catalog" IDX v:CatalogOption* (&EOL / &{ Error(state, "option expected") } ) { CatalogDirective(state, v) };
-CatalogOption = v:("new" / "load" / "update") IDX { v };
+CatalogOption = v:("new" / "load" / "update" / "sql") IDX { v };
 IncludeDirective = "include" IDX v:(!CC .)* { IncludeDirective(state, String.Concat(v).Trim()) };
 NoisyDirective = "noisy" IDX v:Integer { NoisyDirective(state, String.Concat(v)) };
 SourceDirective = "source" IDX v:(!CC .)* { SourceDirective(state, String.Concat(v).Trim()) };
@@ -79,10 +79,6 @@ Update <AstStatement> =
 TransformOrDelete <AstTransformer> = DOT SET LC RC { null }
     / x:Transformer { x }
     / . &{ Error(state, "missing update action") }  { null };
-
-//TransformOrDelete <AstTransformer> = x:Transformer { x }
-//    / DOT DELETE { null }
-//    / . &{ Error(state, "missing update action") }  { null };
 
 CatVar <AstValue> = v:CatIdent { AST(state).Variable(v) };
 

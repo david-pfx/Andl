@@ -177,7 +177,7 @@ namespace Andl.Runtime {
     // only do it once
     public bool Start(string path = null) {
       if (_started) return false;
-      Logger.WriteLine(3, "Catalog Start {0} path:'{1}'", this, path);
+      Logger.WriteLine(3, "Catalog Start {0} path:'{1}' sql={2}", this, path, DatabaseSqlFlag);
 
       // path logic
       DatabasePath = path ?? DatabasePath ?? DefaultDatabaseName;
@@ -187,6 +187,7 @@ namespace Andl.Runtime {
       else if (ext == DefaultSqlDatabaseExtension)
         DatabaseSqlFlag = true;
       DatabaseName = Path.GetFileNameWithoutExtension(DatabasePath);
+      Logger.WriteLine(3, "Catalog database={0} sql={1}", DatabasePath, DatabaseSqlFlag);
 
       if (LoadFlag) {
         var exists = (DatabaseSqlFlag) ? File.Exists(DatabasePath) : Directory.Exists(DatabasePath);
@@ -264,14 +265,20 @@ namespace Andl.Runtime {
       var heading = entry.DataType.Heading;
       if (DatabaseSqlFlag) {
         var sqlheading = SqlTarget.Create().GetTableHeading(name);
-        if (sqlheading == null || !heading.Equals(sqlheading))
+        if (sqlheading == null)
           ProgramError.Fatal("Catalog", "sql table not found: '{0}'", name);
+        // TODO: smarter test, but still may not match exactly
+        //if (!heading.Equals(sqlheading))
+        if (heading.Degree != sqlheading.Degree)
+          ProgramError.Fatal("Catalog", "sql table schema mismatch: '{0}'", name);
         var table = DataTableSql.Create(name, heading);
         entry.Value = RelationValue.Create(table);
       } else {
         var tablev = Persist.Create(DatabasePath, false).Load(name);
-        if (tablev == null || !heading.Equals(tablev.Heading))
+        if (tablev == null)
           ProgramError.Fatal("Catalog", "local table not found: '{0}'", name);
+        if (!heading.Equals(tablev.Heading))
+          ProgramError.Fatal("Catalog", "local table schema mismatch: '{0}'", name);
         entry.Value = RelationValue.Create(tablev.AsTable());
       }
       return true;
@@ -412,7 +419,17 @@ namespace Andl.Runtime {
         return null;
       }
       var entry = FindEntry(name);
-      return entry == null ? null : entry.Value;
+      if (entry == null) return null;
+
+      // Choose whether to get value from database or catalog
+      if (entry.IsDatabase && Catalog.SaveFlag) {
+        if (Catalog.DatabaseSqlFlag) {
+          var table = DataTableSql.Create(name, entry.DataType.Heading);
+          return RelationValue.Create(table);
+        } else {
+          return Persist.Create(Catalog.DatabasePath, true).Load(name);
+        }
+      } else return entry.Value;
     }
 
     // Return type from variable as evaluated if needed
@@ -434,20 +451,18 @@ namespace Andl.Runtime {
         entry = FindEntry(name);
       }
       Logger.Assert(entry != null);
-      entry.Set(value);
 
-      // if relation value, convert to/from Sql
-      // database flag means linked entry, value in database
+      // Choose whether to store value in database or in catalog
       if (entry.IsDatabase && Catalog.SaveFlag) {
         var table = value.AsTable();
         if (Catalog.DatabaseSqlFlag)
-          RelationValue.Create(DataTableSql.Create(name, table));
+          DataTableSql.Create(name, table);
         else {
           var finalvalue = RelationValue.Create(DataTableLocal.Convert(table));
           // note: could defer persistence until shutdown
           Persist.Create(Catalog.DatabasePath, true).Store(name, finalvalue);
         }
-      }
+      } else entry.Set(value);
     }
 
     // Return type for an entry that is settable

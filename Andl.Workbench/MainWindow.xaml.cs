@@ -78,7 +78,7 @@ namespace Andl.Workbench {
 
     // Using a DependencyProperty as the backing store for CurrentFileName.  This enables animation, styling, binding, etc...
     public static readonly DependencyProperty CurrentFileNameProperty =
-        DependencyProperty.Register("CurrentFileName", typeof(string), typeof(MainWindow), new PropertyMetadata(""));
+        DependencyProperty.Register("CurrentFileName", typeof(string), typeof(MainWindow), new PropertyMetadata(null));
 
     ///============================================================================================
     ///

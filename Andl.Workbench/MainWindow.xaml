@@ -262,7 +262,7 @@
             FontFamily="Consolas"
             FontSize="10pt"
             ShowLineNumbers="True"
-            Text="Just some sample text" />
+            Text="// Enter Andl code here and press F5 to execute" />
         </Border>
 
         <GridSplitter 

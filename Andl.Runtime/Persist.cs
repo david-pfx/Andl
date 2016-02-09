@@ -61,7 +61,7 @@ namespace Andl.Runtime {
     // Store typed value on file stream
     public void Store(string name, TypedValue value) {
       var path = Path.Combine(_basepath, name + "." + VariableExtension);
-      Logger.WriteLine(4, "Storing {0} type={1}", name, value.DataType.ToString());
+      Logger.WriteLine(3, "Storing {0} {1}", name, value);
       try {
         using (var writer = new BinaryWriter(File.Open(path, FileMode.Create))) {
           var w = PersistWriter.Create(writer);
@@ -83,12 +83,14 @@ namespace Andl.Runtime {
 
     // Load from file stream
     public TypedValue Load(string name) {
+      Logger.WriteLine(4, "Load {0}", name);
       var path = Path.Combine(_basepath, name + "." + VariableExtension);
-      Logger.WriteLine(4, "Loading {0}", name);
       if (!File.Exists(path)) return TypedValue.Empty;
       using (var reader = new BinaryReader(File.Open(path, FileMode.Open))) {
         var r = PersistReader.Create(reader);
-        return r.Load();
+        var value = r.Load();
+        Logger.WriteLine(3, "[Load {0} {1}]", name, value);
+        return value;
       }
     }
 
