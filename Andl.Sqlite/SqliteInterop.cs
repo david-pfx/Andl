@@ -75,19 +75,58 @@ namespace Andl.Sqlite {
     // special values for last argument of sqlite3_result_text
     public static readonly IntPtr SQLITE_STATIC = (IntPtr)0;
     public static readonly IntPtr SQLITE_TRANSIENT = (IntPtr)(-1);
-        
-    [DllImport("sqlite3.dll", EntryPoint = "sqlite3_open", CallingConvention = CallingConvention.Cdecl)]
-    public static extern int sqlite3_open(string filename, out IntPtr db);
 
-    [DllImport("sqlite3.dll", EntryPoint = "sqlite3_close", CallingConvention = CallingConvention.Cdecl)]
-    public static extern int sqlite3_close(IntPtr db);
+    ///-------------------------------------------------------------------------------------------- 
+    /// wrappers to handle marshalling, avoid nulls, do conversions
+    /// 
 
-    [DllImport("sqlite3.dll", EntryPoint = "sqlite3_errmsg", CallingConvention = CallingConvention.Cdecl)]
-    static extern IntPtr sqlite3_errmsg_raw(IntPtr db);
-
-    public static string sqlite3_errmsg(IntPtr db) {
+    public static string sqlite3_errmsg_wrapper(IntPtr db) {
       return Marshal.PtrToStringAnsi(sqlite3_errmsg_raw(db));
     }
+
+    public static byte[] sqlite3_column_blob_wrapper(IntPtr pstmt, int iCol) {
+      var len = sqlite3_column_bytes(pstmt, iCol);
+      var ptr = sqlite3_column_blob(pstmt, iCol);
+      var ret = new byte[len];
+      if (ptr == IntPtr.Zero) return ret;
+      Marshal.Copy(ptr, ret, 0, len);
+      return ret;
+    }
+
+    public static object sqlite3_value_blob_wrapper(IntPtr pvalue) {
+      var len = sqlite3_value_bytes(pvalue);
+      var ptr = sqlite3_value_blob(pvalue);
+      var ret = new byte[len];
+      if (ptr == IntPtr.Zero) return ret;
+      Marshal.Copy(ptr, ret, 0, len);
+      return ret;
+    }
+
+    // get column text
+    public static string sqlite3_column_text_wrapper(IntPtr pstmt, int iCol) {
+      var ptr = sqlite3_column_text(pstmt, iCol);
+      if (ptr == IntPtr.Zero) return "";
+      else return Marshal.PtrToStringAnsi(ptr);
+    }
+
+    public static string sqlite3_column_text16_wrapper(IntPtr pstmt, int iCol) {
+      var ptr = sqlite3_column_text16(pstmt, iCol);
+      if (ptr == IntPtr.Zero) return "";
+      else return Marshal.PtrToStringUni(ptr);
+    }
+
+    public static string sqlite3_value_text_wrapper(IntPtr pvalue) {
+      return Marshal.PtrToStringAnsi(sqlite3_value_text(pvalue));
+    }
+
+    public static string sqlite3_value_text16_wrapper(IntPtr pvalue) {
+      return Marshal.PtrToStringUni(sqlite3_value_text16(pvalue));
+    }
+
+    ///--------------------------------------------------------------------------------------------
+    ///
+    /// Declarations and Entry points
+    /// 
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     public delegate void UserFunctionCallback(IntPtr context, int nvalues,
@@ -102,6 +141,15 @@ namespace Andl.Sqlite {
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     public delegate void UserFunctionDestructorCallback(IntPtr context);
+
+    [DllImport("sqlite3.dll", EntryPoint = "sqlite3_open", CallingConvention = CallingConvention.Cdecl)]
+    public static extern int sqlite3_open(string filename, out IntPtr db);
+
+    [DllImport("sqlite3.dll", EntryPoint = "sqlite3_close", CallingConvention = CallingConvention.Cdecl)]
+    public static extern int sqlite3_close(IntPtr db);
+
+    [DllImport("sqlite3.dll", EntryPoint = "sqlite3_errmsg", CallingConvention = CallingConvention.Cdecl)]
+    static extern IntPtr sqlite3_errmsg_raw(IntPtr db);
 
     [DllImport("sqlite3.dll", EntryPoint = "sqlite3_create_function", CallingConvention = CallingConvention.Cdecl)]
     public static extern int sqlite3_create_function_scalar(IntPtr db, string zFunctionName, int nArg, int eTextRep, IntPtr pApp,
@@ -119,34 +167,12 @@ namespace Andl.Sqlite {
 [DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern int sqlite3_column_int(IntPtr pstmt, int iCol);
 [DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern Int64 sqlite3_column_int64(IntPtr pstmt, int iCol);
 [DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern IntPtr sqlite3_column_text(IntPtr pstmt, int iCol);
+[DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
+                                                                        public static extern IntPtr sqlite3_column_text16(IntPtr pstmt, int iCol);
 [DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern int sqlite3_column_type(IntPtr pstmt, int iCol);
 [DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern IntPtr sqlite3_column_value(IntPtr pstmt, int iCol);
 
-    // wrapper to handle marshalling and avoid nulls
-    public static byte[] sqlite3_column_blob_wrapper(IntPtr pstmt, int iCol) {
-      var len = sqlite3_column_bytes(pstmt, iCol);
-      var ptr = sqlite3_column_blob(pstmt, iCol);
-      var ret = new byte[len];
-      if (ptr == IntPtr.Zero) return ret;
-      Marshal.Copy(ptr, ret, 0, len);
-      return ret;
-    }
-
-    // wrapper to handle marshalling and avoid nulls
-    public static string sqlite3_column_text_wrapper(IntPtr pstmt, int iCol) {
-      var ptr = sqlite3_column_text(pstmt, iCol);
-      if (ptr == IntPtr.Zero) return "";
-      else return Marshal.PtrToStringAnsi(ptr);
-    }
-
-    // wrapper to handle marshalling and avoid nulls // TODO: utf
-    public static string sqlite3_column_text_wrapper_utf(IntPtr pstmt, int iCol) {
-      var ptr = sqlite3_column_text(pstmt, iCol);
-      if (ptr == IntPtr.Zero) return "";
-      else return Marshal.PtrToStringAnsi(ptr);
-    }
-
-    [DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern IntPtr sqlite3_aggregate_context(IntPtr pcontext, int nBytes);
+[DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern IntPtr sqlite3_aggregate_context(IntPtr pcontext, int nBytes);
 [DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern void sqlite3_result_blob(IntPtr pcontext, byte[] pdata, int length, IntPtr dtor);
 [DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern void sqlite3_result_double(IntPtr pcontext, double value);
 [DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern void sqlite3_result_error(IntPtr pcontext, string message, int length);
@@ -157,6 +183,8 @@ namespace Andl.Sqlite {
 [DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern void sqlite3_result_int64(IntPtr pcontext, Int64 value);
 [DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern void sqlite3_result_null(IntPtr pcontext);
 [DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern void sqlite3_result_text(IntPtr pcontext, string value, int length, IntPtr dtor);
+[DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
+                                                                        public static extern void sqlite3_result_text16(IntPtr pcontext, string value, int length, IntPtr dtor);
 [DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern void sqlite3_result_value(IntPtr pcontext, IntPtr pvalue);
 [DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern void sqlite3_result_zeroblob(IntPtr pcontext, int n);
 
@@ -174,6 +202,8 @@ namespace Andl.Sqlite {
 [DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern int sqlite3_bind_int64(IntPtr pstmt, int index, Int64 value);
 [DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern int sqlite3_bind_null(IntPtr pstmt, int index);
 [DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern int sqlite3_bind_text(IntPtr pstmt,int index, string value, int len, IntPtr dtor);
+[DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
+                                                                        public static extern int sqlite3_bind_text16(IntPtr pstmt,int index, string value, int len, IntPtr dtor);
 [DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern int sqlite3_bind_value(IntPtr pstmt, int index, IntPtr pvalue);
 [DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern int sqlite3_bind_zeroblob(IntPtr pstmt, int index, int n);
 
@@ -185,9 +215,8 @@ namespace Andl.Sqlite {
 [DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern int sqlite3_value_int(IntPtr pvalue);
 [DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern Int64 sqlite3_value_int64(IntPtr pvalue);
 [DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern IntPtr sqlite3_value_text(IntPtr pvalue);
-[DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern IntPtr sqlite3_value_text16(IntPtr pvalue);
-[DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern IntPtr sqlite3_value_text16le(IntPtr pvalue);
-[DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern IntPtr sqlite3_value_text16be(IntPtr pvalue);
+[DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
+                                                                        public static extern IntPtr sqlite3_value_text16(IntPtr pvalue);
 [DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern int sqlite3_value_type(IntPtr pvalue);
 [DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern int sqlite3_value_numeric_type(IntPtr pvalue);
 
@@ -195,21 +224,5 @@ namespace Andl.Sqlite {
 [DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern IntPtr sqlite3_realloc(IntPtr ptr, int bytes);
 [DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern void sqlite3_free(IntPtr ptr);
 
-    public static string sqlite3_value_text_wrapper(IntPtr pvalue) {
-      return Marshal.PtrToStringAnsi(sqlite3_value_text(pvalue));
-    }
-    // TODO: utf
-    public static string sqlite3_value_text_wrapper_utf(IntPtr pvalue) {
-      return Marshal.PtrToStringAnsi(sqlite3_value_text(pvalue));
-    }
-
-    public static object sqlite3_value_blob_wrapper(IntPtr pvalue) {
-      var len = sqlite3_value_bytes(pvalue);
-      var ptr = sqlite3_value_blob(pvalue);
-      var ret = new byte[len];
-      if (ptr == IntPtr.Zero) return ret;
-      Marshal.Copy(ptr, ret, 0, len);
-      return ret;
-    }
   }
 }
