@@ -37,14 +37,14 @@ namespace Andl.Runtime {
     // statement used by the current instance
     SqliteStatement _statement;
 
-    // functions to convert between typed value and boxed value, indexed by base type
-    // Very important they round trip correctly
+    // functions to convert between DataType value and native object value, indexed by base type
+    // Very important they round trip correctly, but up here all the objects are the right type.
 
-    // typed value -> boxed value
+    // boxed object => DataType
     public static readonly Dictionary<DataType, Func<object, DataType, TypedValue>> FromObjectDict = new Dictionary<DataType, Func<object, DataType, TypedValue>>() {
       { DataTypes.Binary, (v, dt) => BinaryValue.Create(v as byte[]) },
       { DataTypes.Bool, (v, dt) =>   BoolValue.Create((bool)v) },
-      { DataTypes.Number, (v, dt) => NumberValue.Create((decimal)(double)v) },
+      { DataTypes.Number, (v, dt) => NumberValue.Create((decimal)v) },
       { DataTypes.Row, (v, dt) =>    PersistReader.FromBinary(v as byte[], dt) },
       { DataTypes.Table, (v, dt) =>  PersistReader.FromBinary(v as byte[], dt) },
       { DataTypes.Text, (v, dt) =>   TextValue.Create(v as string) },
@@ -52,7 +52,7 @@ namespace Andl.Runtime {
       { DataTypes.User, (v, dt) =>   PersistReader.FromBinary(v as byte[], dt) },
     };
 
-    // boxed value -> typed value
+    // DataType => boxed object
     public static readonly Dictionary<DataType, Func<TypedValue, object>> ToObjectDict = new Dictionary<DataType, Func<TypedValue, object>> {
       { DataTypes.Binary, (v) => (v as BinaryValue).Value },
       { DataTypes.Bool, (v) => (v as BoolValue).Value },
@@ -64,27 +64,27 @@ namespace Andl.Runtime {
       { DataTypes.User, (v) => PersistWriter.ToBinary(v) },
     };
 
-    // Convert from Sqlite type (Affinity) to DataType
-    // See https://www.sqlite.org/datatype3.html
-    public static Dictionary<string, DataType> FromSqlTypeDict = new Dictionary<string, DataType> {
-      { "INTEGER", DataTypes.Number },
-      { "REAL", DataTypes.Number },
-      { "NUMERIC", DataTypes.Number },
-      { "TEXT", DataTypes.Text },
-      { "NONE", DataTypes.Binary },
-      { "TIME", DataTypes.Time },
+    // Convert from Common type to DataType
+    public static Dictionary<SqlCommonType, DataType> FromSqlCommon = new Dictionary<SqlCommonType, DataType> {
+      //{ SqlCommonType.None, DataTypes.Unknown },
+      { SqlCommonType.Binary, DataTypes.Binary },
+      { SqlCommonType.Bool, DataTypes.Bool },
+      { SqlCommonType.Number, DataTypes.Number },
+      { SqlCommonType.Text, DataTypes.Text },
+      { SqlCommonType.Time, DataTypes.Time },
     };
 
-    // Convert from DataType to Sqlite type (Affinity)
-    public static Dictionary<DataType, string> ToSqlTypeDict = new Dictionary<DataType, string> {
-      { DataTypes.Binary, "NONE" },
-      { DataTypes.Bool, "REAL" },
-      { DataTypes.Number, "REAL" },
-      { DataTypes.Row, "NONE" },
-      { DataTypes.Table, "NONE" },
-      { DataTypes.Text, "TEXT" },
-      { DataTypes.Time, "TIME" },
-      { DataTypes.User, "NONE" },
+    // Select an SQL common type for each DataType
+    public static Dictionary<DataType, SqlCommonType> ToSqlCommon = new Dictionary<DataType, SqlCommonType> {
+      //{ DataTypes.Unknown, SqlCommonType.None },
+      { DataTypes.Binary, SqlCommonType.Binary },
+      { DataTypes.Bool, SqlCommonType.Bool },
+      { DataTypes.Number, SqlCommonType.Number },
+      { DataTypes.Text, SqlCommonType.Text },
+      { DataTypes.Time, SqlCommonType.Time },
+      { DataTypes.Row, SqlCommonType.Binary },
+      { DataTypes.Table, SqlCommonType.Binary },
+      { DataTypes.User, SqlCommonType.Binary },
     };
 
     // Configure the target - statics only
@@ -143,13 +143,15 @@ namespace Andl.Runtime {
 
     public bool RegisterExpression(ExpressionEval expr, int naccum) {
       if (!ExprDict.ContainsKey(expr.Serial)) {
+        var args = expr.Lookup.Columns.Select(c => ToSqlCommon[c.DataType]).ToArray();
+        var retn = ToSqlCommon[expr.DataType];
         ExprDict[expr.Serial] = expr;
         var name = SqlGen.FuncName(expr);
         Logger.WriteLine(3, "Register {0} naccum={1} expr='{2}'", name, naccum, expr);
         if (expr.IsOpen)
-          return _database.CreateFunction(SqlGen.FuncName(expr), FuncTypes.Open, expr.Serial);
+          return _database.CreateFunction(SqlGen.FuncName(expr), FuncTypes.Open, expr.Serial, args, retn);
         else if (expr.HasFold)
-          return _database.CreateAggFunction(SqlGen.FuncName(expr), expr.Serial, naccum);
+          return _database.CreateAggFunction(SqlGen.FuncName(expr), expr.Serial, naccum, args, retn);
       }
       return true;
     }
@@ -177,12 +179,10 @@ namespace Andl.Runtime {
 
     public void ExecuteSend(TypedValue[] values) {
       Logger.WriteLine(3, "Send <{0}>", String.Join(", ", values.Select(v => v.ToString())));
-      var ovalues = new object[values.Length];
-      for (var i = 0; i < ovalues.Length; ++i) {
-        var datatype = values[i].DataType;
-        ovalues[i] = ToObjectDict[datatype.BaseType](values[i]);
-      }
-      if (!_statement.Send(ovalues))
+      var ctypes = values.Select(v => ToSqlCommon[v.DataType.BaseType]).ToArray();
+      var ovalues = values.Select(v => ToObjectDict[v.DataType.BaseType](v)).ToArray();
+      Logger.WriteLine(3, "Send ct={0} v={1}", Util.Join(",", ctypes), Util.Join(",", ovalues));
+      if (!_statement.PutValues(ctypes, ovalues))
         throw new SqlException("send failed code={0} message={1}", _database.LastResult, _database.LastMessage);
     }
 
@@ -192,12 +192,12 @@ namespace Andl.Runtime {
         throw new SqlException("fetch failed code={0} message={1}", _database.LastResult, _database.LastMessage);
     }
 
-    // get values to match a heading
+    // get values from fetch to match a heading
     public void GetData(DataHeading heading, TypedValue[] values) {
       Logger.WriteLine(4, "GetData {0}", heading);
       var ovalues = new object[heading.Degree];
-      var atypes = heading.Columns.Select(c => ToSqlTypeDict[c.DataType.BaseType]).ToArray();
-      if (!_statement.GetData(atypes, ovalues))
+      var atypes = heading.Columns.Select(c => ToSqlCommon[c.DataType.BaseType]).ToArray();
+      if (!_statement.GetValues(atypes, ovalues))
         throw new SqlException("get data failed code={0} message={1}", _database.LastResult, _database.LastMessage);
       for (int i = 0; i < heading.Degree; ++i) {
         var datatype = heading.Columns[i].DataType;
@@ -209,10 +209,11 @@ namespace Andl.Runtime {
     // get a single int scalar
     public void GetData(out int value) {
       Logger.WriteLine(3, "GetData int");
+      var ctypes = new SqlCommonType[] { SqlCommonType.Integer };
       var fields = new object[1];
-      if (!_statement.GetData(fields))
+      if (!_statement.GetValues(ctypes, fields))
         throw new SqlException("get data failed code={0} message={1}", _database.LastResult, _database.LastMessage);
-      value = (int)(double)fields[0];
+      value = (int)fields[0];
     }
 
     // get a single bool scalar
@@ -229,10 +230,10 @@ namespace Andl.Runtime {
     // Construct and return a heading for a database table
     // return null if not found or error
     public DataHeading GetTableHeading(string table) {
-      Tuple<string, string>[] columns;
+      Tuple<string, SqlCommonType>[] columns;
       if (_database == null || !_database.GetTableColumns(table, out columns) || columns.Length == 0)
         return null;
-      var cols = columns.Select(c => DataColumn.Create(c.Item1, FromSqlTypeDict[c.Item2]));
+      var cols = columns.Select(c => DataColumn.Create(c.Item1, FromSqlCommon[c.Item2]));
       return DataHeading.Create(cols);    // ignore column order
     }
 
@@ -306,7 +307,7 @@ namespace Andl.Runtime {
       return SqlTarget.ToObjectDict[retval.DataType.BaseType](retval);
     }
     
-    // create a lookup for an expression a set of values
+    // create a lookup for an expression from a set of values
     LookupHolder GetLookup(ExpressionEval expr, object[] ovalues) {
       // build the lookup
       var lookup = new LookupHolder();

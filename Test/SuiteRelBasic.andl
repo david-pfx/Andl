@@ -83,4 +83,35 @@ assert($lineno$, S .where(STATUS = 20) <> Ss4)
 assert($lineno$, S .where(STATUS = 20) sup Ss4)
 assert($lineno$, count(S .where(STATUS = 20)) = 2)
 
+assert($lineno$, count(S .where(STATUS = 20)) = 2)
+
+//--- function types -- incomplete
+_fn1bo(a:bool) => a
+_fn1bi(a:binary) => a
+_fn1nu(a:number) => a
+_fn1te(a:text) => a
+_fn1ti(a:time) => a
+
+_fn2bo(a:bool) => not a
+_fn2bi(a:binary) => b'05040302'  // no available func
+_fn2nu(a:number) => a+1
+_fn2te(a:text) => before(a,'world') & 'fred'
+_fn2ti(a:time) => t'2016-12-31 23:59:59.999' // no available func
+
+_fn3bo(a:bool) => fold(or,a)
+_fn3bi(a:binary) => a // no available func
+_fn3nu(a:number) => fold(+,a)
+_fn3te(a:text) => fold(&,a)
+_fn3ti(a:time) => a // no available func
+
+_r1 := {{ bo:=true, bi:=b'0102030405', nu:=123456789.123456789, te:='hello world', ti:=t'2015-12-31 23:59:59.999' }}
+_r2 := {{ bo:=false, bi:=b'05040302', nu:=123456790.123456789, te:='hello fred', ti:=t'2016-12-31 23:59:59.999' }}
+_r3 := _r1
+R := _r1
+
+assert($lineno$, _r1 = R)
+assert($lineno$, _r1 = R .set{ bo := _fn1bo(bo), bi := _fn1bi(bi), nu := _fn1nu(nu), te := _fn1te(te), ti := _fn1ti(ti) })
+assert($lineno$, _r2 = R .set{ bo := _fn2bo(bo), bi := _fn2bi(bi), nu := _fn2nu(nu), te := _fn2te(te), ti := _fn2ti(ti) })
+assert($lineno$, _r3 = R .set{ bo := _fn3bo(bo), bi := _fn3bi(bi), nu := _fn3nu(nu), te := _fn3te(te), ti := _fn3ti(ti) })
+
 finish($filename$)

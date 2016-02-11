@@ -55,16 +55,47 @@ assert($lineno$, if(false,t'01/01/2016',t'01/01/2017') = t'01/01/2017')
 assert($lineno$, if(true,{{}},{{:}}) = {{}})
 
 //--- assign
-a1 := 22
-assert($lineno$, a1 = 22)
-a2 := a1*2
-assert($lineno$, a2 = 44)
-a3 := "xyz"
-assert($lineno$, a3 = "xyz")
-a4 := t'2016/12/31'
-assert($lineno$, a4 = t'31/12/2016')
-a5 := {{:}}
-assert($lineno$, a5 = {{:}})
+// cover every type, checks value equality too
+_asvbi := b'05040302'
+assert($lineno$, _asvbi = b'05040302')
+
+_asvbo := true
+assert($lineno$, _asvbo = true)
+
+_asvnu := 123456789.123456789  // beyond real
+assert($lineno$, _asvnu = 123456789.123456789)
+
+_asvte := 'Hello World' d'33'
+assert($lineno$, _asvte = 'Hello World!')
+
+_asvti := t'2015-12-31 23:59:59.999'
+assert($lineno$, _asvti = t'2015-12-31 23:59:59.999')
+
+_asvtu := { name := 'Smith', Age := 99 }
+assert($lineno$, _asvtu = { Age := 99, name := 'Smith' })
+
+_asvre  := {{ name := 'Smith', Age := 99}, { Age := 98, name := 'Jones'}}
+assert($lineno$, _asvre = {{ Age := 98, name := 'Jones'}, { name := 'Smith', Age := 99 }})
+
+def _astus(age:0, name:'')
+_asvus := _astus(45, 'Green')
+assert($lineno$, _asvus = _astus(45, 'Green'))
+
+// repeating literals ensures test of value semantics
+_asvall  := {{ bi := b'05040302', bo := true, nu := 123456789.123456789, te := 'Hello World!', ti := t'2015-12-31 23:59:59.999',
+                tu := { name := 'Smith', Age := 99 }, re := {{ name := 'Smith', Age := 99}, { Age := 98, name := 'Jones'}}, us := _astus(45, 'Green') 
+            }}
+assert($lineno$, _asvall = {{ bi := _asvbi, bo := _asvbo, nu := _asvnu, te := _asvte, ti := _asvti, tu := _asvtu, re := _asvre, us := _asvus }})
+
+// test of database var, both ways
+#noisy 3
+ASVREL := {{ bi := b'05040302', bo := true, nu := 123456789.123456789, te := 'Hello World!', ti := t'2015-12-31 23:59:59.999',
+                tu := { name := 'Smith', Age := 99 }, re := {{ name := 'Smith', Age := 99}, { Age := 98, name := 'Jones'}}, us := _astus(45, 'Green') 
+            }}
+assert($lineno$, _asvall = ASVREL)
+assert($lineno$, ASVREL = _asvall)
+
+#stop
 
 //--- builtin
 assert($lineno$, {{N:=0},{N:=1},{N:=2}}       = seq(3))
@@ -103,7 +134,6 @@ assert($lineno$, 42 = 10*4.2)
 assert($lineno$, 42 = 84/2)
 assert($lineno$, 10.5 = 42/4)
 assert($lineno$, 0.1 = 1/10)
-
 assert($lineno$, 42 = max(42,41))
 assert($lineno$, 42 = max(41,42))
 assert($lineno$, 42 = min(43,42))

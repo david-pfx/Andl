@@ -98,6 +98,10 @@ namespace Andl.Runtime {
       return hash;
     }
 
+    string ShowHashCode() {
+      return String.Format("[{0}=>{1}]", String.Join(",", _values.Select(v => v.GetHashCode().ToString())), CalcHashCode());
+    }
+
     /// <summary>
     /// Implement ILookupValue for a data row
     /// </summary>

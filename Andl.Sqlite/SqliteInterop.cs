@@ -52,19 +52,23 @@ namespace Andl.Sqlite {
       ROW = 100,
       DONE = 101
     }
+
+    // Fundamental data types
     public enum Datatype : int {
       INTEGER = 1,
-      FLOAT = 2,
+      FLOAT = 2,  // = REAL
       TEXT = 3,
       BLOB = 4,
       NULL = 5
     }
+
+    // Text Encodings
     public enum Encoding : int {
       UTF8           = 1,
       UTF16LE        = 2,
       UTF16BE        = 3,
-      UTF16          = 4,
-      ANY            = 5,
+      UTF16          = 4, // native
+      ANY            = 5, // deprecated
       UTF16_ALIGNED  = 8,
     };
 
@@ -135,7 +139,14 @@ namespace Andl.Sqlite {
       else return Marshal.PtrToStringAnsi(ptr);
     }
 
-[DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern IntPtr sqlite3_aggregate_context(IntPtr pcontext, int nBytes);
+    // wrapper to handle marshalling and avoid nulls // TODO: utf
+    public static string sqlite3_column_text_wrapper_utf(IntPtr pstmt, int iCol) {
+      var ptr = sqlite3_column_text(pstmt, iCol);
+      if (ptr == IntPtr.Zero) return "";
+      else return Marshal.PtrToStringAnsi(ptr);
+    }
+
+    [DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern IntPtr sqlite3_aggregate_context(IntPtr pcontext, int nBytes);
 [DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern void sqlite3_result_blob(IntPtr pcontext, byte[] pdata, int length, IntPtr dtor);
 [DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern void sqlite3_result_double(IntPtr pcontext, double value);
 [DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern void sqlite3_result_error(IntPtr pcontext, string message, int length);
@@ -185,6 +196,10 @@ namespace Andl.Sqlite {
 [DllImport("sqlite3.dll", CallingConvention = CallingConvention.Cdecl)] public static extern void sqlite3_free(IntPtr ptr);
 
     public static string sqlite3_value_text_wrapper(IntPtr pvalue) {
+      return Marshal.PtrToStringAnsi(sqlite3_value_text(pvalue));
+    }
+    // TODO: utf
+    public static string sqlite3_value_text_wrapper_utf(IntPtr pvalue) {
       return Marshal.PtrToStringAnsi(sqlite3_value_text(pvalue));
     }
 

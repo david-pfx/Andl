@@ -143,6 +143,10 @@ namespace Andl.Runtime {
     public static readonly VoidValue Void;
     public static VoidValue Default { get { return Void; } }
 
+    public override string ToString() {
+      return "Void";
+    }
+
     public override string Format() {
       throw new NotImplementedException();
     }
@@ -195,6 +199,8 @@ namespace Andl.Runtime {
     public static BinaryValue Default;
     public byte[] Value { get; set; }
 
+    int _hashcode = 0;
+
     static BinaryValue() {
       Default = new BinaryValue { Value = new byte[0] };
     }
@@ -216,7 +222,12 @@ namespace Andl.Runtime {
       return o != null && Enumerable.Range(0, Value.Length).All(x => Value[x] == o.Value[x]);
     }
     public override int GetHashCode() {
-      return Value.GetHashCode();
+      if (_hashcode == 0 && Value.Length > 0) {
+        _hashcode = Value[0] | 1;
+        for (int x = 1; x < Math.Min(32, Value.Length); ++x)
+          _hashcode = (_hashcode << 1) ^ Value[x];
+      }
+      return _hashcode;
     }
   }
 

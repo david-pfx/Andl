@@ -64,12 +64,13 @@ namespace Andl.Runtime {
   public class SqlGen {
     // Types suitable for use in column definitions
     // see https://www.sqlite.org/datatype3.html S2.2
+    // TODO: refactor
     static Dictionary<DataType, string> _datatypetosql = new Dictionary<DataType, string> {
       { DataTypes.Binary, "BLOB" },
-      { DataTypes.Bool, "INTEGER" },
-      { DataTypes.Number, "REAL" },
-      { DataTypes.Time, "TEXT" },
+      { DataTypes.Bool, "BOOLEAN" },
+      { DataTypes.Number, "TEXT" },
       { DataTypes.Text, "TEXT" },
+      { DataTypes.Time, "TEXT" },
       { DataTypes.Table, "BLOB" },
       { DataTypes.Row, "BLOB" },
       { DataTypes.User, "BLOB" },

@@ -85,6 +85,7 @@ namespace Andl.Runtime {
       return String.Format("{{{0}<{1}>}}", Heading, text);
     }
 
+    // Get rows from result set by executing query
     public override IEnumerable<DataRow> GetRows() {
       _database.OpenStatement();
       _database.ExecuteQuery(GetQuery());
@@ -97,6 +98,8 @@ namespace Andl.Runtime {
       _database.CloseStatement();
     }
 
+    // Release result set
+    // TODO: delete temporaries
     public override void DropRows() {
       _database.CloseStatement();
     }
@@ -160,7 +163,7 @@ namespace Andl.Runtime {
       var name = SqlTarget.SqlGen.TempName();
       var newtable = Create(name, other.Heading);
       newtable._database.Begin();
-      newtable.CreateTable();                   //FIX: put temp in memory db
+      newtable.CreateTable();           //TODO: schedule for deletion. When?
       newtable.InsertValuesSingly(other);
       newtable._database.Commit();
       return newtable;
@@ -420,6 +423,7 @@ namespace Andl.Runtime {
 
     //--- updates
 
+    // Execute an update that is an INSERT
     public override DataTable UpJoin(DataTable other, JoinOps joinops) {
       if (other is DataTableSql)
         InsertValuesQuery(other as DataTableSql);
@@ -427,6 +431,7 @@ namespace Andl.Runtime {
       return this;
     }
 
+    // Execute an update that is a DELETE or UPDATE
     public override DataTable UpdateTransform(ExpressionEval pred, ExpressionEval[] exprs) {
       _database.RegisterExpressions(pred);
       _database.RegisterExpressions(exprs);

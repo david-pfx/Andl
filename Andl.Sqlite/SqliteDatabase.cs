@@ -9,7 +9,6 @@ namespace Andl.Sqlite {
   public enum FuncTypes { Open, Predicate, Aggregate, Ordered };
   /// <summary>
   /// Define an interface that can evaluate functions identified by serial
-  /// // Can only use general types (no Andl yet)
   /// </summary>
   public interface ISqlEvaluateSerial {
     // open function
@@ -25,6 +24,11 @@ namespace Andl.Sqlite {
     public IntPtr Pointer;
   }
 
+  // Common types used for data interchange
+  public enum SqlCommonType {
+    None, Binary, Bool, Integer, Double, Number, Text, Time
+  }
+
   //////////////////////////////////////////////////////////////////////
   ///
   /// Implement Sqlite database access
@@ -32,7 +36,10 @@ namespace Andl.Sqlite {
   /// Calling convention: functions return true if they completed successfully.
   /// If false, LastError and LastMessage say why.
   /// 
-  /// No 'upward' dependencies. No logging.
+  /// No 'upward' dependencies. No logging. No Andl types.
+  /// Can only use general native types
+  ///   Caller types accompanied by SqlCommonType
+  ///   Callee types accompanied by Sqlite.Datatype
   /// 
   public class SqliteDatabase : SqliteInterop, IDisposable {
     public Result LastResult { get; set; }
@@ -49,66 +56,74 @@ namespace Andl.Sqlite {
 
     // Type-aware functions for handling values (should be part of Sqlite IMHO)
 
-    // bind values to query
-    public static readonly Dictionary<Type, Func<IntPtr, int, object, int>> PutBindDict = new Dictionary<Type, Func<IntPtr, int, object, int>> {
-      { typeof(bool), (c, i, v) => sqlite3_bind_int(c, i, (bool)v ? 1 : 0) },
-      { typeof(byte[]), (c, i, v) => { var bv = v as byte[]; return sqlite3_bind_blob(c, i, bv, bv.Length, SQLITE_TRANSIENT); } },
-      { typeof(DateTime), (c, i, v) => sqlite3_bind_text(c, i, v as string, -1, SQLITE_TRANSIENT) },
-      { typeof(decimal), (c, i, v) => sqlite3_bind_double(c, i, (double)(decimal)v) },
-      { typeof(int), (c, i, v) => sqlite3_bind_int(c, i, (int)v) },
-      { typeof(string), (c, i, v) => sqlite3_bind_text(c, i, v as string, -1, SQLITE_TRANSIENT) },
+    // bind values to query based on common type
+    public static readonly Dictionary<SqlCommonType, Func<IntPtr, int, object, int>> PutBindDict = new Dictionary<SqlCommonType, Func<IntPtr, int, object, int>> {
+      { SqlCommonType.Binary, (c, i, v) => { var bv = v as byte[]; return sqlite3_bind_blob(c, i, bv, bv.Length, SQLITE_TRANSIENT); } },
+      { SqlCommonType.Bool, (c, i, v) => sqlite3_bind_int(c, i, (bool)v ? 1 : 0) },
+      { SqlCommonType.Double, (c, i, v) => sqlite3_bind_double(c, i, (double)v) },
+      { SqlCommonType.Integer, (c, i, v) => sqlite3_bind_int(c, i, (int)v) },
+      { SqlCommonType.None, (c,i, v) => sqlite3_bind_null(c, i) },
+      { SqlCommonType.Number, (c, i, v) => sqlite3_bind_text(c, i, ((decimal)v).ToString(), -1, SQLITE_TRANSIENT) },
+      { SqlCommonType.Text, (c, i, v) => sqlite3_bind_text(c, i, v as string, -1, SQLITE_TRANSIENT) }, // TODO:utf
+      { SqlCommonType.Time, (c, i, v) => sqlite3_bind_text(c, i, ((DateTime)v).ToString("o"), -1, SQLITE_TRANSIENT) },
     };
 
-    // get column value from result set
-    public static readonly Dictionary<Datatype, Func<IntPtr, int, object>> GetColumnDict = new Dictionary<Datatype, Func<IntPtr, int, object>>() {
-      { Datatype.BLOB, (s,i) => sqlite3_column_blob_wrapper(s, i) },
-      { Datatype.FLOAT, (s,i) => sqlite3_column_double(s, i) },
-      { Datatype.INTEGER, (s,i) => sqlite3_column_double(s, i) },
-      //{ Datatype.INTEGER, (s,i) => sqlite3_column_int(s, i) },
-      { Datatype.NULL, (s,i) => null },
-      { Datatype.TEXT, (s,i) => sqlite3_column_text_wrapper(s, i) },
+    // get column value from result set based on Sqlite Datatype
+    public static readonly Dictionary<SqlCommonType, Func<IntPtr, int, object>> GetColumnDict = new Dictionary<SqlCommonType, Func<IntPtr, int, object>>() {
+      { SqlCommonType.Binary, (s,i) => sqlite3_column_blob_wrapper(s, i) },
+      { SqlCommonType.Bool, (s,i) => sqlite3_column_int(s, i) != 0 },
+      { SqlCommonType.Double, (s,i) => sqlite3_column_double(s, i) },
+      { SqlCommonType.Integer, (s,i) => sqlite3_column_int(s, i) },
+      { SqlCommonType.None, (s,i) => null },
+      { SqlCommonType.Number, (s,i) => SafeDecimalParse(sqlite3_column_text_wrapper(s, i)) },
+      { SqlCommonType.Text, (s,i) => sqlite3_column_text_wrapper_utf(s, i) },
+      { SqlCommonType.Time, (s,i) => SafeDatetimeParse(sqlite3_column_text_wrapper(s, i)) },
     };
 
-    // get column value from result set
-    public static readonly Dictionary<string, Func<IntPtr, int, object>> GetColumnDict2 = new Dictionary<string, Func<IntPtr, int, object>>() {
-      { "NONE", (s,i) => sqlite3_column_blob_wrapper(s, i) },
-      { "REAL", (s,i) => sqlite3_column_double(s, i) },
-      { "TEXT", (s,i) => sqlite3_column_text_wrapper(s, i) },
-      { "TIME", (s,i) => sqlite3_column_text_wrapper(s, i) },
+    // get argument value passed to function based on common type
+    public static readonly Dictionary<SqlCommonType, Func<IntPtr, object>> GetValueDict = new Dictionary<SqlCommonType, Func<IntPtr, object>>() {
+      { SqlCommonType.Binary, (s) => sqlite3_value_blob_wrapper(s) },
+      { SqlCommonType.Bool, (s) => sqlite3_value_int(s) != 0 },
+      { SqlCommonType.None, (s) => null },
+      { SqlCommonType.Number, (s) => SafeDecimalParse(sqlite3_value_text_wrapper(s)) },
+      { SqlCommonType.Text, (s) => sqlite3_value_text_wrapper_utf(s) },
+      { SqlCommonType.Time, (s) => SafeDatetimeParse(sqlite3_value_text_wrapper(s)) },
     };
 
-    // get argument value passed to function
-    public static readonly Dictionary<Datatype, Func<IntPtr, object>> GetValueDict = new Dictionary<Datatype, Func<IntPtr, object>>() {
-      { Datatype.BLOB, (s) => sqlite3_value_blob_wrapper(s) },
-      { Datatype.FLOAT, (s) => sqlite3_value_double(s) },
-      { Datatype.INTEGER, (s) => sqlite3_value_double(s) },
-      //{ Datatype.INTEGER, (s) => sqlite3_value_int(s) },
-      { Datatype.NULL, (s) => null },
-      { Datatype.TEXT, (s) => sqlite3_value_text_wrapper(s) },
-    };
-
-    // set result of function
-    public static readonly Dictionary<Type, Action<IntPtr, object>> PutResultDict = new Dictionary<Type, Action<IntPtr, object>> {
-      { typeof(bool), (c, v) => sqlite3_result_int(c, (bool)v ? 1 : 0) },
-      { typeof(byte[]), (c, v) => { var bv = v as byte[]; sqlite3_result_blob(c, bv, bv.Length, SQLITE_TRANSIENT); } },
-      { typeof(DateTime), (c, v) => sqlite3_result_text(c, v as string, -1, SQLITE_TRANSIENT) },
-      { typeof(decimal), (c, v) => sqlite3_result_double(c, (double)(decimal)v) },
-      { typeof(int), (c, v) => sqlite3_result_int(c, (int)v) },
-      { typeof(string), (c, v) => sqlite3_result_text(c, v as string, -1, SQLITE_TRANSIENT) },
+    // set result of function based on common type
+    public static readonly Dictionary<SqlCommonType, Action<IntPtr, object>> PutResultDict = new Dictionary<SqlCommonType, Action<IntPtr, object>> {
+      { SqlCommonType.Binary, (c, v) => { var bv = v as byte[]; sqlite3_result_blob(c, bv, bv.Length, SQLITE_TRANSIENT); } },
+      { SqlCommonType.Bool,   (c, v) => sqlite3_result_int(c, (bool)v ? 1 : 0) },
+      { SqlCommonType.None,   (c, v) => sqlite3_result_null(c) },
+      { SqlCommonType.Number, (c, v) => sqlite3_result_text(c, ((decimal)v).ToString(), -1, SQLITE_TRANSIENT) },
+      { SqlCommonType.Text,   (c, v) => sqlite3_result_text(c, v as string, -1, SQLITE_TRANSIENT) }, // TODO: utf
+      { SqlCommonType.Time,   (c, v) => sqlite3_result_text(c, ((DateTime)v).ToString("o"), -1, SQLITE_TRANSIENT) },
     };
 
     // Conversion see http://www.sqlite.org/datatype3.html
-    static string[,] _converttype = new string[,] {
-      { "INT", "INTEGER"},
-      { "CHAR", "TEXT"},
-      { "CLOB", "TEXT"},
-      { "TEXT", "TEXT"},
-      { "BLOB", "NONE"},
-      { "REAL", "REAL"},
-      { "FLOA", "REAL"},
-      { "DOUB", "REAL"},
-      { "DATE", "TIME"}, // unsafe?
+    // Translate unknown column type into common type
+    static Tuple<string, SqlCommonType>[] _converttype = new Tuple<string, SqlCommonType>[] { 
+      new Tuple<string, SqlCommonType>("INT", SqlCommonType.Number),
+      new Tuple<string, SqlCommonType>("CHAR", SqlCommonType.Text),
+      new Tuple<string, SqlCommonType>("CLOB", SqlCommonType.Text),
+      new Tuple<string, SqlCommonType>("TEXT", SqlCommonType.Text),
+      new Tuple<string, SqlCommonType>("BLOB", SqlCommonType.Binary),
+      new Tuple<string, SqlCommonType>("REAL", SqlCommonType.Number),
+      new Tuple<string, SqlCommonType>("FLOA", SqlCommonType.Number),
+      new Tuple<string, SqlCommonType>("DOUB", SqlCommonType.Number),
+      new Tuple<string, SqlCommonType>("DATE", SqlCommonType.Time),
     };
+
+#if not_yet
+    static Dictionary<SqlCommonType, string> _datatypetosql = new Dictionary<SqlCommonType, string> {
+      { SqlCommonType.Binary, "BLOB" },
+      { SqlCommonType.Bool, "BOOLEAN" },
+      { SqlCommonType.Number, "TEXT" },
+      { SqlCommonType.Text, "TEXT" },
+      { SqlCommonType.Time, "TEXT" },
+    };
+#endif
+
 
     #region IDisposable ------------------------------------------------
 
@@ -172,18 +187,6 @@ namespace Andl.Sqlite {
       return new SqliteStatement(this);
     }
 
-    public bool CreateFunction(string name, UserFunctionCallback callback) {
-      LastResult = (Result)sqlite3_create_function_scalar(_dbhandle, name, -1,
-        (int)Encoding.UTF8, IntPtr.Zero, callback, IntPtr.Zero, IntPtr.Zero);
-      return CheckError();
-    }
-
-    public bool CreateAggFunction(string name, UserFunctionStepCallback scallback, UserFunctionFinalCallback fcallback) {
-      LastResult = (Result)sqlite3_create_function_aggregate(_dbhandle, name, -1,
-        (int)Encoding.UTF8, IntPtr.Zero, IntPtr.Zero, scallback, fcallback);
-      return CheckError();
-    }
-
     public bool Begin() {
       ++_nesting;
       return (_nesting == 1) ? _begin.Execute() : true;
@@ -227,61 +230,73 @@ namespace Andl.Sqlite {
     // Create one function for each expression as a closure, capturing the serial and type for that function
 
     // Create an open or predicate function
-    public bool CreateFunction(string name, FuncTypes functype, int serial) {
-      UserFunctionCallback func = (c, nv, v) => EvalFunctionOpen(c, nv, v, functype, serial);
+    public bool CreateFunction(string name, FuncTypes functype, int serial, SqlCommonType[] args, SqlCommonType retn) {
+      UserFunctionCallback func = (c, nv, v) => EvalFunctionOpen(c, nv, v, functype, serial, args, retn);
       _userfuncs.Add(func);
       return CreateFunction(name, func);
     }
 
     // Create an aggregating function
-    public bool CreateAggFunction(string name, int serial, int accnum) {
-      UserFunctionStepCallback sfunc = (c, nv, v) => EvalFunctionStep(c, nv, v, accnum, serial);
-      UserFunctionFinalCallback ffunc = (c) => EvalFunctionFinal(c, serial);
+    public bool CreateAggFunction(string name, int serial, int accnum, SqlCommonType[] args, SqlCommonType retn) {
+      UserFunctionStepCallback sfunc = (c, nv, v) => EvalFunctionStep(c, nv, v, accnum, serial, args, retn);
+      UserFunctionFinalCallback ffunc = (c) => EvalFunctionFinal(c, serial, args, retn);
       _stepfuncs.Add(sfunc);
       _finalfuncs.Add(ffunc);
       return CreateAggFunction(name, sfunc, ffunc);
+    }
+
+    // Wrapper
+    public bool CreateFunction(string name, UserFunctionCallback callback) {
+      LastResult = (Result)sqlite3_create_function_scalar(_dbhandle, name, -1,
+        (int)Encoding.UTF8, IntPtr.Zero, callback, IntPtr.Zero, IntPtr.Zero);
+      return CheckError();
+    }
+
+    // Wrapper
+    public bool CreateAggFunction(string name, UserFunctionStepCallback scallback, UserFunctionFinalCallback fcallback) {
+      LastResult = (Result)sqlite3_create_function_aggregate(_dbhandle, name, -1,
+        (int)Encoding.UTF8, IntPtr.Zero, IntPtr.Zero, scallback, fcallback);
+      return CheckError();
     }
 
     // These are the callback functions called by the DBMS
     // At this stage no access to Andl internals
 
     // Callback for an open function
-    public static void EvalFunctionOpen(IntPtr context, int nvalues, IntPtr[] values, FuncTypes functype, int serial) {
-      var svalues = GetArgs(values, nvalues);
+    public static void EvalFunctionOpen(IntPtr context, int nvalues, IntPtr[] values, FuncTypes functype, int serial, SqlCommonType[] args, SqlCommonType retn) {
+      var svalues = GetArgs(args, values, nvalues);
       var ret = _evaluator.EvalSerialOpen(serial, functype, svalues);
-      SetResult(context, ret);
+      SetResult(retn, context, ret);
     }
 
     // Callback for an aggregating function under the fold
-    public static void EvalFunctionStep(IntPtr context, int nvalues, IntPtr[] values, int accnum, int serial) {
-      var svalues = GetArgs(values, nvalues);
+    public static void EvalFunctionStep(IntPtr context, int nvalues, IntPtr[] values, int accnum, int serial, SqlCommonType[] args, SqlCommonType retn) {
+      var svalues = GetArgs(args, values, nvalues);
 
       // get an IntPtr containing a pointer to a struct with length and pointer
       // Sqlite will allocate memory first time
       var accptr = sqlite3_aggregate_context(context, Marshal.SizeOf(typeof(LenPtrPair)));
       var ret = _evaluator.EvalSerialAggOpen(serial, FuncTypes.Aggregate, svalues, accptr, accnum);
-      SetResult(context, ret);
+      SetResult(retn, context, ret);
     }
 
     // Callback for an aggregating function to finalise the result
-    public static void EvalFunctionFinal(IntPtr context, int serial) {
+    public static void EvalFunctionFinal(IntPtr context, int serial, SqlCommonType[] args, SqlCommonType retn) {
       var accptr = sqlite3_aggregate_context(context, 0);
       var ret = _evaluator.EvalSerialAggFinal(serial, FuncTypes.Aggregate, accptr);
-      SetResult(context, ret);
+      SetResult(retn, context, ret);
     }
 
     // set the function result using boxed value
-    static void SetResult(IntPtr context, object ret) {
-      var t = ret.GetType();
-      PutResultDict[t](context, ret);
+    static void SetResult(SqlCommonType type, IntPtr context, object ret) {
+      PutResultDict[type](context, ret);
     }
 
     // get argument values as array of boxed values
-    static object[] GetArgs(IntPtr[] ivalues, int ncols) {
+    static object[] GetArgs(SqlCommonType[] types, IntPtr[] ivalues, int ncols) {
       var svalues = new object[ncols];
       for (int x = 0; x < ncols; ++x) {
-        var type = (Datatype)sqlite3_value_type(ivalues[x]);
-        svalues[x] = GetValueDict[type](ivalues[x]);
+        svalues[x] = GetValueDict[types[x]](ivalues[x]);
       }
       return svalues;
     }
@@ -291,18 +306,21 @@ namespace Andl.Sqlite {
     /// Catalog info
     /// 
 
-    // get table columns, translating from create type => affinity
-    public bool GetTableColumns(string table, out Tuple<string, string>[] columns) {
+    // get table columns, translating from create type => common type
+    public bool GetTableColumns(string table, out Tuple<string, SqlCommonType>[] columns) {
       columns = null;
       var stmt = CreateStatement();
       var sql = "PRAGMA table_info(" + table + ");";
       if (!stmt.ExecuteQuery(sql)) return false;
-      var cols = new List<Tuple<string, string>>();
+      var cols = new List<Tuple<string, SqlCommonType>>();
       while (stmt.HasData) {
+        var ctypes = new SqlCommonType[TableInfoColumnCount];
+        ctypes[TableInfoNameColumn] = SqlCommonType.Text;
+        ctypes[TableInfoTypeColumn] = SqlCommonType.Text;
         var fields = new object[TableInfoColumnCount];
-        if (!stmt.GetData(fields)) return false;
+        if (!stmt.GetValues(ctypes, fields)) return false;
         cols.Add(Tuple.Create(fields[TableInfoNameColumn] as string, 
-                              ConvertToDatatype(fields[TableInfoTypeColumn] as string)));
+                              ConvertToCommonType(fields[TableInfoTypeColumn] as string)));
         if (!stmt.Fetch()) return false;
       }
       stmt.Close();
@@ -310,14 +328,21 @@ namespace Andl.Sqlite {
       return true;
     }
 
-    // translate create type to affinity
-    // https://www.sqlite.org/datatype3.html s2.1
-    public string ConvertToDatatype(string coltype) {
-      if (coltype == "") return "NONE";
-      for (var i = 0; i < _converttype.Length / 2; ++i)
-        if (coltype.Contains(_converttype[i,0])) 
-          return _converttype[i,1];
-      return "NUMERIC";
+    // translate create type to common type
+    public SqlCommonType ConvertToCommonType(string coltype) {
+      if (coltype == "") return SqlCommonType.None;
+      var ct = _converttype.FirstOrDefault(t => coltype.Contains(t.Item1));
+      return ct == null ? SqlCommonType.Number : ct.Item2;
+    }
+
+    public static DateTime? SafeDatetimeParse(string s) {
+      DateTime dt;
+      return DateTime.TryParse(s as string, out dt) ? dt as DateTime? : null;
+    }
+
+    public static decimal? SafeDecimalParse(string s) {
+      decimal dt;
+      return Decimal.TryParse(s as string, out dt) ? dt as decimal? : null;
     }
   }
 
@@ -397,10 +422,10 @@ namespace Andl.Sqlite {
     }
 
     // Prepare and execute a query with binding
-    public bool ExecuteSend(string sql, string[] values) {
-      if (!Prepare(sql)) return false;
-      return Send(values);
-    }
+    //public bool ExecuteSend(string sql, string[] values) {
+    //  if (!Prepare(sql)) return false;
+    //  return Send(values);
+    //}
 
     // Execute a query, return true if OK
     // It is an error if there is any data.
@@ -417,12 +442,12 @@ namespace Andl.Sqlite {
 
     // Bind values to the prepared statement
     // Execute, check no data, reset.
-    public bool Send(object[] values) {
+    public bool PutValues(SqlCommonType[] types, object[] values) {
       if (!IsPrepared) return SetError(Result.MISUSE, "nothing to bind");
       if (IsDone) return SetError(Result.MISUSE, "already done");
       for (int i = 0; i < values.Length; ++i) {
         var type = values[i].GetType();
-        LastResult = (Result)SqliteDatabase.PutBindDict[type](_statement, i + 1, values[i]);
+        LastResult = (Result)SqliteDatabase.PutBindDict[types[i]](_statement, i + 1, values[i]);
         if (!CheckError()) return false;
       }
       LastResult = (Result)sqlite3_step(_statement);
@@ -443,22 +468,8 @@ namespace Andl.Sqlite {
       return CheckError();
     }
 
-    // Retrieve data from last query or fetch
-    public bool GetData(object[] fields) {
-      if (!HasData) return false;
-      var ncols = sqlite3_column_count(_statement);
-      // special case to handle _dummy_
-      if (fields.Length == 0 && ncols == 1) return true;
-      if (fields.Length != ncols) return SetError(Result.MISUSE, "field count mismatch");
-      for (var i = 0; i < ncols; ++i) {
-        var type = (Datatype)sqlite3_column_type(_statement, i);
-        fields[i] = SqliteDatabase.GetColumnDict[type](_statement, i);
-      }
-      return true;
-    }
-
-    // Retrieve data from last query or fetch
-    public bool GetData(string[] types, object[] fields) {
+    // Retrieve data from last query or fetch based on Type name
+    public bool GetValues(SqlCommonType[] types, object[] fields) {
       if (!HasData) return false;
       var ncols = sqlite3_column_count(_statement);
       // special case to handle _dummy_
@@ -467,19 +478,9 @@ namespace Andl.Sqlite {
       for (var colno = 0; colno < ncols; ++colno) {
         var type = (Datatype)sqlite3_column_type(_statement, colno);
         if (type == Datatype.NULL) fields[colno] = null;
-        else fields[colno] = ConvertFieldData(types[colno], colno);
-        //fields[i] = SqliteDatabase.GetColumnDict2[types[i]](_statement, i);
+        else fields[colno] = SqliteDatabase.GetColumnDict[types[colno]](_statement, colno);
       }
       return true;
-    }
-
-    object ConvertFieldData(string type, int colno) {
-      var ret = SqliteDatabase.GetColumnDict2[type](_statement, colno);
-      if (type == "TIME" && ret != null) {
-        DateTime dt;
-        return DateTime.TryParse(ret as string, out dt) ? (object)dt : null;
-      }
-      return ret;
     }
 
   }
