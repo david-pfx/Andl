@@ -86,8 +86,20 @@ assert($lineno$, count(S .where(STATUS = 20)) = 2)
 assert($lineno$, count(S .where(STATUS = 20)) = 2)
 
 //--- skip take
-assert($lineno$, S .set { S# } = {{ S# = 'S1', S# = 'S2', S# = 'S3', S# = 'S4', S# = 'S5', }}
+//get_s(s:S) => s .order(S#) .set { fold(&,S#) }
+_test_s(s:S,t:'') => s .order(S#) .set { fold(&,S#) } = t
 
+assert($lineno$, _test_s(S, 'S1S2S3S4S5'))
+assert($lineno$, _test_s(S .take(2), 'S1S2'))
+assert($lineno$, _test_s(S .skip(2), 'S3S4S5'))
+assert($lineno$, _test_s(S .take(4) .skip(2), 'S3S4'))
+assert($lineno$, _test_s(S .skip(2) .take(2), 'S3S4'))
+assert($lineno$, _test_s(S .take(4) .skip(1) .take(2), 'S2S3'))
+assert($lineno$, _test_s(S .skip(1) .take(3) .skip(1), 'S3S4'))
+
+assert($lineno$, S .set { S# } = {{ S# := 'S1' }, { S# := 'S2'}, { S# := 'S3'}, { S# := 'S4'}, { S# := 'S5' }} )
+assert($lineno$, S .skip(3) .set { S# } = {{ S# := 'S4'}, { S# := 'S5' }} )
+assert($lineno$, S .set { S# } = {{ S# := 'S1' }, { S# := 'S2'}, { S# := 'S3'}, { S# := 'S4'}, { S# := 'S5' }} )
 
 //--- function types -- incomplete
 _fn1bo(a:bool) => a

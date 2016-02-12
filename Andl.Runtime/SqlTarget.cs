@@ -282,6 +282,8 @@ namespace Andl.Runtime {
       var expr = SqlTarget.ExprDict[serial];
       var accblk = GetAccum(accptr, 0);
       FreeAccum(accptr);
+      if (accblk.Result == null)
+        return SqlTarget.ToObjectDict[expr.DataType.BaseType](expr.DataType.DefaultValue());
       return SqlTarget.ToObjectDict[accblk.Result.DataType.BaseType](accblk.Result);
     }
 
@@ -323,6 +325,8 @@ namespace Andl.Runtime {
 
     // return (and possibly allocate) an accumulator block
     AccumulatorBlock GetAccum(IntPtr accptr, int naccum) {
+      if (accptr == IntPtr.Zero)
+        return AccumulatorBlock.Create(naccum);
       var lenptr = (LenPtrPair)Marshal.PtrToStructure(accptr, typeof(LenPtrPair));
       if (lenptr.Length == 0)
         return AccumulatorBlock.Create(naccum);

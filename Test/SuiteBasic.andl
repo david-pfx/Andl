@@ -88,14 +88,12 @@ _asvall  := {{ bi := b'05040302', bo := true, nu := 123456789.123456789, te := '
 assert($lineno$, _asvall = {{ bi := _asvbi, bo := _asvbo, nu := _asvnu, te := _asvte, ti := _asvti, tu := _asvtu, re := _asvre, us := _asvus }})
 
 // test of database var, both ways
-#noisy 3
+
 ASVREL := {{ bi := b'05040302', bo := true, nu := 123456789.123456789, te := 'Hello World!', ti := t'2015-12-31 23:59:59.999',
                 tu := { name := 'Smith', Age := 99 }, re := {{ name := 'Smith', Age := 99}, { Age := 98, name := 'Jones'}}, us := _astus(45, 'Green') 
             }}
 assert($lineno$, _asvall = ASVREL)
 assert($lineno$, ASVREL = _asvall)
-
-#stop
 
 //--- builtin
 assert($lineno$, {{N:=0},{N:=1},{N:=2}}       = seq(3))

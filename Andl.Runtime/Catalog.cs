@@ -422,7 +422,7 @@ namespace Andl.Runtime {
       if (entry == null) return null;
 
       // Choose whether to get value from database or catalog
-      if (entry.IsDatabase && Catalog.SaveFlag) {
+      if (entry.IsDatabase) {
         if (Catalog.DatabaseSqlFlag) {
           var table = DataTableSql.Create(name, entry.DataType.Heading);
           return RelationValue.Create(table);
@@ -453,7 +453,7 @@ namespace Andl.Runtime {
       Logger.Assert(entry != null);
 
       // Choose whether to store value in database or in catalog
-      if (entry.IsDatabase && Catalog.SaveFlag) {
+      if (entry.IsDatabase) {
         var table = value.AsTable();
         if (Catalog.DatabaseSqlFlag)
           DataTableSql.Create(name, table);
