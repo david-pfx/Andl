@@ -274,9 +274,9 @@ namespace Andl.Peg {
     }
 
     // Dot that is a function call
-    public AstOpCall DotFunc(string name) {
+    public AstOpCall DotFunc(string name, IList<AstValue> args = null) {
       var op = FindFunc(name);
-      return new AstOpCall() { Func = op, DataType = op.DataType, Arguments = Args() };
+      return new AstOpCall() { Func = op, DataType = op.DataType, Arguments = (args == null) ? Args() : args.ToArray() };
     }
 
     public AstOpCall DotComponent(string name) {
@@ -491,11 +491,18 @@ namespace Andl.Peg {
       DataType datatype;
       CallInfo callinfo;
       Types.CheckTypeError(op, out datatype, out callinfo, args.Select(a => a.DataType).ToArray());
+      // deferred function
       if (op.IsDefFunc) return DefCall(op, datatype, args, callinfo);
+      // WHERE
       if (op.IsRestFunc) return FunCall(op, datatype, args, 1);
       //if (op.IsRestFunc) return FunCall(op, datatype, Args(args[0], Code(args[1] as AstValue, CurrentHeading())), 1);
+      // Ordered
       if (op.IsOrdFunc) return FunCall(op, datatype, Args(Code(args[0] as AstValue, CurrentHeading()), args.Skip(1).ToArray()));
-      if (op.IsRecurse) return FunCall(op, datatype, Args(args[0], args[1], Code(args[2] as AstValue, CurrentHeading())));
+      // WHILE
+      if (op.IsWhile) return FunCall(op, datatype, Args(args[0], args[1], Code(args[2] as AstValue, CurrentHeading())));
+      // Skip/Take
+      if (op.IsSkipTake) return FunCall(op, datatype, args);
+      // user selector
       if (op.IsUserSel) return UserCall(op, args);
       return FunCall(op, datatype, args, 0, callinfo);
     }

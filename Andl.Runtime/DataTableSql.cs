@@ -37,28 +37,40 @@ namespace Andl.Runtime {
     public string SqlOrderByText { get; private set; }
     // True if query contains a GROUP BY (so WHERE must be HAVING)
     public bool HasGroupBy { get; set; }
+    // Value for Limit clause
+    public string SqlLimitText { get; set; }
 
-    // True if this is a base table, otherwise it's just a query
-    public bool BaseTable { get { return TableName != null; } }
+    // True if this is just a table, otherwise it's a query
+    public bool IsTableOnly { get { return TableName != null
+          && SqlSelectText == null && SqlWhereText == null 
+          && SqlOrderByText == null && SqlLimitText == null;
+      } }
 
     // Database, could be different for different back ends
     SqlTarget _database;
     // Sql generator, could be different for different back ends
     SqlGen _gen;
 
-    // Return sql for a bare SELECT clause
-    string GetSelect() {
-      return BaseTable ? _gen.SelectAll(TableName, this) : SqlSelectText;
-    }
+    // previously set limit and offset
+    int? _limit = null;
+    int? _offset = null;
 
-    // Return sql for a full query: SELECT WHERE ORDERBY
+    // Retrieve SQL text for various purposes
+    // From => '[ <tablename> ]'      -- if tablename and there are no other clauses
+    //       | '( <query> )           -- otherwise
+    // query => SelectAll<tablename>  <clauses>   -- if no Select text
+    //       | <select> <clauses>
+
+    // Return sql for a full query with all clauses
     string GetQuery() {
-      return String.Join(" ", GetSelect(), SqlWhereText, SqlOrderByText);
+      Logger.Assert(TableName != null || SqlSelectText != null);
+      return String.Join(" ", SqlSelectText ?? _gen.SelectAll('[' + TableName + ']', this), 
+        SqlWhereText, SqlOrderByText, SqlLimitText).Trim();
     }
 
     // return sql for use in a FROM clause
     string GetFrom() {
-      return BaseTable ? '[' + TableName + ']' : "( " + GetQuery() + ")";
+      return IsTableOnly ? '[' + TableName + ']' : "( " + GetQuery() + ")";
     }
 
     //--- overrides
@@ -121,7 +133,7 @@ namespace Andl.Runtime {
       return ret;
     }
 
-    // Create new virtual table based on a query
+    // Create new table from a partial query, allow more clauses to be added
     static DataTableSql CreateFromSql(DataHeading heading, string sql, string ord = null) {
       var newtable = new DataTableSql {
         DataType = DataTypeRelation.Get(heading),
@@ -131,11 +143,11 @@ namespace Andl.Runtime {
       return newtable;
     }
 
-    // Create new virtual table based on an existing table/query
-    static DataTableSql CreateFromSql(DataTableSql table) {
+    // Create new table with previous as a subquery (ran out of slots)
+    static DataTableSql CreateFromSubquery(DataTableSql table) {
       var newtable = new DataTableSql {
         DataType = DataTypeRelation.Get(table.Heading),
-        SqlSelectText = table.GetQuery(),
+        SqlSelectText = table._gen.SelectAll(table.GetFrom(), table),
       };
       return newtable;
     }
@@ -231,20 +243,33 @@ namespace Andl.Runtime {
 
     // generate SQL code for restrict
     DataTableSql AddWhere(ExpressionEval expr, bool hasgroupby) {
-      var sql = (hasgroupby) ?  _gen.Having(expr) : _gen.Where(expr);
-      var newtable = DataTableSql.CreateFromSql(this);
-      // TODO: add WHERE to existing statement if there is none
-      //var newtable = (!BaseTable && SqlWhereText == null) ? this : DataTableSql.CreateFromSql(this);
-      newtable.SqlWhereText = sql;
-      return newtable;
+      if (SqlWhereText != null) return DataTableSql.CreateFromSubquery(this).AddWhere(expr, hasgroupby);
+      SqlWhereText = (hasgroupby) ? _gen.Having(expr) : _gen.Where(expr);
+      return this;
     }
 
     // generate SQL code for order by
     DataTableSql AddOrderBy(ExpressionEval[] expr) {
-      var sql = _gen.OrderBy(expr);
-      var newtable = (SqlOrderByText == null) ? this : DataTableSql.CreateFromSql(this);
-      newtable.SqlOrderByText = sql;
-      return newtable;
+      if (SqlOrderByText != null) return DataTableSql.CreateFromSubquery(this).AddOrderBy(expr);
+      SqlOrderByText = _gen.OrderBy(expr);
+      return this;
+    }
+
+    // generate SQL code for LIMIT
+    DataTableSql AddLimit(int limit) {
+      if (_limit != null) return DataTableSql.CreateFromSubquery(this).AddLimit(limit);
+      _limit = limit;
+      SqlLimitText = (_offset == null) ? _gen.Limit(_limit.Value) : _gen.Limit(_limit.Value, _offset.Value);
+      return this;
+    }
+
+    // generate SQL code for OFFSET
+    DataTableSql AddOffset(int offset) {
+      if (_offset != null) return DataTableSql.CreateFromSubquery(this).AddOffset(offset);
+      _offset = offset;
+      // special case when .skip() .take()
+      SqlLimitText = (_limit == null) ? _gen.Limit(-1, _offset.Value) : _gen.Limit(_limit.Value - _offset.Value, _offset.Value);
+      return this;
     }
 
     // generate SQL code for dyadic join operations
@@ -353,6 +378,22 @@ namespace Andl.Runtime {
       _database.RegisterExpressions(expr);
       var newtable = AddWhere(expr, HasGroupBy);
       Logger.WriteLine(4, "[Res '{0}']", newtable);
+      return newtable;
+    }
+
+    // Skip -- skip some rows, then take
+    public override DataTable Skip(NumberValue value) {
+      var count = (int)Math.Max(0, Math.Min(value.Value, int.MaxValue));
+      var newtable = AddOffset(count);
+      Logger.WriteLine(4, "[Skip '{0}']", newtable);
+      return newtable;
+    }
+
+    // Take -- take some rows, discard the rest
+    public override DataTable Take(NumberValue value) {
+      var count = (int)Math.Max(0, Math.Min(value.Value, int.MaxValue));
+      var newtable = AddLimit(count);
+      Logger.WriteLine(4, "[Take '{0}']", newtable);
       return newtable;
     }
 

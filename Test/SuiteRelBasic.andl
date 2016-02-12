@@ -85,6 +85,10 @@ assert($lineno$, count(S .where(STATUS = 20)) = 2)
 
 assert($lineno$, count(S .where(STATUS = 20)) = 2)
 
+//--- skip take
+assert($lineno$, S .set { S# } = {{ S# = 'S1', S# = 'S2', S# = 'S3', S# = 'S4', S# = 'S5', }}
+
+
 //--- function types -- incomplete
 _fn1bo(a:bool) => a
 _fn1bi(a:binary) => a

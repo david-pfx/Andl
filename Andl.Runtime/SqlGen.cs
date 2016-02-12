@@ -10,8 +10,7 @@ namespace Andl.Runtime {
     static Dictionary<string, string> _templates = new Dictionary<string, string> {
       { "Create",         "DROP TABLE IF EXISTS [<table>] \n" +
                           "CREATE TABLE [<table>] ( <coldefs>, UNIQUE ( <colnames> ) ON CONFLICT IGNORE )" },
-      { "SelectAll",      "SELECT <namelist> FROM [<table>]" },
-      { "SelectRename",   "SELECT <namelist> FROM <select>" },
+      { "SelectAll",      "SELECT <namelist> FROM <select>" },
       { "SelectAs",       "SELECT DISTINCT <namelist> FROM <select>" },
       { "SelectAsGroup",  "SELECT DISTINCT <namelist> FROM <select> <groupby>" },
       { "SelectJoin",     "SELECT DISTINCT <namelist> FROM <select1> JOIN <select2> <using>" },
@@ -36,6 +35,8 @@ namespace Andl.Runtime {
 
       { "OrderBy",        "ORDER BY <ordcols>" },
       { "GroupBy",        "GROUP BY <grpcols>" },
+      { "Limit",          "LIMIT <limit>" },
+      { "LimitOffset",    "LIMIT <limit> OFFSET <offset>" },
       { "EvalFunc",       "<func>(<lookups>)" },
       { "Coldef",         "[<colname>] <coltype>" },
       { "Name",           "[<name>]" },
@@ -300,6 +301,21 @@ namespace Andl.Runtime {
       return SqlTemplater.Process("GroupBy", dict);
     }
 
+    public string Limit(int limit) {
+      var dict = new Dictionary<string, SubstituteDelegate> {
+        { "limit", (x) => limit.ToString() },
+      };
+      return SqlTemplater.Process("Limit", dict);
+    }
+
+    public string Limit(int limit, int offset) {
+      var dict = new Dictionary<string, SubstituteDelegate> {
+        { "limit", (x) => limit.ToString() },
+        { "offset", (x) => offset.ToString() },
+      };
+      return SqlTemplater.Process("LimitOffset", dict);
+    }
+
     public string SelectAs(string tableorquery, ExpressionBlock[] exprs) {
       var dict = new Dictionary<string, SubstituteDelegate> {
         { "select", (x) => tableorquery },
@@ -380,7 +396,7 @@ namespace Andl.Runtime {
 
     public string SelectAll(string tablename, DataTableSql other) {
       var dict = new Dictionary<string, SubstituteDelegate> {
-        { "table", (x) => other.TableName },
+        { "select", (x) => tablename },
         { "namelist", (x) => NameList(other.Heading) },
       };
       return SqlTemplater.Process("SelectAll", dict);

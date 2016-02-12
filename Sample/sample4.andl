@@ -88,7 +88,7 @@ bottlesdemo(bottles:0) => do {
     intro & lines .order(-seq) .set{ fold(&, text & crlf)} 
 }
 // just 9 bottles for now
-output := bottlesdemo(9)
+write(bottlesdemo(9))
 
 wait
 // User-defined types are intended to be used easily for relation attributes, for example:

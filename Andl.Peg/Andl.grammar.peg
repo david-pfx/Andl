@@ -121,15 +121,18 @@ PostFixOpBody <AstCall> = v:Recurser { v }
     / v:Transformer { v }
     / v:Where { v }
     / v:Orderer { v }
-    / DOT v:Funcop { AST(state).DotFunc(v) }
+    / v:DotFunc { v }
     / DOT v:Component { AST(state).DotComponent(v) }
-    / DOT v:FieldIdent { AST(state).DotField(v) }
+    / DOT v:FieldIdent { AST(state).DotField(v) };
 
 //--- Tuple generators
 
-Recurser <AstOpCall> = DOT WHILE LPexp v:ExpressionExp RPexp { AST(state).While(v) }
+Recurser <AstOpCall> = DOT WHILE LPexp v:ExpressionExp RPexp { AST(state).While(v) };
 
 Where <AstWhere> = DOT WHERE LPexp v:OpenExpression RPexp { AST(state).Where(v) };
+
+DotFunc <AstOpCall> = DOT v:Funcop LP w:ExpressionList RPexp { AST(state).DotFunc(v, w.ToArray()) }
+    / DOT v:Funcop { AST(state).DotFunc(v) };
 
 Orderer <AstOrderer> = DOT ORDER LPexp v:OrderTermList RPexp { AST(state).Orderer(v) };
 OrderTermList = OrderTerm<0,,SEP>;

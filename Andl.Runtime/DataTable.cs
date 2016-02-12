@@ -39,6 +39,8 @@ namespace Andl.Runtime {
     public abstract DataTable Project(ExpressionEval[] exprs);
     public abstract DataTable Rename(ExpressionEval[] exprs);
     public abstract DataTable Restrict(ExpressionEval expr);
+    public abstract DataTable Skip(NumberValue value);
+    public abstract DataTable Take(NumberValue value);
     public abstract DataTable Transform(DataHeading newheading, ExpressionEval[] exprs);
     public abstract DataTable TransformAggregate(DataHeading newheading, ExpressionEval[] exprs);
     public abstract DataTable TransformOrdered(DataHeading newheading, ExpressionEval[] exprs, ExpressionEval[] orderexps);

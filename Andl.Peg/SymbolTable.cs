@@ -42,6 +42,7 @@ namespace Andl.Peg {
     VALUE,
     RANK,
     RESTRICT,
+    SKIPTAKE,
   }
 
   /// <summary>
@@ -178,7 +179,8 @@ namespace Andl.Peg {
     public bool IsDefFunc { get { return CallKind == CallKinds.EFUNC; } }
     public bool IsOrdFunc { get { return FuncKind == FuncKinds.VALUE || FuncKind == FuncKinds.RANK; } }
     public bool IsRestFunc { get { return FuncKind == FuncKinds.RESTRICT; } }
-    public bool IsRecurse { get { return FuncKind == FuncKinds.RECURSE; } }
+    public bool IsWhile { get { return FuncKind == FuncKinds.RECURSE; } }
+    public bool IsSkipTake { get { return FuncKind == FuncKinds.SKIPTAKE; } }
     public bool IsCallable { get { return CallKind != CallKinds.NUL; } }
     public bool IsOperator { get { return IsCallable && Precedence != 0; } }
     public bool IsFoldable { get { return IsCallable && Foldable != FoldableFlags.NUL; } }
@@ -472,6 +474,8 @@ namespace Andl.Peg {
       AddFunction(SymNames.UpdateTransform, 3, DataTypes.Bool, CallKinds.VFUNC, "UpdateTrans");
       AddFunction(SymNames.UserSelector, 2, DataTypes.User, CallKinds.VFUNCT, "UserSelector");
 
+      AddFunction("take", 2, DataTypes.Table, CallKinds.FUNC, "Take", FuncKinds.SKIPTAKE);
+      AddFunction("skip", 2, DataTypes.Table, CallKinds.FUNC, "Skip", FuncKinds.SKIPTAKE);
       AddFunction("max", 2, DataTypes.Ordered, CallKinds.FUNC, "Max", FoldableFlags.ANY, FoldSeeds.MIN);
       AddFunction("min", 2, DataTypes.Ordered, CallKinds.FUNC, "Min", FoldableFlags.ANY, FoldSeeds.MAX);
       AddFunction(SymNames.Fold, 2, DataTypes.Unknown, CallKinds.FUNC, "Fold", FuncKinds.FOLD);

@@ -426,6 +426,22 @@ namespace Andl.Runtime {
       return RelationValue.Create(relnew);
     }
 
+    // Create new table using only the first N rows
+    public RelationValue Take(RelationValue relarg, NumberValue howmany) {
+      Logger.WriteLine(3, "Take {0} {1}", relarg, howmany);
+      var relnew = relarg.Value.Take(howmany);
+      Logger.WriteLine(3, "[T {0}]", relnew);
+      return RelationValue.Create(relnew);
+    }
+
+    // Create new table using only the rows after the first N
+    public RelationValue Skip(RelationValue relarg, NumberValue howmany) {
+      Logger.WriteLine(3, "Skip {0} {1}", relarg, howmany);
+      var relnew = relarg.Value.Skip(howmany);
+      Logger.WriteLine(3, "[S {0}]", relnew);
+      return RelationValue.Create(relnew);
+    }
+
     // Transform does Rename and/or Project and/or Extend combo
     public RelationValue Transform(RelationValue relarg, params CodeValue[] exprargs) {
       Logger.WriteLine(3, "Transform {0} {1}", relarg, exprargs.Select(e => e.AsEval.Kind.ToString()).ToArray());

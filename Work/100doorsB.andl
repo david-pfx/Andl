@@ -1,0 +1,14 @@
+// The 100 doors problem -- http://rosettacode.org/wiki/100_doors
+#noisy 1
+// basic data set
+ndoors := 100
+//sq := ndoors .set { N:=N+1 } 
+sq := seq(ndoors) .set { N:=N+1 } 
+
+// inner loop gives a result for each door 
+isopen(x:0) => sq .set{ fold(xor, mod(x,N) = 0) }
+
+// outer loop applies the result to all doors
+doors := sq .set{ *open := isopen(N) }
+
+doors .where(open) .order(N) .set{ N } .pp .write
