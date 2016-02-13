@@ -19,11 +19,15 @@ for /d %%f in (*.sandl) do rd %%f /s
 %binpath%\Andl /1 %1 >> out.txt DbixCdSample.andl
 %binpath%\Andl /1 %1 >> out.txt family_tree.andl
 %binpath%\Andl /1 %1 >> out.txt recursive.andl
-%binpath%\Andl /1 %1 >> out.txt sudoku-logic.andl
+%binpath%\Andl /1 %1 >> out.txt 100doors.andl
+%binpath%\Andl /1 %1 >> out.txt 99bottles.andl
+%binpath%\Andl /1 %1 >> out.txt fibonacci.andl
+%binpath%\Andl /1 %1 >> out.txt sudoku.andl
 %binpath%\Andl /1 %1 >> out.txt chinook.andl chinook_sqlite.sqandl
 : uncomment to run, but very slow
 :%binpath%\Andl /1 %1 >> out.txt mandelbrot.andl
 
 @grep -n "False" out.txt
+@grep -ni "not found" out.txt
 @grep -ni "exception" out.txt
 @grep -ni "error" out.txt

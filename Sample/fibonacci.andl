@@ -1,0 +1,9 @@
+// Fibonacci sample
+//
+// First implementations, recursive. Slow
+fib:number(n:number) => if(n < 2, n, fib(n-1) + fib(n-2))
+seq(16) .set{ *fib:=fib(N) } .order(N) .pp .write
+
+// Second implementation, using .while to create a relation. Fast
+fibonacci(nmax:0) => {{ N:=1, fib:=1, fibx:=0 }} .while( {{ N:=N+1, fib := fib+fibx, fibx:=fib }} .where(N<= nmax))
+fibonacci(100) .set{ N, fib } .where(N>85) .order(N) .pp .write

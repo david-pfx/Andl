@@ -64,33 +64,6 @@ typedemo => do {
 typedemo
 
 wait
-// An implementation of 99 bottles
-
-bottlesdemo(bottles:0) => do {
-    hundred := seq(bottles) .set{ nbot := N+1 }
-    line1 := hundred .set{ seq := nbot*2+1, 
-                        text := nbot & " bottle" & 
-                                if(nbot=1,"","s") & " of beer on the wall, " & nbot & " bottle" & 
-                                if(nbot=1,"","s") & " of beer."}
-    line2 := hundred .set{ seq := nbot*2, 
-                        text := "Take one down and pass it around, " & (nbot-1) & " bottle" & 
-                                if(nbot=2,"","s") & " of beer on the wall."}
-    line3 := {{ seq:number, text:text}
-        (1, "No more bottles of beer on the wall, no more bottles of beer."),
-        (0, "Go to the store and buy some more, " & bottles & " bottles of beer on the wall.") 
-    }
-    lines := line1 union line2 union line3
-
-    crlf := h'd a'
-    intro := crlf & "The lyrics for the song of the " & bottles & " bottles of beer..." & crlf
-
-    // this is the clever line: fold ordered lines of text by concatenation
-    intro & lines .order(-seq) .set{ fold(&, text & crlf)} 
-}
-// just 9 bottles for now
-write(bottlesdemo(9))
-
-wait
 // User-defined types are intended to be used easily for relation attributes, for example:
 
 def sid(text:text), pid(text:text), scity(text:text), pcity(text:text)

@@ -1,11 +1,27 @@
 Andl is A New Database Language. See http://andl.org.
 
-Andl does what SQL does, but it is not SQL. Andl has been developed as a fully 
-featured database programming language following the principles set out by Date 
-and Darwen in The Third Manifesto. It includes a full implementation of the 
-Relational Model published by E.F. Codd in 1970, an advanced extensible type 
-system, database updates and other SQL-like capabilities in a novel and highly 
-expressive syntax.
+Andl is a New Database Language designed to replace SQL and then go beyond.
+
+Andl is a full programming language with an advanced type system; it is 
+relationally complete and has higher order queries; and it has platform 
+independent interfacing. So Andl does two things well: perform advanced 
+relational queries and build an application data model.
+
+First, Andl can perform relational queries at or beyond the capabilities 
+of any SQL dialect. It can do all the ordinary things like select, where 
+and join but it can also do generative queries, self-joins, complex 
+aggregations, subtotals and running totals (a bit like SQL recursive 
+common table expressions and windowing). 
+
+And Andl can provide a complete application backend for any kind of user 
+interface on any platform. It can easily be used to program a data model 
+as a set of tables just like SQL, but including all the access routines, 
+updating logic and interfaces. These can be accessed on any platform: 
+mobile, desktop, web or cloud. The user interface can be written in 
+any popular language or technology, such as Java, Dot Net, JavaScript 
+and using any available communications method.
+
+Sample programs are included to demonstrate these capabilities.
 
 FIRST DO THIS
 =============
@@ -63,6 +79,9 @@ Also take a look at:
     family_tree.andl        -- self-join using functions
     SPPsample1.andl         -- more converted SQL
     recursive.andl          -- self-joins using while (like SQL CTE recursive)
+    100doors.andl           -- the 100 doors puzzle
+    99bottles.andl          -- the 99 bottles lyrics
+    fibonacci.andl          -- 100 fibonacci numbers - fast!
     mandelbrot.andl         -- mandelbrot set using while
     sudoku-orig.andl        -- sudoku solver using while
     chinook.andl            -- sqlite database

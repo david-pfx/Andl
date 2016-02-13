@@ -148,6 +148,8 @@ namespace Andl.Peg {
     }
 
     public AstOpCall While(AstValue expr) {
+      var datatype = Types.Relof(CurrentHeading());
+      if (expr.DataType != datatype) Parser.ParseError("type mismatch");
       return new AstOpCall() {
         Func = FindFunc(SymNames.Recurse),
         DataType = Types.Relof(CurrentHeading()),

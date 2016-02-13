@@ -132,7 +132,7 @@ Recurser <AstOpCall> = DOT WHILE LPexp v:ExpressionExp RPexp { AST(state).While(
 Where <AstWhere> = DOT WHERE LPexp v:OpenExpression RPexp { AST(state).Where(v) };
 
 DotFunc <AstOpCall> = DOT v:Funcop LP w:ExpressionList RPexp { AST(state).DotFunc(v, w.ToArray()) }
-    / DOT v:Funcop { AST(state).DotFunc(v) };
+    / DOT v:Funcop !LP { AST(state).DotFunc(v) };
 
 Orderer <AstOrderer> = DOT ORDER LPexp v:OrderTermList RPexp { AST(state).Orderer(v) };
 OrderTermList = OrderTerm<0,,SEP>;

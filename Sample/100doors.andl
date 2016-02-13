@@ -1,0 +1,19 @@
+// The 100 doors problem -- http://rosettacode.org/wiki/100_doors
+
+// number of doors
+ndoors := 100
+
+// a relation that is a set of integers N from 1 to ndoors 
+numset := seq(ndoors) .set { N:=N+1 } 
+
+// a function to work out the final state of each door
+// a true value means this door was flipped on pass N
+// the values are folded using xor aggregation to produce a final result
+isopen(x:0) => numset .set{ fold(xor, mod(x,N) = 0) }
+
+// an outer loop that applies the function to all doors
+doors := numset .set{ *open := isopen(N) }
+
+// pick the open doors, sort in door order, show only N
+// pretty print and write the result
+doors .where(open) .order(N) .set{ N } .pp .write
