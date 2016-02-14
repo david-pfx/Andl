@@ -50,7 +50,7 @@ namespace Andl.Runtime {
     public delegate bool ErrorHandler(string code, string message);
     public static ErrorHandler ErrorEvent;
 
-    public static void Raise(ErrorKind kind, string source, string message) {
+    static void Raise(ErrorKind kind, string source, string message) {
       bool handled = (kind != ErrorKind.Panic && ErrorEvent != null && ErrorEvent(source, message))
         || kind == ErrorKind.Warn;
       if (!handled) {
