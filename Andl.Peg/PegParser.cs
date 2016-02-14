@@ -156,8 +156,10 @@ namespace Andl.Peg {
     // #catalog with options additional to any command line switches !?
     string CatalogDirective(Cursor state, IList<string> options) {
       State = state;
-      Cat.LoadFlag &= !options.Any(o => o == "new");
-      Cat.SaveFlag |= options.Any(o => o == "update");
+      // override command line
+      Cat.LoadFlag = !options.Any(o => o == "new");
+      Cat.SaveFlag = options.Any(o => o == "update");
+      // allow command line if set
       Cat.DatabaseSqlFlag |= options.Any(o => o == "sql");
       return "";
     }

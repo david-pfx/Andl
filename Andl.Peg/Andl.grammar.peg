@@ -170,20 +170,22 @@ Table <AstValue> = &(LC WSL LC) &{ AST(state).Enter() } LC WSC v:TableBody RCexp
     / (REL / LC WSC LC) &{ Error(state, "invalid table body") } { null };
 
 TableBody <AstValue> = LC STAR RCexp  { AST(state).Table() }
-    / v:TableHeading WSC w:RowValueList SEP? { AST(state).Table(v,w) }
+    / v:TableHeading WSC w:TableRowList SEP? { AST(state).Table(v,w) }
     / v:RowList SEP? { AST(state).Table(v) };
 
 TableHeading <AstValue> = LC COLON RC { AST(state).Heading(null) }
     / LC &(Ident COLON) v:FieldList RCexp { AST(state).Heading(v) };
 
-RowValueList = v:RowValue<0,,SEP>;
-RowValue <AstValue> = LP v:ExpressionList SEP? RPexp { AST(state).RowValues(v) };
+TableRowList = v:TableRowValue<0,,SEP>;
+TableRowValue <AstValue> = LP v:ExpressionList SEP? RPexp { AST(state).TableRowValues(v) };
 
-RowList = v:Row<0,,SEP>;
+RowList = v:RowOrIdent<0,,SEP>;
+RowOrIdent <AstValue> = v:Row { v }
+    / v:VarIdent  { AST(state).Variable(v) };
+
 Row <AstValue> = LC STAR RCexp { AST(state).Row() }
     / LC v:RowTransList RCexp { AST(state).Row(AST(state).Transformer(v)) }
     / TUP LPexp v:Expression RPexp { AST(state).Row(v) };
-//    / v:VarIdent  { AST(state).Variable(v) };
 
 RowTransList = RowTrans<0,,SEP>;
 RowTrans <AstField> = v:FieldIdent &(SEP / RC) { AST(state).Transfield(v) }
@@ -315,7 +317,7 @@ NumberString  = '.' Digit+ / Digit+ ('.' Digit*)?;
 IntegerString = "" Digit+ / "$" Digit HexDigit*;
 IdentQuoted   = "i" SQ v:("" (!CC !SQ .)* ) SQ { v };
 IdentString = (Letter / IdChar) (Letter / Digit / IdChar / IdCharX)*;
-OpSym = OpChar OpChar?;
+OpSym = OpChar OpCharX?;
 ID = Letter / Digit / IdChar / IdCharX;
 Digits = v:Digit+ { String.Concat(v) };
 HexDigits = v:HexDigit+ { String.Concat(v) };
@@ -324,8 +326,9 @@ HexDigits = v:HexDigit+ { String.Concat(v) };
 Letter = [a-zA-Z];
 Digit = [0-9];
 HexDigit = [a-fA-F0-9];
-OpChar = [&=<>:~*/+-];
-IdChar = [_$@^];
+OpChar = [&=<>:*/+-]; // tried to include '|', broke COLON!
+OpCharX = [&=<>:~*/];
+IdChar = [_$@^~];
 IdCharX = [#%&?!~`];
 TimeChar = [: ./-];
 CC = [\x00-\x1f];

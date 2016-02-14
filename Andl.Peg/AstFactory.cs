@@ -397,7 +397,7 @@ namespace Andl.Peg {
     }
 
     // row values as list of paren values
-    public AstValue RowValues(IList<AstValue> values) {
+    public AstValue TableRowValues(IList<AstValue> values) {
       return new AstTabCall {
         Func = FindFunc(SymNames.RowV), DataType = DataTypes.Unknown, Arguments = values.ToArray(),
       };

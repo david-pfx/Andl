@@ -6,36 +6,37 @@ start($filename$)
 
 //--- literals
 
-t1 := {name := 'Smith', age := 17} 
-assert($lineno$, t1 = {age := 16+1, name := 'Smi''th'})
+~t1 := {name := 'Smith', age := 17} 
+assert($lineno$, ~t1 = {age := 16+1, name := 'Smi''th'})
+assert($lineno$, ~t1 = tup(age := 16+1, name := 'Smi''th'))
 
-r1 := {{age := 17, name := 'Smith'}} 
-r1a := {{name := 'Smith', age := 17}} 
-assert($lineno$, r1 = r1a)
-assert($lineno$, r1 = {{age := 1+16, name := 'S'&'mith'}})
+~r1 := {{age := 17, name := 'Smith'}} 
+~r1a := {{name := 'Smith', age := 17}} 
+assert($lineno$, ~r1 = ~r1a)
+assert($lineno$, ~r1 = {{age := 1+16, name := 'S'&'mith'}})
 
-r2 := {{name := 'Smith', age := 17},
-       {name := 'Jones', age := 35},
-       {age :=199,name:='Frankenstein' }} 
-assert($lineno$, r2 = {{age := 35, name := 'Jones'},
+~r2 := {{name := 'Smith', age := 17},
+      {name := 'Jones', age := 35},
+      {age :=199,name:='Frankenstein' }} 
+assert($lineno$, ~r2 = {{age := 35, name := 'Jones'},
       {age := 17, name := 'Smith'},
       {name:='Frankenstein',age :=199}})
 
-assert($lineno$, r1 = {{name:'',age:0}('Smith', 17)})
-assert($lineno$, r1 = {{name:text,age:number}('Smith', 17)})
-assert($lineno$, r2 = {{name:'',age:0}('Smith', 17),('Jones', 35),('Frankenstein',199 )})
+assert($lineno$, ~r1 = {{name:'',age:0}('Smith', 17)})
+assert($lineno$, ~r1 = {{name:text,age:number}('Smith', 17)})
+assert($lineno$, ~r2 = {{name:'',age:0}('Smith', 17),('Jones', 35),('Frankenstein',199 )})
 
 //--- set operators, literals
 
-assert($lineno$, r1.count = 1)
-assert($lineno$, r2.count = 3)
+assert($lineno$, ~r1.count = 1)
+assert($lineno$, ~r2.count = 3)
 
-assert($lineno$, r1 sub r1)
-assert($lineno$, r1 sub r2)
-assert($lineno$, r2 sup r1)
-assert($lineno$, r2 sup r2)
-assert($lineno$, r1 sep r2 = false)
-assert($lineno$, r2 sep r1 = false)
+assert($lineno$, ~r1 sub ~r1)
+assert($lineno$, ~r1 sub ~r2)
+assert($lineno$, ~r2 sup ~r1)
+assert($lineno$, ~r2 sup ~r2)
+assert($lineno$, ~r1 sep ~r2 = false)
+assert($lineno$, ~r2 sep ~r1 = false)
 
 //--- meta data uses internal table
 Smeta0 := {{ Type:'', Name:'' }}
