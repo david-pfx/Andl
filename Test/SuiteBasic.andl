@@ -1,114 +1,114 @@
-﻿// Test Suite 1 -- basic language features, lexical tokens, scalar types
+﻿// Test Basic -- language features, lexical tokens, scalar types
 
 #catalog
 
 start($filename$)
 
 // Literals
-assert($lineno$, '"' "Hel""lo" h'20' 'World' '!' h'0022' = '"Hello World!"')
-assert($lineno$, "Hello" & d'32' & "World" = 'Hello World')
-assert($lineno$, "Number: " & (17+22) & " Date: " & t'31/12/2015' & " Bool: " & (6=6) = "Number: 39 Date: 31/12/2015 Bool: true")
-assert($lineno$, "01/01/2015" < "31/12/2014")
-assert($lineno$, t'01/01/2015' > t'31/12/2014')
+test_true($lineno$, '"' "Hel""lo" h'20' 'World' '!' h'0022' = '"Hello World!"')
+test_true($lineno$, "Hello" & d'32' & "World" = 'Hello World')
+test_true($lineno$, "Number: " & (17+22) & " Date: " & t'31/12/2015' & " Bool: " & (6=6) = "Number: 39 Date: 31/12/2015 Bool: true")
+test_true($lineno$, "01/01/2015" < "31/12/2014")
+test_true($lineno$, t'01/01/2015' > t'31/12/2014')
 i':=' "''" d'32' := b'2a2b2cd1e2f3'
-assert($lineno$, i':=' h'27 0027 20'  = b'2A2B2CD1E2F3')
+test_true($lineno$, i':=' h'27 0027 20'  = b'2A2B2CD1E2F3')
 
-assert($lineno$, 17 = 17)
-assert($lineno$, 17 > -17)
-assert($lineno$, 17 >= 0)
-assert($lineno$, 17 <> 42)
-assert($lineno$, 17 < 42.)
-assert($lineno$, 17 <= 42.0)
+test_true($lineno$, 17 = 17)
+test_true($lineno$, 17 > -17)
+test_true($lineno$, 17 >= 0)
+test_true($lineno$, 17 <> 42)
+test_true($lineno$, 17 < 42.)
+test_true($lineno$, 17 <= 42.0)
 
-assert($lineno$, "abc" = "abc")
-assert($lineno$, "abc" > "aaa")
-assert($lineno$, "abc" >= "")
-assert($lineno$, "abc" <> "aaa")
-assert($lineno$, "abc" < "b")
-assert($lineno$, "abc" <= "bb")
+test_true($lineno$, "abc" = "abc")
+test_true($lineno$, "abc" > "aaa")
+test_true($lineno$, "abc" >= "")
+test_true($lineno$, "abc" <> "aaa")
+test_true($lineno$, "abc" < "b")
+test_true($lineno$, "abc" <= "bb")
 
-assert($lineno$, false = not true)
-assert($lineno$, true = not false)
-assert($lineno$, false = (true and false))
-assert($lineno$, true = (true or false))
-assert($lineno$, true = (true xor false))
+test_true($lineno$, false = not true)
+test_true($lineno$, true = not false)
+test_true($lineno$, false = (true and false))
+test_true($lineno$, true = (true or false))
+test_true($lineno$, true = (true xor false))
 
-assert($lineno$, 3 = (7 and 11))
-assert($lineno$, 15 = (7 or 11))
-assert($lineno$, 12 = (7 xor 11))
+test_true($lineno$, 3 = (7 and 11))
+test_true($lineno$, 15 = (7 or 11))
+test_true($lineno$, 12 = (7 xor 11))
 
-assert($lineno$, {{}} = {{}})
-assert($lineno$, {{:}} = {{:}})
-assert($lineno$, {{:}()} = {{:}()})
-assert($lineno$, {{:}()} = {{}})
-assert($lineno$, {{}} <> {{:}})
+test_true($lineno$, {{}} = {{}})
+test_true($lineno$, {{:}} = {{:}})
+test_true($lineno$, {{:}()} = {{:}()})
+test_true($lineno$, {{:}()} = {{}})
+test_true($lineno$, {{}} <> {{:}})
 
-assert($lineno$, count({{:}}) = 0)
-assert($lineno$, count({{:}()}) = 1)
-assert($lineno$, count({{}}) = 1)
-assert($lineno$, {{}} .count = 1)
+test_true($lineno$, count({{:}}) = 0)
+test_true($lineno$, count({{:}()}) = 1)
+test_true($lineno$, count({{}}) = 1)
+test_true($lineno$, {{}} .count = 1)
 
 //--- if(,,)
-assert($lineno$, if(true,"yes",'no') = 'yes')
-assert($lineno$, if(false,0,1+2) = 3)
-assert($lineno$, if(false,t'01/01/2016',t'01/01/2017') = t'01/01/2017')
-assert($lineno$, if(true,{{}},{{:}}) = {{}})
+test_true($lineno$, if(true,"yes",'no') = 'yes')
+test_true($lineno$, if(false,0,1+2) = 3)
+test_true($lineno$, if(false,t'01/01/2016',t'01/01/2017') = t'01/01/2017')
+test_true($lineno$, if(true,{{}},{{:}}) = {{}})
 
 //--- assign
 // cover every type, checks value equality too
 _asvbi := b'05040302'
-assert($lineno$, _asvbi = b'05040302')
+test_true($lineno$, _asvbi = b'05040302')
 
 _asvbo := true
-assert($lineno$, _asvbo = true)
+test_true($lineno$, _asvbo = true)
 
 _asvnu := 123456789.123456789  // beyond real
-assert($lineno$, _asvnu = 123456789.123456789)
+test_true($lineno$, _asvnu = 123456789.123456789)
 
 _asvte := 'Hello World' d'33'
-assert($lineno$, _asvte = 'Hello World!')
+test_true($lineno$, _asvte = 'Hello World!')
 
 _asvti := t'2015-12-31 23:59:59.999'
-assert($lineno$, _asvti = t'2015-12-31 23:59:59.999')
+test_true($lineno$, _asvti = t'2015-12-31 23:59:59.999')
 
 _asvtu := { name := 'Smith', Age := 99 }
-assert($lineno$, _asvtu = { Age := 99, name := 'Smith' })
+test_true($lineno$, _asvtu = { Age := 99, name := 'Smith' })
 
 _asvre  := {{ name := 'Smith', Age := 99}, { Age := 98, name := 'Jones'}}
-assert($lineno$, _asvre = {{ Age := 98, name := 'Jones'}, { name := 'Smith', Age := 99 }})
+test_true($lineno$, _asvre = {{ Age := 98, name := 'Jones'}, { name := 'Smith', Age := 99 }})
 
 def _astus(age:0, name:'')
 _asvus := _astus(45, 'Green')
-assert($lineno$, _asvus = _astus(45, 'Green'))
+test_true($lineno$, _asvus = _astus(45, 'Green'))
 
 // repeating literals ensures test of value semantics
 _asvall  := {{ bi := b'05040302', bo := true, nu := 123456789.123456789, te := 'Hello World!', ti := t'2015-12-31 23:59:59.999',
                 tu := { name := 'Smith', Age := 99 }, re := {{ name := 'Smith', Age := 99}, { Age := 98, name := 'Jones'}}, us := _astus(45, 'Green') 
             }}
-assert($lineno$, _asvall = {{ bi := _asvbi, bo := _asvbo, nu := _asvnu, te := _asvte, ti := _asvti, tu := _asvtu, re := _asvre, us := _asvus }})
+test_true($lineno$, _asvall = {{ bi := _asvbi, bo := _asvbo, nu := _asvnu, te := _asvte, ti := _asvti, tu := _asvtu, re := _asvre, us := _asvus }})
 
 // test of database var, both ways
 
 ASVREL := {{ bi := b'05040302', bo := true, nu := 123456789.123456789, te := 'Hello World!', ti := t'2015-12-31 23:59:59.999',
                 tu := { name := 'Smith', Age := 99 }, re := {{ name := 'Smith', Age := 99}, { Age := 98, name := 'Jones'}}, us := _astus(45, 'Green') 
             }}
-assert($lineno$, _asvall = ASVREL)
-assert($lineno$, ASVREL = _asvall)
+test_true($lineno$, _asvall = ASVREL)
+test_true($lineno$, ASVREL = _asvall)
 
 //--- builtin
-assert($lineno$, {{N:=0},{N:=1},{N:=2}}       = seq(3))
-assert($lineno$, {{nnn:=0},{nnn:=1},{nnn:=2}} = seq(3) .set{ nnn:=N } )
-assert($lineno$, {{ Name := 'N', Type := 'number' }}  = seq(3).schema)
-assert($lineno$, 3                    = seq(3).count)
-assert($lineno$, 1                    = seq(3).degree)
-assert($lineno$, 1                    = seq(3).schema.count)
+test_true($lineno$, {{N:=0},{N:=1},{N:=2}}       = seq(3))
+test_true($lineno$, {{nnn:=0},{nnn:=1},{nnn:=2}} = seq(3) .select{ nnn:=N } )
+test_true($lineno$, {{ Name := 'N', Type := 'number' }}  = seq(3).schema)
+test_true($lineno$, 3                    = seq(3).count)
+test_true($lineno$, 1                    = seq(3).degree)
+test_true($lineno$, 1                    = seq(3).schema.count)
 
 ar1 := {{ X := 'xxx', Y := 999, Z := t'2016/12/31' }}
-assert($lineno$, {{ X := 'xxx', Y := 999, Z := t'2016/12/31' }} = ar1)
-assert($lineno$, 1                    = ar1.count)
-assert($lineno$, 3                    = ar1.degree)
-assert($lineno$, 3                    = ar1.schema.count)
-assert($lineno$, 2                    = ar1.schema.degree)
+test_true($lineno$, {{ X := 'xxx', Y := 999, Z := t'2016/12/31' }} = ar1)
+test_true($lineno$, 1                    = ar1.count)
+test_true($lineno$, 3                    = ar1.degree)
+test_true($lineno$, 3                    = ar1.schema.count)
+test_true($lineno$, 2                    = ar1.schema.degree)
 
 //--- system type 'date' --- defer for now
 tim1 := t'2015/02/26'
@@ -123,69 +123,69 @@ tim1 := t'2015/02/26'
 //daysdiff(dat2,dat1) = 1
 
 //--- number operations
-assert($lineno$, 42 = number("42"))
-assert($lineno$, 42 = "42".number)
-assert($lineno$, 42 = --42)
-assert($lineno$, 42 = 40+2)
-assert($lineno$, 42 = 44-2)
-assert($lineno$, 42 = 10*4.2)
-assert($lineno$, 42 = 84/2)
-assert($lineno$, 10.5 = 42/4)
-assert($lineno$, 0.1 = 1/10)
-assert($lineno$, 42 = max(42,41))
-assert($lineno$, 42 = max(41,42))
-assert($lineno$, 42 = min(43,42))
-assert($lineno$, 42 = min(42,43))
+test_true($lineno$, 42 = number("42"))
+test_true($lineno$, 42 = "42".number)
+test_true($lineno$, 42 = --42)
+test_true($lineno$, 42 = 40+2)
+test_true($lineno$, 42 = 44-2)
+test_true($lineno$, 42 = 10*4.2)
+test_true($lineno$, 42 = 84/2)
+test_true($lineno$, 10.5 = 42/4)
+test_true($lineno$, 0.1 = 1/10)
+test_true($lineno$, 42 = max(42,41))
+test_true($lineno$, 42 = max(41,42))
+test_true($lineno$, 42 = min(43,42))
+test_true($lineno$, 42 = min(42,43))
 
 //--- precedence
-assert($lineno$, 42 = 36+2*3)
-assert($lineno$, 42 = 30+2*3+6)
-assert($lineno$, 42 = 12-6 + 2*3 + 6/5*10 + 2*3**2)
-assert($lineno$, 42 = 2*(12-6 + 1)*3)
+test_true($lineno$, 42 = 36+2*3)
+test_true($lineno$, 42 = 30+2*3+6)
+test_true($lineno$, 42 = 12-6 + 2*3 + 6/5*10 + 2*3**2)
+test_true($lineno$, 42 = 2*(12-6 + 1)*3)
 
 //--- text operations
-assert($lineno$, "42" = 42 .text) // note: needs the space
-assert($lineno$, "42" = text(42))
+test_true($lineno$, "42" = 42 .text) // note: needs the space
+test_true($lineno$, "42" = text(42))
 
 ss1 := 'abcdefg'
 ss2 := 'XYZ   '
-assert($lineno$, 'abcdefgXXX'   = ss1 & 'XXX')
-assert($lineno$, 'abcdefgXXXYY' = ss1 & 'XXX' & 'YY')
-assert($lineno$, 7              = ss1.length)
-assert($lineno$, 'XYZ'          = ss2.trim)
-assert($lineno$, 'abcdefg   '   = left(ss1,10))
-assert($lineno$, 'abc'          = left(ss1,3))
-assert($lineno$, ''             = left(ss1,0))
-assert($lineno$, 'efg'          = right(ss1,3))
-assert($lineno$, '   abcdefg'   = right(ss1,10))
-assert($lineno$, 'ab'           = before(ss1,'cd'))
-assert($lineno$, 'efg'          = after(ss1,'cd'))
-assert($lineno$, 'ABCDEFG'      = ss1.toupper)
-assert($lineno$, 'xyz   '       = ss2.tolower)
-assert($lineno$, 'abcabcabcabc' = fill('abc', 12))
-assert($lineno$, ''             = fill('abc', 0))
-assert($lineno$, ''             = fill('abc', -20))
+test_true($lineno$, 'abcdefgXXX'   = ss1 & 'XXX')
+test_true($lineno$, 'abcdefgXXXYY' = ss1 & 'XXX' & 'YY')
+test_true($lineno$, 7              = ss1.length)
+test_true($lineno$, 'XYZ'          = ss2.trim)
+test_true($lineno$, 'abcdefg   '   = left(ss1,10))
+test_true($lineno$, 'abc'          = left(ss1,3))
+test_true($lineno$, ''             = left(ss1,0))
+test_true($lineno$, 'efg'          = right(ss1,3))
+test_true($lineno$, '   abcdefg'   = right(ss1,10))
+test_true($lineno$, 'ab'           = before(ss1,'cd'))
+test_true($lineno$, 'efg'          = after(ss1,'cd'))
+test_true($lineno$, 'ABCDEFG'      = ss1.toupper)
+test_true($lineno$, 'xyz   '       = ss2.tolower)
+test_true($lineno$, 'abcabcabcabc' = fill('abc', 12))
+test_true($lineno$, ''             = fill('abc', 0))
+test_true($lineno$, ''             = fill('abc', -20))
 
-assert($lineno$, "xyz" = max("xyz","xyx"))
-assert($lineno$, "xyz" = max("xyx","xyz"))
-assert($lineno$, "xyz" = min("xyz","xzz"))
-assert($lineno$, "xyz" = min("xzz","xyz"))
+test_true($lineno$, "xyz" = max("xyz","xyx"))
+test_true($lineno$, "xyz" = max("xyx","xyz"))
+test_true($lineno$, "xyz" = min("xyz","xzz"))
+test_true($lineno$, "xyz" = min("xzz","xyz"))
 
 //--- user type defs
 def utype1(age:0, name:'')
 uvar1 := utype1(17, 'smith')
-assert($lineno$, uvar1      = utype1(17, 'smith'))
-assert($lineno$, 17         = uvar1.age)
-assert($lineno$, 'smith'    = uvar1.name)
+test_true($lineno$, uvar1      = utype1(17, 'smith'))
+test_true($lineno$, 17         = uvar1.age)
+test_true($lineno$, 'smith'    = uvar1.name)
 
 uvar11 := utype1(18, 'jones')
-assert($lineno$, uvar11 > uvar1)
+test_true($lineno$, uvar11 > uvar1)
 
 def utype2(age:0, name:'', given:'')
 uvar2 := utype2(63, 'jones', 'mary')
-assert($lineno$, uvar2      = utype2(63, 'jones', 'mary'))
-assert($lineno$, 63         = uvar2.age)
-assert($lineno$, 'jones'    = uvar2.name)
-assert($lineno$, 'mary'     = uvar2.given)
+test_true($lineno$, uvar2      = utype2(63, 'jones', 'mary'))
+test_true($lineno$, 63         = uvar2.age)
+test_true($lineno$, 'jones'    = uvar2.name)
+test_true($lineno$, 'mary'     = uvar2.given)
 
 finish($filename$)

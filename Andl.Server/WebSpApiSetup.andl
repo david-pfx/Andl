@@ -8,9 +8,9 @@
 var S(csv), P(csv), SP(csv)
 
 // Assume these will be accessed directly
-supplier := S .set{ *Sid:=S# }
-part := P .set{ *Pid := P# }
-supplies := SP .set{ *Sid := S#, Pid:= P# }
+supplier := S .select{ *Sid:=S# }
+part := P .select{ *Pid := P# }
+supplies := SP .select{ *Sid := S#, Pid:= P# }
 
 // CRUD interface for supplier table
 
@@ -27,11 +27,11 @@ create_supplier(s:supplier) => do {
 }
 
 delete_supplier(sid:text) => do {
-    update supplier .where(Sid = sid) .set{}
+    update supplier .where(Sid = sid) .select{}
 }
 
 update_supplier(sid:text, s:supplier) => do {
-    update supplier .where(Sid = sid) .set{}
+    update supplier .where(Sid = sid) .select{}
     update supplier union s
 }
 
@@ -45,7 +45,7 @@ find_part_by_name(name:text) => do {
 
 tquery := {{ Key:text,Value:text }}
 findsome_part(query:tquery) => do {
-    pattern := query .where(Key = 'PNAME') .set{ (Value) }
+    pattern := query .where(Key = 'PNAME') .select{ (Value) }
     part .where(PNAME =~ pattern)
 }
 

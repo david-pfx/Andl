@@ -12,19 +12,19 @@ $xyt := {{x:=0,y:=0}}
 // define a recursive function that takes a relation of that type as an argument
 // Note: relvar needs to be local to function, not in database
 tranclo:$xyt(xy:$xyt) => do {
-    $ttt := xy .set{ *z := y } compose xy .set{ *z := x } union xy
+    $ttt := xy .select{ *z := y } compose xy .select{ *z := x } union xy
     if($ttt = xy, $ttt, tranclo($ttt))
 }
 
-$tcf := tranclo(family_tree .set{ x:=id, y:=father_id })
+$tcf := tranclo(family_tree .select{ x:=id, y:=father_id })
 $tf := $tcf join family_tree
-   .set{ x:=id, child:=lastname & ', ' & firstname } join family_tree 
-   .set{ y:=id, i'male ancestor':=lastname & ', ' & firstname }
+   .select{ x:=id, child:=lastname & ', ' & firstname } join family_tree 
+   .select{ y:=id, i'male ancestor':=lastname & ', ' & firstname }
   
-$tf.set{ *x,y }
-$tcm := tranclo(family_tree .set{ x:=id, y:=mother_id })
+$tf .select{ *x,y }
+$tcm := tranclo(family_tree .select{ x:=id, y:=mother_id })
 $tm := $tcm join family_tree
-   .set{ x:=id, child:=lastname & ', ' & firstname } join family_tree 
-   .set{ y:=id, i'female ancestor':=lastname & ', ' & firstname }
+   .select{ x:=id, child:=lastname & ', ' & firstname } join family_tree 
+   .select{ y:=id, i'female ancestor':=lastname & ', ' & firstname }
   
-$tm .set{ *x,y }
+$tm .select{ *x,y }

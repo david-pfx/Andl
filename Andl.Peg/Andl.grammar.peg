@@ -76,7 +76,9 @@ Update <AstStatement> =
              w:Where? x:TransformOrDelete &{ AST(state).Exit(true) } { AST(state).UpdateWhere(v,Single(w),x) }
     / UPDATE &{ Error(state, "bad update") }  { null };
 
-TransformOrDelete <AstTransformer> = DOT SET LC RC { null }
+TransformOrDelete <AstTransformer> = DOT LC RC { null }
+    / DOT SELECT LP RP { null }
+    / DOT SELECT LC RC { null }
     / x:Transformer { x }
     / . &{ Error(state, "missing update action") }  { null };
 
@@ -139,7 +141,11 @@ Orderer <AstOrderer> = DOT ORDER LPexp v:OrderTermList RPexp { AST(state).Ordere
 OrderTermList = OrderTerm<0,,SEP>;
 OrderTerm <AstOrderField> = w:PERCENT? v:MINUS? x:FieldIdent { AST(state).OrderField(x, v.Count > 0, w.Count > 0) };
 
-Transformer <AstTransformer> = DOT SET LC WSC v:STAR? WSC w:TransformList SEP? RCexp { AST(state).Transformer(v.Count > 0, w) }
+Transformer <AstTransformer> = DOT LC WSC v:STAR? WSC w:TransformList SEP? RCexp { AST(state).Transformer(v.Count > 0, w) }
+    / DOT SELECT LC WSC v:STAR? WSC w:TransformList SEP? RCexp { AST(state).Transformer(v.Count > 0, w) }
+    / DOT SELECT LPexp WSC v:STAR? WSC w:TransformList SEP? RPexp { AST(state).Transformer(v.Count > 0, w) };
+
+//Transformer <AstTransformer> = DOT SET LC WSC v:STAR? WSC w:TransformList SEP? RCexp { AST(state).Transformer(v.Count > 0, w) }
 
 TransformList = Transform<0,,SEP>;
 Transform <AstField> = !RC v:FieldIdent &(SEP / RC) { AST(state).Transfield(v) }        // project
@@ -261,7 +267,8 @@ VAR = "var" IDX;
 FOLD = "fold" IDX;
 IF = "if" IDX;
 ORDER = "order" IDX;
-SET = "set" IDX;
+//SET = "set" IDX;
+SELECT = "select" IDX;
 UPDATE = "update" IDX;
 WHERE = "where" IDX;
 WHILE = "while" IDX;

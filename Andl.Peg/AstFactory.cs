@@ -443,25 +443,21 @@ namespace Andl.Peg {
     }
 
     // translate transform call and possible order into a function call
+    // note that tran may be empty, and this has meaning!
     AstValue PostFixTranRel(AstValue value, AstTransformer tran, AstOrderer order) {
       Types.CheckTypeMatch(DataTypes.Table, value.DataType);
-      var newvalue = value;
-      var args = new List<AstNode> { newvalue };
+      if (tran == null && order == null) return value;
+      var args = new List<AstNode> { value };
       var datatype = (tran != null) ? tran.DataType : value.DataType;
       if (order != null) args.AddRange(order.Elements);
       if (tran != null) args.AddRange(tran.Elements);
       else if (order != null) args.AddRange(Allbut(value.DataType.Heading, new AstField[0]));
-      if (args.Count > 1) {
-        var opname = (order != null) ? SymNames.TransOrd
-          : tran.Elements.Any(e => e is AstExtend && (e as AstExtend).Accums > 0) ? SymNames.TransAgg
-          : tran.Elements.Any(e => e is AstExtend) ? SymNames.Transform
-          : tran.Elements.All(e => e is AstRename) && tran.Elements.Length == value.DataType.Heading.Degree ? SymNames.Rename
-          : SymNames.Project;
-        newvalue = FunCall(FindFunc(opname), datatype, args.ToArray(), args.Count - 1);
-        //if (tran != null && tran.Lift)
-        //  newvalue = FunCall(FindFunc(SymNames.Lift), tran.DataType, Args(newvalue));
-      }
-      return newvalue;
+      var opname = (order != null) ? SymNames.TransOrd
+        : tran.Elements.Any(e => e is AstExtend && (e as AstExtend).Accums > 0) ? SymNames.TransAgg
+        : tran.Elements.Any(e => e is AstExtend) ? SymNames.Transform
+        : tran.Elements.All(e => e is AstRename) && tran.Elements.Length == value.DataType.Heading.Degree ? SymNames.Rename
+        : SymNames.Project;
+      return FunCall(FindFunc(opname), datatype, args.ToArray(), args.Count - 1);
     }
 
     // translate transform calls on tuple into a function call

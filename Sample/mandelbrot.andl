@@ -4,14 +4,14 @@
 
 xaxis := {{ x:=-2.0 }} .while( {{ x:=x+0.05 }} .where(x<1.2) )
 yaxis := {{ y:=-1.0 }} .while( {{ y:=y+0.1 }} .where(y<1.1) )
-m := ({{ iter:=0, x:=0, y:=0 }} join xaxis .set{ cx:=x } join yaxis .set{ cy:=y }) 
+m := ({{ iter:=0, x:=0, y:=0 }} join xaxis .select{ cx:=x } join yaxis .select{ cy:=y }) 
     .while( {{ iter:=iter+1, x := x*x-y*y+cx, y:=2*x*y+cy, cx, cy }} .where(x*x+y*y<4.0 and iter<28) )
 m.count
-m2 := m .set{ iter := fold(max,iter), cx, cy } .order(cy,cx)
+m2 := m .select{ iter := fold(max,iter), cx, cy } .order(cy,cx)
 m2.count
-a := m2 .set{ cy, t := fold(&, right(left(' .+*#', 1 + iter div 6), 1)) }
+a := m2 .select{ cy, t := fold(&, right(left(' .+*#', 1 + iter div 6), 1)) }
 a
-//write(a .set{ fold(&,t & h'd a') })
+//write(a .select{ fold(&,t & h'd a') })
 
 //WITH RECURSIVE
 //  xaxis(x) AS (VALUES(-2.0) UNION ALL SELECT x+0.05 FROM xaxis WHERE x<1.2),

@@ -14,7 +14,7 @@ xyt := {{x:='',y:=''}}
 // define a recursive function that takes a relation of that type as an argument
 // Note: relvar needs to be local to function, not in database
 tranclo:xyt(xy:xyt) => do {
-    $ttt := xy .set{ *z := y } compose xy .set{ *z := x } union xy
+    $ttt := xy .select{ *z := y } compose xy .select{ *z := x } union xy
     if($ttt = xy, $ttt, tranclo($ttt))
 }
 
@@ -29,8 +29,8 @@ tclosedemo => do {
       ( "P4", "P6" )
     }
     // call with MM as argument, renaming attributes to match
-    tranclo(MM .set{ x:=MAJOR_P#, y:= MINOR_P# } ) 
-      .set{ MAJOR_P#:=x, MINOR_P#:=y }
+    tranclo(MM .select{ x:=MAJOR_P#, y:= MINOR_P# } ) 
+      .select{ MAJOR_P#:=x, MINOR_P#:=y }
 }
 tclosedemo
 
@@ -68,9 +68,9 @@ wait
 
 def sid(text:text), pid(text:text), scity(text:text), pcity(text:text)
 userdemo => do {
-    Supp := S .set{ Sid := sid(S#), Sname := SNAME, Status := STATUS, Scity := scity(CITY) }
-    Part := P .set{ Pid := pid(P#), Pname := PNAME, Pcolor := COLOR, Pweight := WEIGHT, Pcity := pcity(CITY) }
-    SuppPart := SP .set{ Sid := sid(S#), Pid := pid(P#), Qty := QTY }
+    Supp := S .select{ Sid := sid(S#), Sname := SNAME, Status := STATUS, Scity := scity(CITY) }
+    Part := P .select{ Pid := pid(P#), Pname := PNAME, Pcolor := COLOR, Pweight := WEIGHT, Pcity := pcity(CITY) }
+    SuppPart := SP .select{ Sid := sid(S#), Pid := pid(P#), Qty := QTY }
     Supp join SuppPart join Part
 }
 userdemo

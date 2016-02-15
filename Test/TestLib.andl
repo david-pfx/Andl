@@ -2,7 +2,7 @@
 
 test_count := 0
 error_count := 0
-assert(lineno:0, condition:bool) => do { 
+test_true(lineno:0, condition:bool) => do { 
     test_count := test_count + 1
     if(condition, 
         do{}, 

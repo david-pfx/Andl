@@ -12,26 +12,26 @@ nr2 := { { name := 'S1', contents := S .where( CITY = 'London') },
          { name := 'S2', contents := S .where( CITY = 'Athens') } }
 nr2
 // retrieve one row as relation
-nr2 .where(name='S1') .set{ contents }
+nr2 .where(name='S1') .select{ contents }
 // put the relation back together again using fold and union
-nr2 .set{ fold(union,contents) } 
+nr2 .select{ fold(union,contents) } 
 
 wait
 
 // --- Nest: replace each tuple of S by one converted into a tuple or singleton relation
 // {*} means 'the current tuple as a tuple'
 // {{*}} means 'the current tuple as a singleton relation'
-ES1 := S .set{ embed := {*} }
+ES1 := S .select{ embed := {*} }
 ES1
-ES2 := S .set{ embed := {{*}} }
+ES2 := S .select{ embed := {{*}} }
 ES2
 
 // --- Unnest: using fold union and lift -- advanced usage!
 // Embedded tuple as a relation for union
-ES1 .set{ fold(union,{{ embed := embed }}) }
-//ES1 .set{ fold(union,{{embed}}) }
+ES1 .select{ fold(union,{{ embed := embed }}) }
+//ES1 .select{ fold(union,{{embed}}) }
 // Embedded relation as is
-ES2 .set{
+ES2 .select{
  fold(union,embed) }
 
 wait
@@ -39,11 +39,11 @@ wait
 // note that supplier S5 gets a partition that is an empty relation
 sum(n:0) => fold(+,n)
 
-ES3 := S .set{ * partition := ( {{*}} rdivide SP) }
+ES3 := S .select{ * partition := ( {{*}} rdivide SP) }
 ES3
 
 // Report total no of parts and qty (including S5 which supplies no parts)
-ES3 .set{ S#, parts:=partition.count, qtys:=partition .set{ sum(QTY) } }
+ES3 .select{ S#, parts:=partition.count, qtys:=partition .select{ sum(QTY) } }
 
 wait
 // ===== Updates =====
@@ -53,9 +53,9 @@ wait
 // Insert: argument is relation of same heading
 up1 => update S union {{ S#:='S9', SNAME:='Moriarty', STATUS:=99, CITY:='Timbuktu' }}
 // Delete: read as replace matching rows by nothing
-up2 => update S .where(S#='S3') .set{}
+up2 => update S .where(S#='S3') .select{}
 // Update: make changes to matching rows
-up3 => update S .where(S#='S4') .set{ *STATUS:= -10 } 
+up3 => update S .where(S#='S4') .select{ *STATUS:= -10 } 
 // Now perform each update in turn
 S // original
 up1

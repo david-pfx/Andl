@@ -1,4 +1,4 @@
-﻿// Test Suite -- basic testing of relational features
+﻿// Test Suite Relational Basics -- literals, set operators, where, select, order
 
 #catalog
 
@@ -6,106 +6,139 @@ start($filename$)
 
 //--- literals
 
-~t1 := {name := 'Smith', age := 17} 
-assert($lineno$, ~t1 = {age := 16+1, name := 'Smi''th'})
-assert($lineno$, {age := 16+1, name := 'Smi''th'} = ~t1)
-assert($lineno$, ~t1 = ({age := 17, name := "Smith"}))
-assert($lineno$, ~t1 = tup(age := 17, name := "Smith"))
+//-- tuples
+~t1 := { A1 := 'abc', A2 := 17, A3 := 0 } 
+test_true($lineno$, ~t1 = {A2 := 16+1, A1 := 'ab' & 'c', A3 := 0})
+test_true($lineno$, {A2 := 18-1, A1 := 'a''bc', A3 := 0} = ~t1)
+test_true($lineno$, ~t1 = ({A2 := 17, A1 := "abc", A3 := 0}))
+test_true($lineno$, ~t1 = tup(A2 := 17, A1 := "abc", A3 := 0))
 
-~r1 := {{age := 17, name := 'Smith'}}  
-assert($lineno$, ~r1 = {{name := 'Smith', age := 17}} )
-assert($lineno$, ~r1 = {{age := 1+16, name := 'S'&'mith'}})
-assert($lineno$, ~r1 = rel({age := 1+16, name := 'S'&'mith'}))
-assert($lineno$, ~r1 = rel(~t1))
+//-- relations
+~rel0 := {{A2:0, A1:'', A3:0}}  
+~rel1 := {{A2 := 17, A1 := 'abc', A3 := 0}}  
+~rel2 := {{A1 := 'def', A2 := 35, A3 := 0},
+          {A2 := 199, A1 := 'ghij', A3 := 0 }} 
+~rel3 := {{A1 := 'abc', A2 := 17, A3 := 0},
+          {A1 := 'def', A2 := 35, A3 := 0},
+          {A2 := 199, A1 := 'ghij', A3 := 0 }} 
 
-~r2 := {{name := 'Smith', age := 17},
-      {name := 'Jones', age := 35},
-      {age :=199,name:='Frankenstein' }} 
-assert($lineno$, ~r2 = {{age := 35, name := 'Jones'},
-      {age := 17, name := 'Smith'},
-      {name:='Frankenstein',age :=199}})
+test_true($lineno$, ~rel1 = {{ A1 := 'abc', A2 := 17, A3 := 0 }} )
+test_true($lineno$, ~rel1 = {{ A2 := 1+16, A1 := 'ab'&'c', A3 := 0 }})
+test_true($lineno$, ~rel1 = rel({ A2 := 18-1, A1 := 'a'&'bc', A3 := 0 }))
+test_true($lineno$, ~rel1 = rel(~t1))
+
+test_true($lineno$, ~rel3 = {{ A2 := 35, A1 := 'def', A3 := 0 },
+      { A2 := 17, A1 := 'abc', A3 := 0},
+      { A2 := 17, A1 := 'abc', A3 := 0},
+      { A2 := 17, A1 := 'abc', A3 := 0},
+      { A1 := 'ghij', A2 := 199, A3 := 0 }})
 
 // heading forms
-assert($lineno$, ~r1 = {{name:'',age:0} ('Smith', 17)})
-assert($lineno$, ~r1 = {{name:text,age:number} ('Smith', 17)})
-assert($lineno$, ~r2 = {{name:'',age:0} ('Smith', 17),('Jones', 35),('Frankenstein',199 )})
-assert($lineno$, ~r2 = rel({name:'',age:0} ('Smith', 17),('Jones', 35),('Frankenstein',199 )))
+test_true($lineno$, ~rel1 = {{ A1:'', A2:0, A3:0 } ('abc', 17, 0)})
+test_true($lineno$, ~rel1 = {{ A1:text, A2:number, A3:number } ('abc', 17, 0)})
+test_true($lineno$, ~rel3 = {{ A1:'', A2:0, A3:0 } ('abc', 17, 0), ('def', 35, 0), ('ghij',199, 0)})
+test_true($lineno$, ~rel3 = rel({ A1:'', A2:0, A3:0 } ('abc', 17, 0), ('def', 35, 0), ('ghij',199, 0)))
 
-//--- set operators, literals
+//--- simple operators
 
-assert($lineno$, ~r1.count = 1)
-assert($lineno$, ~r2.count = 3)
+//-- count
+test_true($lineno$, count({{:}}) = 0)
+test_true($lineno$, count({{}}) = 1)
+test_true($lineno$, count(~rel0) = 0)
+test_true($lineno$, count(~rel1) = 1)
+test_true($lineno$, count(~rel3) = 3)
+test_true($lineno$, {{:}} .count = 0)
+test_true($lineno$, {{}} .count = 1)
+test_true($lineno$, ~rel0 .count = 0)
+test_true($lineno$, ~rel1 .count = 1)
+test_true($lineno$, ~rel3 .count = 3)
 
-assert($lineno$, ~r1 sub ~r1)
-assert($lineno$, ~r1 sub ~r2)
-assert($lineno$, ~r2 sup ~r1)
-assert($lineno$, ~r2 sup ~r2)
-assert($lineno$, ~r1 sep ~r2 = false)
-assert($lineno$, ~r2 sep ~r1 = false)
+//-- sub sup sep
+test_true($lineno$, {{:}} sub {{:}})
+test_true($lineno$, {{:}} sub {{}})
+test_true($lineno$, {{}} sub {{}})
+test_true($lineno$, ~rel0 sub ~rel0)
+test_true($lineno$, ~rel0 sub ~rel1)
+test_true($lineno$, ~rel0 sub ~rel3)
+test_true($lineno$, ~rel1 sub ~rel1)
+test_true($lineno$, ~rel1 sub ~rel3)
+test_true($lineno$, ~rel3 sub ~rel3)
+
+test_true($lineno$, {{:}} sup {{:}})
+test_true($lineno$, {{}} sup {{:}})
+test_true($lineno$, {{}} sup {{}})
+test_true($lineno$, ~rel3 sup ~rel3)
+test_true($lineno$, ~rel3 sup ~rel1)
+test_true($lineno$, ~rel3 sup ~rel0)
+test_true($lineno$, ~rel1 sup ~rel1)
+test_true($lineno$, ~rel1 sup ~rel0)
+test_true($lineno$, ~rel0 sup ~rel0)
+
+test_true($lineno$, ~rel1 sep ~rel2)
+test_true($lineno$, ~rel2 sep ~rel1)
 
 //--- meta data uses internal table
-Smeta0 := {{ Type:'', Name:'' }}
-assert($lineno$, Smeta0.count = 0)
+~rel2_meta := {{ Name := 'A1', Type := 'text'}, 
+             { Name := 'A2', Type := 'number'},
+             { Name := 'A3', Type := 'number'} }
 
-Smeta1 := {{ Type:='', Name:='' }}
-assert($lineno$, Smeta1.count = 1)
+test_true($lineno$, schema(~rel3) = ~rel2_meta)
+test_true($lineno$, ~rel3 .schema = ~rel2_meta)
+//--- monadic RA
 
-Smeta := {{ Name := 'S#', Type := 'text'}, 
-    { Name := 'SNAME', Type := 'text'}, 
-    { Name := 'STATUS', Type := 'number'}, 
-    { Name := 'CITY', Type := 'text'} }
+~rel3_A1 := {{ A1:''} ('abc'), ('def'), ('ghij'), }
+~rel3_A1X := {{ X:''} ('abc'), ('def'), ('ghij'), }
 
-assert($lineno$, count(Smeta0 union Smeta1 union Smeta) = 5)
-assert($lineno$, schema(S) = Smeta)
-assert($lineno$, S.schema = Smeta)
+//--- where
+test_true($lineno$, ~rel3  = ~rel3 .where(true))
+test_true($lineno$, ~rel0  = ~rel3 .where(false))
+test_true($lineno$, ~rel0  = ~rel3 .where(A1 = 'xyz'))
+test_true($lineno$, ~rel0  = ~rel3 .where(A2 = 0))
+test_true($lineno$, ~rel1  = ~rel3 .where(A1 = 'abc'))
+test_true($lineno$, ~rel1  = ~rel3 .where(A1 < 'def'))
+test_true($lineno$, ~rel1  = ~rel3 .where(A2 = 17))
+test_true($lineno$, ~rel1  = ~rel3 .where(A2 < 35))
 
-//--- set operators, variables
-assert($lineno$, count(S) = 5)
-assert($lineno$, S.count = 5)
+test_true($lineno$, 3    = ~rel3 .where(true) .count)
+test_true($lineno$, 0    = ~rel3 .where(false) .count)
+test_true($lineno$, 2    = ~rel3 .where(A1 > 'abc') .count)
+test_true($lineno$, 2    = ~rel3 .where(A2 > 17) .count)
 
-assert($lineno$, S sub S)
-assert($lineno$, not(S sub S .where(SNAME='Smith')))
-assert($lineno$, S sup S)
-assert($lineno$, S sup S .where(SNAME = 'Smith'))
-assert($lineno$, S sup S .where(SNAME <> 'Smith'))
-assert($lineno$, not(S sep S))
-assert($lineno$, S .where(SNAME = 'Smith') sep S .where(SNAME <> 'Smith'))
+//--- project
+test_true($lineno$, {{:}}         = {{:}} .select{ } )
+test_true($lineno$, {{}}          = {{}} .select{ } )
+test_true($lineno$, {{}}          = ~rel1 .select{ } )
+test_true($lineno$, ~rel3         = ~rel3 .select{ * } )
+test_true($lineno$, ~rel3_A1      = ~rel3 .select{ A1 } )
+test_true($lineno$, ~rel3_A1      = ~rel3 .select{ *A2, A3 } )
+test_true($lineno$, {{ A3 := 0 }} = ~rel3 .select{ A3 } )
+test_true($lineno$, {{ A3 := 0 }} = ~rel3 .select{ *A1, A2 } )
 
-//--- monadic
-assert($lineno$, S .where(true) = S)
-assert($lineno$, S .where(false) <> S)
-assert($lineno$, S .where(false) = {{STATUS : 0, CITY : '', S# : '', SNAME : ''}})
-assert($lineno$, S .where(false) = {{S# := '', SNAME := '', STATUS := 0, CITY := ''}} .where(false))
-assert($lineno$, S .where(false) = {{STATUS := 0, CITY := '', S# := '', SNAME := ''}} .where(false))
+//--- rename
+test_true($lineno$, {{ X := 0 }}  = ~rel3 .select{ X := A3 } )
+test_true($lineno$, {{ X := 0 }}  = ~rel3 .select{ *A1, A2, X := A3 } )
+test_true($lineno$, ~rel3_A1X     = ~rel3 .select{ X := A1 } )
 
-Sstatus := {{STATUS := 20}, {STATUS := 10}, {STATUS := 30} }
-assert($lineno$, S .set{ STATUS } = Sstatus)
-assert($lineno$, S .set{ X := STATUS } = Sstatus .set{ X := STATUS })
-
-Ss4 := {{ S# := 'S4', CITY := 'London', STATUS := 020, SNAME := 'Clark' }}
-assert($lineno$, S .where(S# = 'S4') = Ss4)
-assert($lineno$, count(S .where(SNAME = 'Clark')) = 1)
-assert($lineno$, S .where(STATUS = 20) <> Ss4)
-assert($lineno$, S .where(STATUS = 20) sup Ss4)
-assert($lineno$, count(S .where(STATUS = 20)) = 2)
-
-assert($lineno$, count(S .where(STATUS = 20)) = 2)
+//--- extend
+~rel3_A1Y := {{ Y:''} ('abcY'), ('defY'), ('ghijY'), }
+test_true($lineno$, ~rel3_A1Y     = ~rel3 .select{ Y := A1 & 'Y' } )
+test_true($lineno$, ~rel3_A1Y     = ~rel3 .select{ *A1, A2, A3, Y := A1 & 'Y' } )
 
 //--- skip take
-//get_s(s:S) => s .order(S#) .set { fold(&,S#) }
-_test_s(s:S,t:'') => s .order(S#) .set { fold(&,S#) } = t
+//get_s(s:S) => s .order(S#)  .select{ fold(&,S#) }
+_test_s(s:S,t:'') => s .order(S#)  .select{ fold(&,S#) } = t
 
-assert($lineno$, _test_s(S, 'S1S2S3S4S5'))
-assert($lineno$, _test_s(S .take(2), 'S1S2'))
-assert($lineno$, _test_s(S .skip(2), 'S3S4S5'))
-assert($lineno$, _test_s(S .take(4) .skip(2), 'S3S4'))
-assert($lineno$, _test_s(S .skip(2) .take(2), 'S3S4'))
-assert($lineno$, _test_s(S .take(4) .skip(1) .take(2), 'S2S3'))
-assert($lineno$, _test_s(S .skip(1) .take(3) .skip(1), 'S3S4'))
+test_true($lineno$, _test_s(S, 'S1S2S3S4S5'))
+test_true($lineno$, _test_s(S .take(2), 'S1S2'))
+test_true($lineno$, _test_s(S .skip(2), 'S3S4S5'))
+test_true($lineno$, _test_s(S .take(4) .skip(2), 'S3S4'))
+test_true($lineno$, _test_s(S .skip(2) .take(2), 'S3S4'))
+test_true($lineno$, _test_s(S .take(4) .skip(1) .take(2), 'S2S3'))
+test_true($lineno$, _test_s(S .skip(1) .take(3) .skip(1), 'S3S4'))
 
-assert($lineno$, S .set { S# } = {{ S# := 'S1' }, { S# := 'S2'}, { S# := 'S3'}, { S# := 'S4'}, { S# := 'S5' }} )
-assert($lineno$, S .skip(3) .set { S# } = {{ S# := 'S4'}, { S# := 'S5' }} )
-assert($lineno$, S .set { S# } = {{ S# := 'S1' }, { S# := 'S2'}, { S# := 'S3'}, { S# := 'S4'}, { S# := 'S5' }} )
+test_true($lineno$, S  .select{ S# } = {{ S# := 'S1' }, { S# := 'S2'}, { S# := 'S3'}, { S# := 'S4'}, { S# := 'S5' }} )
+test_true($lineno$, S .skip(3)  .select{ S# } = {{ S# := 'S4'}, { S# := 'S5' }} )
+test_true($lineno$, S  .select{ S# } = {{ S# := 'S1' }, { S# := 'S2'}, { S# := 'S3'}, { S# := 'S4'}, { S# := 'S5' }} )
 
 //--- function types -- incomplete
 _fn1bo(a:bool) => a
@@ -131,9 +164,9 @@ _r2 := {{ bo:=false, bi:=b'05040302', nu:=123456790.123456789, te:='hello fred',
 _r3 := _r1
 R := _r1
 
-assert($lineno$, _r1 = R)
-assert($lineno$, _r1 = R .set{ bo := _fn1bo(bo), bi := _fn1bi(bi), nu := _fn1nu(nu), te := _fn1te(te), ti := _fn1ti(ti) })
-assert($lineno$, _r2 = R .set{ bo := _fn2bo(bo), bi := _fn2bi(bi), nu := _fn2nu(nu), te := _fn2te(te), ti := _fn2ti(ti) })
-assert($lineno$, _r3 = R .set{ bo := _fn3bo(bo), bi := _fn3bi(bi), nu := _fn3nu(nu), te := _fn3te(te), ti := _fn3ti(ti) })
+test_true($lineno$, _r1 = R)
+test_true($lineno$, _r1 = R .select{ bo := _fn1bo(bo), bi := _fn1bi(bi), nu := _fn1nu(nu), te := _fn1te(te), ti := _fn1ti(ti) })
+test_true($lineno$, _r2 = R .select{ bo := _fn2bo(bo), bi := _fn2bi(bi), nu := _fn2nu(nu), te := _fn2te(te), ti := _fn2ti(ti) })
+test_true($lineno$, _r3 = R .select{ bo := _fn3bo(bo), bi := _fn3bi(bi), nu := _fn3nu(nu), te := _fn3te(te), ti := _fn3ti(ti) })
 
 finish($filename$)

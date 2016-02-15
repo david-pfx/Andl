@@ -48,7 +48,9 @@ namespace Andl.Peg {
       var nargs = symbol.NumArgs; // how many to check
       if (!(datatypes.Length == nargs))
         Parser.ParseError("'{0}' expected {1} arguments, found {2}", symbol.Name, nargs, datatypes.Length);
-      var match = symbol.IsCompareOp && datatypes[0] == datatypes[1];
+      if (symbol.IsCompareOp && datatypes[0] != datatypes[1])
+        Parser.ParseError("'{0}' arguments must be same type", symbol.Name);
+      var match = false;
       var hasoverloads = symbol.CallInfo.OverLoad != null;
       for (var cinf = symbol.CallInfo; cinf != null && !match; cinf = cinf.OverLoad) {
         var argts = cinf.Arguments;

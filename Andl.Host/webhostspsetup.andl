@@ -7,9 +7,9 @@
 // load initial data
 var S(csv), P(csv), SP(csv)
 
-supplier := S .set{ *Sid:=S# }
-part := P .set{ *Pid := P# }
-supplies := SP .set{ *Sid := S#, Pid:= P# }
+supplier := S .select{ *Sid:=S# }
+part := P .select{ *Pid := P# }
+supplies := SP .select{ *Sid := S#, Pid:= P# }
 
 // CRUD interface for supplier table
 
@@ -26,18 +26,18 @@ add_supplier(s:supplier) => do {
 }
 
 delete_supplier_id(sid:text) => do {
-    update supplier .where(Sid = sid) .set{}
+    update supplier .where(Sid = sid) .select{}
 }
 
 put_supplier_id(sid:text, s:supplier) => do {
-    update supplier .where(Sid = sid) .set{}
+    update supplier .where(Sid = sid) .select{}
     update supplier union s
 }
 
 get_part() => part
 
 get_part_q(query:{{ Key:text,Value:text }}) => do {
-    pattern := query .where(Key = 'PNAME') .set{ (Value) }
+    pattern := query .where(Key = 'PNAME') .select{ (Value) }
     part .where(PNAME =~ pattern)
 }
 

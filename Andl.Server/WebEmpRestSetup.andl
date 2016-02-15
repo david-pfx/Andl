@@ -9,7 +9,7 @@ var WebEmp(csv)
 //def WebEmp:db(csv)
 //WebEmp
 
-newempno := WebEmp .set{ fold(max,EmpNo)}
+newempno := WebEmp .select{ fold(max,EmpNo)}
 //newempno
 
 // this is the CRUD interface using REST
@@ -22,16 +22,16 @@ get_employee() => do {
 }
 
 add_employee(emp:WebEmp) => do {
-    update WebEmp union emp .set{ * EmpNo := newempno}
+    update WebEmp union emp .select{ * EmpNo := newempno}
     newempno := newempno+1
 }
 
 delete_employee_id(empno:text) => do {
-    update WebEmp .where(EmpNo.text = empno) .set{}
+    update WebEmp .where(EmpNo.text = empno) .select{}
 }
 
 put_employee_id(empno:text, emp:WebEmp) => do {
-    update WebEmp .where(EmpNo.text = empno) .set{}
+    update WebEmp .where(EmpNo.text = empno) .select{}
     update WebEmp union emp
 }
 

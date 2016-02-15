@@ -1,12 +1,12 @@
 // An implementation of 99 bottles
 
 bottlesdemo(bottles:0) => do {
-    hundred := seq(bottles) .set{ nbot := N+1 }
-    line1 := hundred .set{ seq := nbot*2+1, 
+    hundred := seq(bottles) .select{ nbot := N+1 }
+    line1 := hundred .select{ seq := nbot*2+1, 
                         text := nbot & " bottle" & 
                                 if(nbot=1,"","s") & " of beer on the wall, " & nbot & " bottle" & 
                                 if(nbot=1,"","s") & " of beer."}
-    line2 := hundred .set{ seq := nbot*2, 
+    line2 := hundred .select{ seq := nbot*2, 
                         text := "Take one down and pass it around, " & (nbot-1) & " bottle" & 
                                 if(nbot=2,"","s") & " of beer on the wall."}
     line3 := {{ seq:number, text:text}
@@ -19,7 +19,7 @@ bottlesdemo(bottles:0) => do {
     intro := crlf & "The lyrics for the song of the " & bottles & " bottles of beer..." & crlf
 
     // this is the clever line: fold ordered lines of text by concatenation
-    intro & lines .order(-seq) .set{ fold(&, text & crlf)} 
+    intro & lines .order(-seq) .select{ fold(&, text & crlf)} 
 }
-// just 9 bottles for now
-write(bottlesdemo(9))
+// and go for it!
+write(bottlesdemo(99))

@@ -5,54 +5,54 @@
 
 //----------------------------------------------------------------------
 // Q1. Get suppliers names who supply part “P2”.
-(S join SP)  .where(P# = 'P2') .set{ SNAME }
-(S join SP  .where(P# = 'P2')) .set{ SNAME }
+(S join SP) .where(P# = 'P2') .select{ SNAME }
+(S join SP .where(P# = 'P2')) .select{ SNAME }
 
 // ditto, using set membership
-S  .where({{ S# }} sub SP .where(P# = 'P2') .set{ S# }) .set{ SNAME }
+S .where({{ S# }} sub SP .where(P# = 'P2') .select{ S# }) .select{ SNAME }
 
 //----------------------------------------------------------------------
 // Q2. Get suppliers names who supply at least one red part.
 
 // SQL>select distinct sname from s, sp, p where p.color='Red' and s.s#=sp.s# and p.p#=sp.p# 
-(S.set{ S#, SNAME } join SP .set{ S#, P#} join P .set{ P#,COLOR }) .where(COLOR='Red') .set{ SNAME }
+(S .select{ S#, SNAME } join SP .select{ S#, P#} join P .select{ P#,COLOR }) .where(COLOR='Red') .select{ SNAME }
 
 // SQL> select distinct s.sname from s where s.s# IN (select sp.s# from sp where sp.p# IN (select p.p# from p where p.Color = 'Red') ); 
-(S .set{ S#, SNAME } join SP .set{ S#, P# } join P .where(COLOR='Red') .set{ P# }) .set{ SNAME }
+(S .select{ S#, SNAME } join SP .select{ S#, P# } join P .where(COLOR='Red') .select{ P# }) .select{ SNAME }
 
 //----------------------------------------------------------------------
 //Q3. Get the supplier names for suppliers who do not supply part ‘P2’.
 
 // SQL> select distinct s.sname from s where s.s# NOT IN (select sp.s# from sp where sp.p#='P2'); 
-(S ajoin SP .where(P# = 'P2')) .set{ SNAME }
+(S ajoin SP .where(P# = 'P2')) .select{ SNAME }
 
 // SQL> select distinct s.sname from s where NOT EXISTS (select * from sp where sp.s# = s.s# and sp.p# = 'P2'); 
-S .where(count({{*}} join SP .where(P# = 'P2')) = 0)  .set{ SNAME }
+S .where(count({{*}} join SP .where(P# = 'P2')) = 0)  .select{ SNAME }
 
 //----------------------------------------------------------------------
 // Q4. Get the supplier names for suppliers who supply all parts.
 
 // SQL> select distinct s.sname from s where NOT EXISTS (select * from p where NOT EXISTS (select * from sp where sp.s# = s.s# and sp.p# = p.p#) );
 
-S .where( ({{*}} join SP) .set{ P# } = P .set{ P# } )  .set{ SNAME }
+S .where( ({{*}} join SP) .select{ P# } = P .select{ P# } )  .select{ SNAME }
 
 //----------------------------------------------------------------------
 //Q5. Get supplier numbers who supply at lease one of the parts supplied by supplier ‘S2’.
 //SQL> select  distinct s.s# from s, sp where s.s# = sp.s# and p# IN (select p# from sp where sp.s# = 'S2')
 
-(S join SP .where(S#='S2')) .set{ P# } joinr SP .set{ S#, P# }
+(S join SP .where(S#='S2')) .select{ P# } joinr SP .select{ S#, P# }
 
 //----------------------------------------------------------------------
 // Q6. Get all pairs of supplier numbers such that two suppliers are “colocated” (located in the same city).
 // SQL> select A.s# AS SA, B.S# AS SB from S  A, S  B where A.city = B. city and A.s# < B.S# 
 
-(S .set{ CITY, SA:=S# } join S .set{ CITY, SB:=S# }) .where(SA<SB) .set{ *CITY }
+(S .select{ CITY, SA:=S# } join S .select{ CITY, SB:=S# }) .where(SA<SB) .select{ *CITY }
 
 //----------------------------------------------------------------------
 // Q7. Join the three tables and find the result of natural join with selected attributes.
 // SQL> select distinct  s.s#, sname, p.p#, p.pname, s.city, status, QTY from s, sp, p where s.s#=sp.s# and p.p#=sp.p# and s.city=p.city 
 
-(S join P join SP) .set{ S#, SNAME, P#, PNAME, CITY, STATUS, QTY }
+(S join P join SP) .select{ S#, SNAME, P#, PNAME, CITY, STATUS, QTY }
 
 //----------------------------------------------------------------------
 // Q8. Get all shipments where the quantity is in the range 300 to 750 inclusive.
@@ -64,31 +64,31 @@ SPJ .where(QTY>=300 and QTY<=750)
 // Q9. Get all supplier-number/part-number/project-number triples such that the indicated supplier, part, and project are all colocated (i.e., all in the same city).
 // SQL> select s.s#, p.p#, J.j# from s, p, j where s.city = p.city and p.city = j.city; 
 
-(S join J join P) .set{ S#, P#, J#}
+(S join J join P) .select{ S#, P#, J#}
 
 //----------------------------------------------------------------------
 //Q10. Get all pairs of city names such that a supplier in the first city supplies a project in the second city.
 // SQL> select distinct s.city as scity, j.city as jcity from s, j where exists (select * from spj where spj.s# = s.s# and spj.j# = j.j#); 
 
-(S .set{ *SCITY:=CITY } join SPJ join J .set{ *JCITY:=CITY }) .order(SCITY, JCITY) .set{ SCITY, JCITY }
+(S .select{ *SCITY:=CITY } join SPJ join J .select{ *JCITY:=CITY }) .order(SCITY, JCITY) .select{ SCITY, JCITY }
 
 //----------------------------------------------------------------------
 // Q11. Get all cities in which at least one supplier, part, or project is located.
 // SQL> select s.city from s union select p.city from p union select j.city from j; 
 
-S.set{ CITY } union P .set{ CITY } union J .set{ CITY }
+S .select{ CITY } union P .select{ CITY } union J .select{ CITY }
 
 //----------------------------------------------------------------------
 // Q12. Get supplier-number/part-number pairs such that the indicated supplier does not supply the indicated part.
 // SQL> select s.s#, p.p# from s, p minus select spj.s#, spj.p# from spj; 
 
 (S join P)
-(S .set{ S# } join P .set{ P# }) minus SPJ .set{ S#, P# }
+(S .select{ S# } join P .select{ P# }) minus SPJ .select{ S#, P# }
 
 //----------------------------------------------------------------------
 // Q13. Get all pairs of part numbers and supplier numbers such that some supplier supplies both indicated parts.
 // SQL> select distinct spjx.s#, spjx.p# as PA, spjy.p# as PB from spj  spjx, spj  spjy where spjx.s# = spjy.s# and spjx.p# < spjy.p#; 
 
-( SPJ .set{ S#, PA:=P# } join SPJ .set{ S#, PB:=P# } ) .where(PA < PB)
+( SPJ .select{ S#, PA:=P# } join SPJ .select{ S#, PB:=P# } ) .where(PA < PB)
 
 // eof

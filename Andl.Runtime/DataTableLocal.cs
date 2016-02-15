@@ -679,10 +679,10 @@ namespace Andl.Runtime {
       foreach (var row in other.GetRows()) {
         if (Contains(row) && ++matched == Cardinality) {
           other.DropRows();
-          return true;
+          break;
         }
       }
-      return false;
+      return matched == Cardinality;
     }
 
     // True if this is a superset of other
