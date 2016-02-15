@@ -135,10 +135,12 @@ DotFunc <AstOpCall> = DOT v:Funcop LP w:ExpressionList RPexp { AST(state).DotFun
     / DOT v:Funcop !LP { AST(state).DotFunc(v) };
 
 Orderer <AstOrderer> = DOT ORDER LPexp v:OrderTermList RPexp { AST(state).Orderer(v) };
+
 OrderTermList = OrderTerm<0,,SEP>;
 OrderTerm <AstOrderField> = w:PERCENT? v:MINUS? x:FieldIdent { AST(state).OrderField(x, v.Count > 0, w.Count > 0) };
 
 Transformer <AstTransformer> = DOT SET LC WSC v:STAR? WSC w:TransformList SEP? RCexp { AST(state).Transformer(v.Count > 0, w) }
+
 TransformList = Transform<0,,SEP>;
 Transform <AstField> = !RC v:FieldIdent &(SEP / RC) { AST(state).Transfield(v) }        // project
     / !RC v:Ident LA WSC w:FieldIdent &(SEP / RC) { AST(state).Transfield(v, w) }       // rename
@@ -185,7 +187,7 @@ RowOrIdent <AstValue> = v:Row { v }
 
 Row <AstValue> = LC STAR RCexp { AST(state).Row() }
     / LC v:RowTransList RCexp { AST(state).Row(AST(state).Transformer(v)) }
-    / TUP LPexp v:Expression RPexp { AST(state).Row(v) };
+    / TUP LPexp v:RowTransList RPexp { AST(state).Row(AST(state).Transformer(v)) };
 
 RowTransList = RowTrans<0,,SEP>;
 RowTrans <AstField> = v:FieldIdent &(SEP / RC) { AST(state).Transfield(v) }

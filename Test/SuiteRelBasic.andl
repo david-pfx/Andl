@@ -8,12 +8,15 @@ start($filename$)
 
 ~t1 := {name := 'Smith', age := 17} 
 assert($lineno$, ~t1 = {age := 16+1, name := 'Smi''th'})
-assert($lineno$, ~t1 = tup(age := 16+1, name := 'Smi''th'))
+assert($lineno$, {age := 16+1, name := 'Smi''th'} = ~t1)
+assert($lineno$, ~t1 = ({age := 17, name := "Smith"}))
+assert($lineno$, ~t1 = tup(age := 17, name := "Smith"))
 
-~r1 := {{age := 17, name := 'Smith'}} 
-~r1a := {{name := 'Smith', age := 17}} 
-assert($lineno$, ~r1 = ~r1a)
+~r1 := {{age := 17, name := 'Smith'}}  
+assert($lineno$, ~r1 = {{name := 'Smith', age := 17}} )
 assert($lineno$, ~r1 = {{age := 1+16, name := 'S'&'mith'}})
+assert($lineno$, ~r1 = rel({age := 1+16, name := 'S'&'mith'}))
+assert($lineno$, ~r1 = rel(~t1))
 
 ~r2 := {{name := 'Smith', age := 17},
       {name := 'Jones', age := 35},
@@ -22,9 +25,11 @@ assert($lineno$, ~r2 = {{age := 35, name := 'Jones'},
       {age := 17, name := 'Smith'},
       {name:='Frankenstein',age :=199}})
 
-assert($lineno$, ~r1 = {{name:'',age:0}('Smith', 17)})
-assert($lineno$, ~r1 = {{name:text,age:number}('Smith', 17)})
-assert($lineno$, ~r2 = {{name:'',age:0}('Smith', 17),('Jones', 35),('Frankenstein',199 )})
+// heading forms
+assert($lineno$, ~r1 = {{name:'',age:0} ('Smith', 17)})
+assert($lineno$, ~r1 = {{name:text,age:number} ('Smith', 17)})
+assert($lineno$, ~r2 = {{name:'',age:0} ('Smith', 17),('Jones', 35),('Frankenstein',199 )})
+assert($lineno$, ~r2 = rel({name:'',age:0} ('Smith', 17),('Jones', 35),('Frankenstein',199 )))
 
 //--- set operators, literals
 
