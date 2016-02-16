@@ -67,7 +67,7 @@ namespace Andl.Peg {
       if (!match)
         Parser.ParseError("'{0}' type mismatch", symbol.Name);
       if (symbol.IsDyadic)
-        CheckDyadicType(symbol.MergeOp, datatypes[0], datatypes[1], ref datatype);
+        CheckDyadicType(symbol.JoinOp, datatypes[0], datatypes[1], ref datatype);
       if (nargs >= 1 && (datatype == DataTypes.Table && datatypes[0] is DataTypeRelation
                          || datatype == DataTypes.Unknown))
         datatype = datatypes[0];
@@ -76,15 +76,22 @@ namespace Andl.Peg {
     }
 
     // check dyadic ops and compute result type
-    void CheckDyadicType(MergeOps mops, DataType reltype1, DataType reltype2, ref DataType datatype) {
-      if (!(reltype1 is DataTypeRelation && reltype2 is DataTypeRelation))
-        Parser.ParseError("relational arguments expected");
-      var cols = DataColumn.Merge(mops, reltype1.Heading.Columns, reltype2.Heading.Columns);
-      var dups = cols.GroupBy(c => c.Name).Where(g => g.Count() > 1).Select(g => g.Key).ToArray();
-      if (dups.Length > 0)
-        Parser.ParseError("duplicate attribute: {0}", String.Join(",", dups));
-      datatype = DataTypeRelation.Get(DataHeading.Create(cols));
-    }
+    void CheckDyadicType(JoinOps joinop, DataType datatype1, DataType datatype2, ref DataType datatype) {
+      if (datatype1 is DataTypeRelation && datatype2 is DataTypeRelation) {
+        var cols = DataColumn.Merge(Symbol.ToMergeOp(joinop), datatype1.Heading.Columns, datatype2.Heading.Columns);
+        var dups = cols.GroupBy(c => c.Name).Where(g => g.Count() > 1).Select(g => g.Key).ToArray();
+        if (dups.Length > 0)
+          Parser.ParseError("duplicate attribute: {0}", String.Join(",", dups));
+        datatype = DataTypeRelation.Get(DataHeading.Create(cols));
+      } else if (datatype1 is DataTypeTuple && datatype2 is DataTypeTuple) {
+        var cols = DataColumn.Merge(Symbol.ToTupleOp(joinop), datatype1.Heading.Columns, datatype2.Heading.Columns);
+        var dups = cols.GroupBy(c => c.Name).Where(g => g.Count() > 1).Select(g => g.Key).ToArray();
+        if (dups.Length > 0)
+          Parser.ParseError("duplicate attribute: {0}", String.Join(",", dups));
+        datatype = DataTypeTuple.Get(DataHeading.Create(cols));
+      } else
+        Parser.ParseError("relational or tuple arguments expected");
+      }
 
     // check single type match
     public void CheckTypeMatch(DataType typeexp, DataType typeis) {

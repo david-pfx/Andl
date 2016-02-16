@@ -73,8 +73,8 @@ namespace Andl.Peg {
     SETL = 8, SETC = 16, SETR = 32, 
     ANTI = 64, SET = 128, REV = 256, ERROR = 512,
     // mask combos
-    MERGEOPS = LEFT | COMMON | RIGHT,
-    SETOPS = SETL | SETC | SETR,
+    MERGEOPS = LEFT | COMMON | RIGHT,   // numeric match for MergeOps
+    SETOPS = SETL | SETC | SETR,        // >> 3 is numeric match for MergeOps
     OTHEROPS = ANTI | REV | ERROR,
     // joins
     JOIN = LEFT | COMMON | RIGHT, 
@@ -159,8 +159,6 @@ namespace Andl.Peg {
     public Symbol Link { get; set; }
     public int Level { get; set; }
 
-    public MergeOps MergeOp { get { return (MergeOps)(JoinOp & JoinOps.MERGEOPS); } }
-    
     public override string ToString() {
       return String.Format("{0}:{1}:{2}:{3}", Name, Kind, CallKind, Level);
     }
@@ -188,7 +186,7 @@ namespace Andl.Peg {
     public bool IsCallable { get { return CallKind != CallKinds.NUL; } }
     public bool IsOperator { get { return IsCallable && Precedence != 0; } }
     public bool IsFoldable { get { return IsCallable && Foldable != FoldableFlags.NUL; } }
-    public bool IsDyadic { get { return IsCallable && MergeOp != MergeOps.Nul; } }
+    public bool IsDyadic { get { return IsCallable && JoinOp != JoinOps.NUL; } }
     public bool IsUnary { get { return IsOperator && NumArgs == 1; } }
     public bool IsBinary { get { return IsOperator && NumArgs == 2; } }
     public bool IsCompareOp { get { return IsBinary && DataType == DataTypes.Bool && !IsFoldable; } }
@@ -197,6 +195,13 @@ namespace Andl.Peg {
 
     public DataType ReturnType { get { return CallInfo.ReturnType; } }
     public DataColumn AsColumn() { return DataColumn.Create(Name, DataType); }
+
+    public static MergeOps ToMergeOp(JoinOps joinop) {
+      return (MergeOps)(joinop & JoinOps.MERGEOPS);
+    }
+    public static MergeOps ToTupleOp(JoinOps joinop) {
+      return (MergeOps)((int)(joinop & JoinOps.SETOPS) >> 3);
+    }
 
     public TypedValue GetSeed(DataType datatype) {
       if (datatype is DataTypeRelation)
@@ -476,23 +481,23 @@ namespace Andl.Peg {
       AddFunction("nth", 2, DataTypes.Unknown, CallKinds.LFUNC, "ValueNth", FuncKinds.VALUE);
       AddFunction("rank", 2, DataTypes.Number, CallKinds.LFUNC, "Rank", FuncKinds.RANK);
 
-      AddDyadic("join", 2, 4, JoinOps.JOIN, "DyadicJoin");
-      AddDyadic("compose", 2, 4, JoinOps.COMPOSE, "DyadicJoin");
-      AddDyadic("divide", 2, 4, JoinOps.DIVIDE, "DyadicJoin");
-      AddDyadic("rdivide", 2, 4, JoinOps.RDIVIDE, "DyadicJoin");
-      AddDyadic("semijoin", 2, 4, JoinOps.SEMIJOIN, "DyadicJoin");
-      AddDyadic("rsemijoin", 2, 4, JoinOps.RSEMIJOIN, "DyadicJoin");
+      AddDyadic("join", 2, 5, JoinOps.JOIN, "DyadicJoin");
+      AddDyadic("compose", 2, 5, JoinOps.COMPOSE, "DyadicJoin");
+      AddDyadic("divide", 2, 5, JoinOps.DIVIDE, "DyadicJoin");
+      AddDyadic("rdivide", 2, 5, JoinOps.RDIVIDE, "DyadicJoin");
+      AddDyadic("semijoin", 2, 5, JoinOps.SEMIJOIN, "DyadicJoin");
+      AddDyadic("rsemijoin", 2, 5, JoinOps.RSEMIJOIN, "DyadicJoin");
 
-      AddDyadic("ajoin", 2, 4, JoinOps.ANTIJOIN, "DyadicAntijoin");
-      AddDyadic("rajoin", 2, 4, JoinOps.RANTIJOIN, "DyadicAntijoin");
-      AddDyadic("ajoinl", 2, 4, JoinOps.ANTIJOINL, "DyadicAntijoin");
-      AddDyadic("rajoinr", 2, 4, JoinOps.RANTIJOINR, "DyadicAntijoin");
+      AddDyadic("ajoin", 2, 5, JoinOps.ANTIJOIN, "DyadicAntijoin");
+      AddDyadic("rajoin", 2, 5, JoinOps.RANTIJOIN, "DyadicAntijoin");
+      AddDyadic("ajoinl", 2, 5, JoinOps.ANTIJOINL, "DyadicAntijoin");
+      AddDyadic("rajoinr", 2, 5, JoinOps.RANTIJOINR, "DyadicAntijoin");
 
-      AddDyadic("union", 2, 4, JoinOps.UNION, "DyadicSet");
-      AddDyadic("intersect", 2, 4, JoinOps.INTERSECT, "DyadicSet");
-      AddDyadic("symdiff", 2, 4, JoinOps.SYMDIFF, "DyadicSet");
-      AddDyadic("minus", 2, 4, JoinOps.MINUS, "DyadicSet");
-      AddDyadic("rminus", 2, 4, JoinOps.RMINUS, "DyadicSet");
+      AddDyadic("union", 2, 5, JoinOps.UNION, "DyadicSet,DyadicTuple");
+      AddDyadic("intersect", 2, 5, JoinOps.INTERSECT, "DyadicSet,DyadicTuple");
+      AddDyadic("symdiff", 2, 5, JoinOps.SYMDIFF, "DyadicSet,DyadicTuple");
+      AddDyadic("minus", 2, 5, JoinOps.MINUS, "DyadicSet,DyadicTuple");
+      AddDyadic("rminus", 2, 5, JoinOps.RMINUS, "DyadicSet,DyadicTuple");
 
       AddAlias("matching", "semijoin");
       AddAlias("notmatching", "ajoin");

@@ -121,6 +121,12 @@ namespace Andl.Runtime {
       return _values.Select(v => v.Format()).ToArray();
     }
 
+    // Get a value (or null) given a column
+    public TypedValue GetValue(DataColumn column) {
+      var x = Heading.FindIndex(column);
+      return (x == -1) ? null : Values[x];
+    }
+
     ///=================================================================
     ///
     /// Creation functions
@@ -183,10 +189,11 @@ namespace Andl.Runtime {
       return DataRow.Create(heading, newvalues);
     }
 
-    // Create new row from this one using a new set of values
-    //public DataRow Create(TypedValue[] values) {
-    //  return DataRow.Create(Heading, values);
-    //}
+    // Create row by merging two other rows onto a heading
+    public static DataRow Create(DataHeading heading, DataRow row1, DataRow row2) {
+      var newvalues = heading.Columns.Select(c => row1.GetValue(c) ?? row2.GetValue(c));
+      return DataRow.Create(heading, newvalues.ToArray());
+    }
 
     // Update existing row to match parent table
     // Note: does not affect hash code
@@ -273,12 +280,6 @@ namespace Andl.Runtime {
     public DataRow Merge(DataRow lookup, AccumulatorBlock accblk, ExpressionEval[] exprs) {
       return Update(AccumulateValues(lookup, accblk, exprs));
     }
-
-    // Merge aggregated fields from old row lookup and accumulators
-    // Create new row
-    //public DataRow Create(DataRow lookup, AccumulatorBlock accblk, ExpressionEval[] exprs) {
-    //  return Create(AccumulateValues(lookup, accblk, exprs));
-    //}
 
     // Project this row onto a new heading using the move index
     public DataRow Project(DataHeading newheading, int[] movendx) {

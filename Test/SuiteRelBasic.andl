@@ -8,11 +8,24 @@ start($filename$)
 
 //-- tuples
 ~t1 := { A1 := 'abc', A2 := 17, A3 := 0 } 
+
 test_true($lineno$, ~t1 = {A2 := 16+1, A1 := 'ab' & 'c', A3 := 0})
 test_true($lineno$, {A2 := 18-1, A1 := 'a''bc', A3 := 0} = ~t1)
 test_true($lineno$, ~t1 = ({A2 := 17, A1 := "abc", A3 := 0}))
 test_true($lineno$, ~t1 = tup(A2 := 17, A1 := "abc", A3 := 0))
 
+~t2 := { A1 := 'abc', A4 := 44 } 
+test_true($lineno$, { A1 := 'abc', A2 := 17, A3 := 0, A4 := 44 } = ~t1 union ~t2)
+test_true($lineno$, { A1 := 'abc', A2 := 17, A3 := 0, A4 := 44 } = ~t2 union ~t1)
+test_true($lineno$, { A1 := 'abc' }                              = ~t1 intersect ~t2)
+test_true($lineno$, { A1 := 'abc' }                              = ~t2 intersect ~t1)
+test_true($lineno$, { A2 := 17, A3 := 0 }                        = ~t1 minus ~t2)
+test_true($lineno$, { A4 := 44 }                                 = ~t1 rminus ~t2)
+test_true($lineno$, { A4 := 44 }                                 = ~t2 minus ~t1)
+test_true($lineno$, { A2 := 17, A3 := 0, A4 := 44 }              = ~t1 symdiff ~t2)
+test_true($lineno$, { A2 := 17, A3 := 0, A4 := 44 }              = ~t2 symdiff ~t1)
+
+#stop
 //-- relations
 ~rel0 := {{A2:0, A1:'', A3:0}}  
 ~rel1 := {{A2 := 17, A1 := 'abc', A3 := 0}}  

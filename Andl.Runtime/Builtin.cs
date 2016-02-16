@@ -534,12 +534,23 @@ namespace Andl.Runtime {
       var joinop = (JoinOps)joparg.Value;
       var mergeop = (MergeOps)(joinop & JoinOps.MERGEOPS);
       var newheading = DataHeading.Merge(mergeop, rel1.Value.Heading, rel2.Value.Heading);
-      Logger.WriteLine(3, "Set {0} {1} n={2} ({3} {4})", rel1, rel2, joparg, mergeop, newheading);
+      Logger.WriteLine(3, "DyadicSet {0} {1} n={2} ({3} {4})", rel1, rel2, joparg, mergeop, newheading);
 
       var rel1res = DataTable.ResolveDyadic(rel1.Value, rel2.Value);
       var relnew = rel1res.DyadicSet(rel2.Value, joinop, newheading);
-      Logger.WriteLine(3, "[S {0}]", relnew);
+      Logger.WriteLine(3, "[DS {0}]", relnew);
       return RelationValue.Create(relnew);
+    }
+
+    // Dyadic tuple: does Set ops depending on joinop bit flags
+    public TupleValue DyadicTuple(TupleValue tup1, TupleValue tup2, NumberValue joparg) {
+      var joinop = (JoinOps)joparg.Value;
+      var mergeop = (MergeOps)((int)(joinop & JoinOps.SETOPS) >> 3);   // FIX:
+      var newheading = DataHeading.Merge(mergeop, tup1.Value.Heading, tup2.Value.Heading);
+      Logger.WriteLine(3, "DyadicTuple {0} {1} n={2} ({3} {4})", tup1, tup2, joparg, mergeop, newheading);
+      var tupnew = DataRow.Create(newheading, tup1.Value, tup2.Value);
+      Logger.WriteLine(3, "[DT {0}]", tupnew);
+      return TupleValue.Create(tupnew);
     }
 
     // For mixed super and subset, ensure that left arg is local
