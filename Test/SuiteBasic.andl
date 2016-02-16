@@ -5,8 +5,8 @@
 start($filename$)
 
 // Literals
-test_true($lineno$, '"' "Hel""lo" h'20' 'World' '!' h'0022' = '"Hello World!"')
-test_true($lineno$, "Hello" & d'32' & "World" = 'Hello World')
+test_true($lineno$, '"' "a""bc" h'20' 'def' '!' h'0022' = '"abc def!"')
+test_true($lineno$, "abc" & d'32' & "def" = 'abc def')
 test_true($lineno$, "Number: " & (17+22) & " Date: " & t'31/12/2015' & " Bool: " & (6=6) = "Number: 39 Date: 31/12/2015 Bool: true")
 test_true($lineno$, "01/01/2015" < "31/12/2014")
 test_true($lineno$, t'01/01/2015' > t'31/12/2014')
@@ -56,44 +56,47 @@ test_true($lineno$, if(true,{{}},{{:}}) = {{}})
 
 //--- assign
 // cover every type, checks value equality too
-_asvbi := b'05040302'
-test_true($lineno$, _asvbi = b'05040302')
+~asvbi := b'05040302'
+test_true($lineno$, ~asvbi = b'05040302')
 
-_asvbo := true
-test_true($lineno$, _asvbo = true)
+~asvbo := true
+test_true($lineno$, ~asvbo = true)
 
-_asvnu := 123456789.123456789  // beyond real
-test_true($lineno$, _asvnu = 123456789.123456789)
+~asvnu := 123456789.123456789  // beyond real
+test_true($lineno$, ~asvnu = 123456789.123456789)
+test_true($lineno$, ~asvnu = --123456789.123456789)
+test_true($lineno$, 123456789.123456789 = ~asvnu)
+test_true($lineno$, 123456789.123456789 = -- ~asvnu)
 
-_asvte := 'Hello World' d'33'
-test_true($lineno$, _asvte = 'Hello World!')
+~asvte := 'abc def' d'33'
+test_true($lineno$, ~asvte = 'abc def!')
 
-_asvti := t'2015-12-31 23:59:59.999'
-test_true($lineno$, _asvti = t'2015-12-31 23:59:59.999')
+~asvti := t'2015-12-31 23:59:59.999'
+test_true($lineno$, ~asvti = t'2015-12-31 23:59:59.999')
 
-_asvtu := { name := 'Smith', Age := 99 }
-test_true($lineno$, _asvtu = { Age := 99, name := 'Smith' })
+~asvtu := { A1 := 'abd def', A2 := 99 }
+test_true($lineno$, ~asvtu = { A2 := 99, A1 := 'abd def' })
 
-_asvre  := {{ name := 'Smith', Age := 99}, { Age := 98, name := 'Jones'}}
-test_true($lineno$, _asvre = {{ Age := 98, name := 'Jones'}, { name := 'Smith', Age := 99 }})
+~asvre  := {{ A1 := 'abd def', A2 := 99}, { A2 := 98, A1 := 'Pqr'}}
+test_true($lineno$, ~asvre = {{ A2 := 98, A1 := 'Pqr'}, { A1 := 'abd def', A2 := 99 }})
 
-def _astus(age:0, name:'')
-_asvus := _astus(45, 'Green')
-test_true($lineno$, _asvus = _astus(45, 'Green'))
+def ~astus(C1:0, C2:'')
+~asvus := ~astus(45, 'x-y%z')
+test_true($lineno$, ~asvus = ~astus(45, 'x-y%z'))
 
 // repeating literals ensures test of value semantics
-_asvall  := {{ bi := b'05040302', bo := true, nu := 123456789.123456789, te := 'Hello World!', ti := t'2015-12-31 23:59:59.999',
-                tu := { name := 'Smith', Age := 99 }, re := {{ name := 'Smith', Age := 99}, { Age := 98, name := 'Jones'}}, us := _astus(45, 'Green') 
+~asvall  := {{ bi := b'05040302', bo := true, nu := 123456789.123456789, te := 'abc def!', ti := t'2015-12-31 23:59:59.999',
+                tu := { A1 := 'abd def', A2 := 99 }, re := {{ A1 := 'abd def', A2 := 99}, { A2 := 98, A1 := 'Pqr'}}, us := ~astus(45, 'x-y%z') 
             }}
-test_true($lineno$, _asvall = {{ bi := _asvbi, bo := _asvbo, nu := _asvnu, te := _asvte, ti := _asvti, tu := _asvtu, re := _asvre, us := _asvus }})
+test_true($lineno$, ~asvall = {{ bi := ~asvbi, bo := ~asvbo, nu := ~asvnu, te := ~asvte, ti := ~asvti, tu := ~asvtu, re := ~asvre, us := ~asvus }})
 
 // test of database var, both ways
 
-ASVREL := {{ bi := b'05040302', bo := true, nu := 123456789.123456789, te := 'Hello World!', ti := t'2015-12-31 23:59:59.999',
-                tu := { name := 'Smith', Age := 99 }, re := {{ name := 'Smith', Age := 99}, { Age := 98, name := 'Jones'}}, us := _astus(45, 'Green') 
+ASVREL := {{ bi := b'05040302', bo := true, nu := 123456789.123456789, te := 'abc def!', ti := t'2015-12-31 23:59:59.999',
+                tu := { A1 := 'abd def', A2 := 99 }, re := {{ A1 := 'abd def', A2 := 99}, { A2 := 98, A1 := 'Pqr'}}, us := ~astus(45, 'x-y%z') 
             }}
-test_true($lineno$, _asvall = ASVREL)
-test_true($lineno$, ASVREL = _asvall)
+test_true($lineno$, ~asvall = ASVREL)
+test_true($lineno$, ASVREL = ~asvall)
 
 //--- builtin
 test_true($lineno$, {{N:=0},{N:=1},{N:=2}}       = seq(3))
@@ -172,20 +175,20 @@ test_true($lineno$, "xyz" = min("xyz","xzz"))
 test_true($lineno$, "xyz" = min("xzz","xyz"))
 
 //--- user type defs
-def utype1(age:0, name:'')
-uvar1 := utype1(17, 'smith')
-test_true($lineno$, uvar1      = utype1(17, 'smith'))
-test_true($lineno$, 17         = uvar1.age)
-test_true($lineno$, 'smith'    = uvar1.name)
+def utype1(C1:0, C2:'')
+uvar1 := utype1(17, 'abd def')
+test_true($lineno$, uvar1      = utype1(17, 'abd def'))
+test_true($lineno$, 17         = uvar1.C1)
+test_true($lineno$, 'abd def'  = uvar1.C2)
 
-uvar11 := utype1(18, 'jones')
+uvar11 := utype1(18, 'Pqr')
 test_true($lineno$, uvar11 > uvar1)
 
-def utype2(age:0, name:'', given:'')
-uvar2 := utype2(63, 'jones', 'mary')
-test_true($lineno$, uvar2      = utype2(63, 'jones', 'mary'))
-test_true($lineno$, 63         = uvar2.age)
-test_true($lineno$, 'jones'    = uvar2.name)
-test_true($lineno$, 'mary'     = uvar2.given)
+def utype2(C1:0, C2:'', C3:'')
+uvar2 := utype2(63, 'Pqr', 'x-y%z')
+test_true($lineno$, uvar2      = utype2(63, 'Pqr', 'x-y%z'))
+test_true($lineno$, 63         = uvar2.C1)
+test_true($lineno$, 'Pqr'    = uvar2.C2)
+test_true($lineno$, 'x-y%z'     = uvar2.C3)
 
 finish($filename$)

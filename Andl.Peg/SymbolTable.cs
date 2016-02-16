@@ -36,13 +36,14 @@ namespace Andl.Peg {
   /// </summary>
   public enum FuncKinds {
     NUL,
-    IF,
+    DO,
     FOLD,
-    RECURSE,
-    VALUE,
+    IF,
     RANK,
     RESTRICT,
     SKIPTAKE,
+    VALUE,
+    WHILE,
   }
 
   /// <summary>
@@ -116,9 +117,7 @@ namespace Andl.Peg {
     public const string Import = ":import";
     public const string Lift = ":lift";
     public const string Project = ":project";
-    public const string Recurse = ":recurse";
     public const string Rename = ":rename";
-    public const string Restrict = ":restrict";
     public const string RowE = ":rowe";
     public const string RowV = ":rowv";
     public const string RowC = ":rowc";
@@ -131,6 +130,7 @@ namespace Andl.Peg {
     public const string TransTuple = ":transtup";
     public const string UpdateJoin = ":upjoin";
     public const string UpdateTransform = ":uptrans";
+    public const string UnaryMinus = ":-";
     public const string UserSelector = ":userselector";
   }
 
@@ -178,9 +178,13 @@ namespace Andl.Peg {
     public bool IsUserSel { get { return CallKind == CallKinds.SFUNC; } }
     public bool IsDefFunc { get { return CallKind == CallKinds.EFUNC; } }
     public bool IsOrdFunc { get { return FuncKind == FuncKinds.VALUE || FuncKind == FuncKinds.RANK; } }
-    public bool IsRestFunc { get { return FuncKind == FuncKinds.RESTRICT; } }
-    public bool IsWhile { get { return FuncKind == FuncKinds.RECURSE; } }
+    public bool IsDo{ get { return FuncKind == FuncKinds.DO; } }
+    public bool IsFold { get { return FuncKind == FuncKinds.FOLD; } }
+    public bool IsIf { get { return FuncKind == FuncKinds.IF; } }
     public bool IsSkipTake { get { return FuncKind == FuncKinds.SKIPTAKE; } }
+    public bool IsRestrict { get { return FuncKind == FuncKinds.RESTRICT; } }
+    public bool IsWhile { get { return FuncKind == FuncKinds.WHILE; } }
+
     public bool IsCallable { get { return CallKind != CallKinds.NUL; } }
     public bool IsOperator { get { return IsCallable && Precedence != 0; } }
     public bool IsFoldable { get { return IsCallable && Foldable != FoldableFlags.NUL; } }
@@ -397,24 +401,6 @@ namespace Andl.Peg {
     //------------------------------------------------------------------
     //-- ops
 
-    //static Symbol MakeLiteral(TypedValue value) {
-    //  Symbol sym = new Symbol {
-    //    Kind = SymKinds.LITERAL,
-    //    DataType = value.DataType,
-    //    Value = value
-    //  };
-    //  return sym;
-    //}
-
-    //static internal Symbol MakeIdent(string name = null) {
-    //  Symbol sym = new Symbol {
-    //    Name = name,
-    //    Kind = SymKinds.UNDEF,
-    //    DataType = DataTypes.Unknown,
-    //  };
-    //  return sym;
-    //}
-
     // Load and initialise the symbol table
     void AddPredefinedSymbols() {
       AddIdent("true", SymKinds.CONST, BoolValue.True, DataTypes.Bool);
@@ -424,7 +410,7 @@ namespace Andl.Peg {
 
       AddOperator("not", 1, 9, DataTypes.Bool, "Not");
       AddOperator("**", 2, 9, DataTypes.Number, "Pow");
-      AddOperator("u-", 1, 8, DataTypes.Number, "Neg");
+      AddOperator(SymNames.UnaryMinus, 1, 8, DataTypes.Number, "Neg");
       AddOperator("*", 2, 7, DataTypes.Number, "Multiply", FoldableFlags.ANY, FoldSeeds.ONE);
       AddOperator("/", 2, 7, DataTypes.Number, "Divide", FoldableFlags.ORDER, FoldSeeds.ONE);
       AddOperator("div", 2, 7, DataTypes.Number, "Div");
@@ -452,8 +438,9 @@ namespace Andl.Peg {
 
       AddFunction(SymNames.Assign, 2, DataTypes.Void, CallKinds.FUNC, "Assign2");
       AddFunction(SymNames.Defer, 1, DataTypes.Void, CallKinds.FUNC, "Defer");
+      AddFunction("do", 1, DataTypes.Any, CallKinds.FUNC, "DoBlock", FuncKinds.DO);
+      //AddFunction(SymNames.DoBlock, 1, DataTypes.Any, CallKinds.FUNC, "DoBlock", FuncKinds.DO);
       AddFunction(SymNames.Import, 3, DataTypes.Void, CallKinds.FUNC, "Import");
-      AddFunction(SymNames.DoBlock, 1, DataTypes.Any, CallKinds.FUNC, "DoBlock");
       AddFunction(SymNames.Invoke, 2, DataTypes.Any, CallKinds.VFUNCT, "Invoke");
       AddFunction(SymNames.Lift, 1, DataTypes.Void, CallKinds.FUNC, "Lift");
       AddFunction(SymNames.Project, 2, DataTypes.Table, CallKinds.VFUNC, "Project");
@@ -461,8 +448,8 @@ namespace Andl.Peg {
       AddFunction(SymNames.RowE, 2, DataTypes.Row, CallKinds.VFUNC, "Row");
       AddFunction(SymNames.RowV, 2, DataTypes.Row, CallKinds.VFUNCT, "RowV");
       AddFunction(SymNames.RowC, 2, DataTypes.Row, CallKinds.VFUNCT, "RowC");
-      AddFunction(SymNames.Recurse, 3, DataTypes.Unknown, CallKinds.FUNC, "Recurse", FuncKinds.RECURSE);
-      AddFunction(SymNames.Restrict, 2, DataTypes.Table, CallKinds.VFUNC, "Restrict", FuncKinds.RESTRICT);
+      AddFunction("while", 3, DataTypes.Unknown, CallKinds.FUNC, "Recurse", FuncKinds.WHILE);
+      AddFunction("where", 2, DataTypes.Table, CallKinds.VFUNC, "Restrict", FuncKinds.RESTRICT);
       AddFunction(SymNames.Transform, 2, DataTypes.Table, CallKinds.VFUNC, "Transform");
       AddFunction(SymNames.TransAgg, 2, DataTypes.Table, CallKinds.VFUNC, "TransAgg");
       AddFunction(SymNames.TransOrd, 2, DataTypes.Table, CallKinds.VFUNC, "TransOrd");
@@ -478,10 +465,9 @@ namespace Andl.Peg {
       AddFunction("skip", 2, DataTypes.Table, CallKinds.FUNC, "Skip", FuncKinds.SKIPTAKE);
       AddFunction("max", 2, DataTypes.Ordered, CallKinds.FUNC, "Max", FoldableFlags.ANY, FoldSeeds.MIN);
       AddFunction("min", 2, DataTypes.Ordered, CallKinds.FUNC, "Min", FoldableFlags.ANY, FoldSeeds.MAX);
-      AddFunction(SymNames.Fold, 2, DataTypes.Unknown, CallKinds.FUNC, "Fold", FuncKinds.FOLD);
-      //AddFunction("fold", 0, DataTypes.Unknown, CallKinds.FUNC, "Fold", FuncKinds.FOLD);
-      AddFunction("cfold", 2, DataTypes.Unknown, CallKinds.FUNC, "CumFold", FuncKinds.FOLD);
-      AddFunction(SymNames.If, 3, DataTypes.Unknown, CallKinds.FUNC, "If", FuncKinds.IF);
+      AddFunction("fold", 2, DataTypes.Unknown, CallKinds.FUNC, "Fold", FuncKinds.FOLD);
+      //AddFunction("cfold", 2, DataTypes.Unknown, CallKinds.FUNC, "CumFold", FuncKinds.FOLD);
+      AddFunction("if", 3, DataTypes.Unknown, CallKinds.FUNC, "If", FuncKinds.IF);
 
       AddFunction("ord", 0, DataTypes.Number, CallKinds.LFUNC, "Ordinal");
       AddFunction("ordg", 0, DataTypes.Number, CallKinds.LFUNC, "OrdinalGroup");

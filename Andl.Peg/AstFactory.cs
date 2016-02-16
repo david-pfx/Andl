@@ -49,12 +49,12 @@ namespace Andl.Peg {
 
     // A set of statements inside a do scope
     // May include Empty statements, which must be discarded
-    public AstValue DoBlock(IList<AstStatement> statements) {
+    public AstValue DoBlock(string name, IList<AstStatement> statements) {
       var stmts = statements.Where(s => s.DataType != null).ToArray();
       var datatype = (stmts.Length == 0) ? DataTypes.Void : stmts.Last().DataType;
       var block = new AstBlock { Statements = stmts, DataType = datatype };
       return new AstDoBlock {
-        Func = FindFunc(SymNames.DoBlock), DataType = datatype, Value = block,
+        Func = FindFunc(name), DataType = datatype, Value = block,
       };
     }
 
@@ -147,11 +147,11 @@ namespace Andl.Peg {
       };
     }
 
-    public AstOpCall While(AstValue expr) {
+    public AstOpCall While(string name, AstValue expr) {
       var datatype = Types.Relof(CurrentHeading());
       if (expr.DataType != datatype) Parser.ParseError("type mismatch");
       return new AstOpCall() {
-        Func = FindFunc(SymNames.Recurse),
+        Func = FindFunc(name),
         DataType = Types.Relof(CurrentHeading()),
         Arguments = Args(Number(0), expr),
       };
@@ -159,12 +159,12 @@ namespace Andl.Peg {
 
     // Where is just a funcall with a code predicate (that may have a fold)
     // Must capture heading here to get right lookup
-    public AstWhere Where(AstValue predicate) {
+    public AstWhere Where(string name, AstValue predicate) {
       var lookup = CurrentHeading();
       var accums = _accum.Total;
       _accum = _accum.Push();
       return new AstWhere {
-        Func = FindFunc(SymNames.Restrict),
+        Func = FindFunc(name),
         DataType = Types.Relof(CurrentHeading()),
         Arguments = Args(Code(predicate, lookup, "?", accums))
       };
@@ -291,12 +291,12 @@ namespace Andl.Peg {
       return new AstOpCall() { Func = op, DataType = op.DataType, Arguments = Args() };
     }
 
-    public AstFunCall If(AstValue condition, AstValue iftrue, AstValue iffalse) {
+    public AstFunCall If(string name, AstValue condition, AstValue iftrue, AstValue iffalse) {
       Types.CheckTypeMatch(iftrue.DataType, iffalse.DataType);
-      return FunCall(FindFunc(SymNames.If), iftrue.DataType, Args(condition, Code(iftrue), Code(iffalse)));
+      return FunCall(FindFunc(name), iftrue.DataType, Args(condition, Code(iftrue), Code(iffalse)));
     }
 
-    public AstFoldCall Fold(string oper, AstValue expression) {
+    public AstFoldCall Fold(string name, string oper, AstValue expression) {
       var op = FindFunc(oper);
       if (!op.IsFoldable) Parser.ParseError("not foldable");
       DataType datatype;
@@ -305,7 +305,7 @@ namespace Andl.Peg {
       var accum = _accum.Total;
       _accum.Add(1);
       return new AstFoldCall {
-        Func = FindFunc(SymNames.Fold), FoldedOp = op, DataType = datatype,
+        Func = FindFunc(name), FoldedOp = op, DataType = datatype,
         AccumIndex = accum, FoldedExpr = expression, CallInfo = callinfo,
         InvokeOp = (op.IsDefFunc) ? Symbols.FindIdent(SymNames.Invoke) : null,
       };
@@ -313,6 +313,11 @@ namespace Andl.Peg {
 
     public AstFunCall Function(string name, params AstValue[] args) {
       var op = FindFunc(name);
+      return GenFunCall(op, args);
+    }
+
+    public AstFunCall Unop(string name, params AstValue[] args) {
+      var op = FindFunc(name == "-" ? SymNames.UnaryMinus : name);
       return GenFunCall(op, args);
     }
 
@@ -492,7 +497,7 @@ namespace Andl.Peg {
       // deferred function
       if (op.IsDefFunc) return DefCall(op, datatype, args, callinfo);
       // WHERE
-      if (op.IsRestFunc) return FunCall(op, datatype, args, 1);
+      if (op.IsRestrict) return FunCall(op, datatype, args, 1);
       //if (op.IsRestFunc) return FunCall(op, datatype, Args(args[0], Code(args[1] as AstValue, CurrentHeading())), 1);
       // Ordered
       if (op.IsOrdFunc) return FunCall(op, datatype, Args(Code(args[0] as AstValue, CurrentHeading()), args.Skip(1).ToArray()));

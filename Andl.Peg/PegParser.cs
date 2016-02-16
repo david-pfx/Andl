@@ -214,49 +214,27 @@ namespace Andl.Peg {
       return (sym != null && sym.IsUserType) || Types.Find(name) != null;
     }
 
-    bool IsSourceName(string name) {
-      return Symbols.IsSource(name);
-    }
+    bool CanDefGlobal(string name) { return Symbols.CanDefGlobal(name); }
+    bool CanDefLocal(string name) { return Symbols.CanDefLocal(name); }
+    bool IsBinop(string name) { return IsKind(name, (s) => s.IsBinary); }
+    bool IsCatVar(string name) { return IsKind(name, (s) => s.IsCatVar); }
+    bool IsComponent(string name) { return IsKind(name, (s) => s.IsComponent); }
+    bool IsDo(string name) { return IsKind(name, (s) => s.IsDo); }
+    bool IsField(string name) { return IsKind(name, (s) => s.IsField); }
+    bool IsFold(string name) { return IsKind(name, (s) => s.IsFold); }
+    bool IsFoldable(string name) { return IsKind(name, (s) => s.IsFoldable); }
+    bool IsFuncop(string name) { return IsKind(name, (s) => s.IsCallable); }
+    bool IsIf(string name) { return IsKind(name, (s) => s.IsIf); }
+    bool IsRestrict(string name) { return IsKind(name, (s) => s.IsRestrict); }
+    bool IsSourceName(string name) { return Symbols.IsSource(name); }
+    bool IsUnop(string name) { return (name == "-") || IsKind(name, (s) => s.IsUnary); }
+    bool IsVariable(string name) { return IsKind(name, (s) => s.IsVariable); }
+    bool IsWhile(string name) { return IsKind(name, (s) => s.IsWhile); }
 
-    bool CanDefGlobal(string name) {
-      return Symbols.CanDefGlobal(name);
-    }
-
-    bool CanDefLocal(string name) {
-      return Symbols.CanDefLocal(name);
-    }
-
-    bool IsField(string name) {
+    // generic symbol type checker
+    bool IsKind(string name, Func<Symbol, bool> func) {
       var sym = Symbols.FindIdent(name);
-      return sym != null && sym.IsField;
-    }
-    bool IsComponent(string name) {
-      var sym = Symbols.FindIdent(name);
-      return sym != null && sym.IsComponent;
-    }
-    bool IsCatVar(string name) {
-      var sym = Symbols.FindIdent(name);
-      return sym != null && sym.IsCatVar;
-    }
-    bool IsVariable(string name) {
-      var sym = Symbols.FindIdent(name);
-      return sym != null && sym.IsVariable;
-    }
-    bool IsFuncop(string name) {
-      var sym = Symbols.FindIdent(name);
-      return sym != null && sym.IsCallable;
-    }
-    bool IsBinop(string name) {
-      var sym = Symbols.FindIdent(name);
-      return sym != null && sym.IsBinary;
-    }
-    bool IsUnop(string name) {
-      var sym = Symbols.FindIdent(name);
-      return sym != null && sym.IsUnary;
-    }
-    bool IsFoldableop(string name) {
-      var sym = Symbols.FindIdent(name);
-      return sym != null && sym.IsFoldable;
+      return sym != null && func(sym);
     }
 
     string NumToStr(IList<string> strs, int radix) {

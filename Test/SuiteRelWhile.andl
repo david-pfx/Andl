@@ -1,0 +1,14 @@
+// Test Suite -- testing of while
+
+#catalog
+
+start($filename$)
+
+// simple series
+
+test_true($lineno$, 11 = {{ A1 := 0 }} .while({{ A1 := A1+1 }} .where(A1 <= 10)) .count)
+test_true($lineno$, 2  = {{ A1 := 0 }} .while({{ A1 := A1+6 }} .where(A1 <= 10)) .count)
+test_true($lineno$, 1  = {{ A1 := 0 }} .while({{ A1 := A1+99}} .where(A1 <= 10)) .count)
+test_true($lineno$, 21 = {{ A1 := 0, A2 := 0 }} .while({{ A1 := A1+1, A2 := 0 }, { A1 := A1+1, A2 := 1 }} .where(A1 <= 10)) .count)
+
+finish($filename$)
