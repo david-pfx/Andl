@@ -11,4 +11,12 @@ test_true($lineno$, 2  = {{ A1 := 0 }} .while({{ A1 := A1+6 }} .where(A1 <= 10))
 test_true($lineno$, 1  = {{ A1 := 0 }} .while({{ A1 := A1+99}} .where(A1 <= 10)) .count)
 test_true($lineno$, 21 = {{ A1 := 0, A2 := 0 }} .while({{ A1 := A1+1, A2 := 0 }, { A1 := A1+1, A2 := 1 }} .where(A1 <= 10)) .count)
 
+~fibonacci(nmax:0) => {{ N:=1, fib:=1, fibx:=0 }} .while( {{ N:=N+1, fib := fib+fibx, fibx:=fib }} .where(N <= nmax))
+~fibonacci2(nmax:0) => {{ N:=1, fib:=1, fibx:=0 }} .while( if(N < nmax, {{ N:=N+1, fib := fib+fibx, fibx:=fib }}, {{*}}) )
+
+test_true($lineno$, 15  = ~fibonacci(15).count)
+test_true($lineno$, 610 = ~fibonacci(15) .where(N=15) .select((fib)) )
+test_true($lineno$, 15  = ~fibonacci2(15).count)
+test_true($lineno$, 610 = ~fibonacci2(15) .where(N=15) .select((fib)) )
+
 finish($filename$)

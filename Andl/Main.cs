@@ -28,7 +28,6 @@ namespace Andl.Main {
     static bool _tsw = false; // Thrift IDL
     static bool _usw = false; // update catalog
     static bool _ssw = false; // sql
-    static bool _psw = false; // PEG
     static string _defaultinput = @"test.andl";
 
     static Catalog _catalog;
@@ -90,8 +89,6 @@ namespace Andl.Main {
         _ssw = true;
       else if (arg == "t")
         _tsw = true;
-      else if (arg == "p")
-        _psw = true;
       else if (Regex.IsMatch(arg, "[0-9]+"))
         Logger.Level = int.Parse(arg);
       else {
