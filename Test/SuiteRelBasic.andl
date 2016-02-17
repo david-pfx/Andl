@@ -7,38 +7,51 @@ start($filename$)
 //--- literals
 
 //-- tuples
-~t1 := { A1 := 'abc', A2 := 17, A3 := 0 } 
+~tup1 := { A1 := 'abc', A2 := 17, A3 := 0 } 
+~tup2 := tup(A1 := 'abc', A4 := 44)
+~tup3 := { A := ~tup1 } 
+~tup4 := { A := { A := 'abc' } } 
+~tup5 := { A := tup(A := 'abc') } 
+def ~ust1(C1:0, C2:'')
+~tup6 := { A := ~ust1(77,'xxx') } 
 
-test_true($lineno$, ~t1 = {A2 := 16+1, A1 := 'ab' & 'c', A3 := 0})
-test_true($lineno$, {A2 := 18-1, A1 := 'a''bc', A3 := 0} = ~t1)
-test_true($lineno$, ~t1 = ({A2 := 17, A1 := "abc", A3 := 0}))
-test_true($lineno$, ~t1 = tup(A2 := 17, A1 := "abc", A3 := 0))
+// tuple values
+test_true($lineno$, ~tup1 = {A2 := 16+1, A1 := 'ab' & 'c', A3 := 0})
+test_true($lineno$, {A2 := 18-1, A1 := 'a''bc', A3 := 0}    = ~tup1)
+test_true($lineno$, ({A2 := 17, A1 := "abc", A3 := 0})      = ~tup1)
+test_true($lineno$, tup(A2 := 17, A1 := "abc", A3 := 0)     = ~tup1)
+test_true($lineno$, ~tup4                                   = ~tup5)
+test_true($lineno$, { A := tup(A := 'abc') }                = ~tup5)
+test_true($lineno$, { A := ~ust1(77,'xxx') }                = ~tup6)
 
-~t2 := { A1 := 'abc', A4 := 44 } 
-test_true($lineno$, { A1 := 'abc', A2 := 17, A3 := 0, A4 := 44 } = ~t1 union ~t2)
-test_true($lineno$, { A1 := 'abc', A2 := 17, A3 := 0, A4 := 44 } = ~t2 union ~t1)
-test_true($lineno$, { A1 := 'abc' }                              = ~t1 intersect ~t2)
-test_true($lineno$, { A1 := 'abc' }                              = ~t2 intersect ~t1)
-test_true($lineno$, { A2 := 17, A3 := 0 }                        = ~t1 minus ~t2)
-test_true($lineno$, { A4 := 44 }                                 = ~t1 rminus ~t2)
-test_true($lineno$, { A4 := 44 }                                 = ~t2 minus ~t1)
-test_true($lineno$, { A2 := 17, A3 := 0, A4 := 44 }              = ~t1 symdiff ~t2)
-test_true($lineno$, { A2 := 17, A3 := 0, A4 := 44 }              = ~t2 symdiff ~t1)
+// tuple set ops
+test_true($lineno$, { A1 := 'abc', A2 := 17, A3 := 0, A4 := 44 } = ~tup1 union ~tup2)
+test_true($lineno$, { A1 := 'abc', A2 := 17, A3 := 0, A4 := 44 } = ~tup2 union ~tup1)
+test_true($lineno$, { A1 := 'abc' }                              = ~tup1 intersect ~tup2)
+test_true($lineno$, { A1 := 'abc' }                              = ~tup2 intersect ~tup1)
+test_true($lineno$, { A2 := 17, A3 := 0 }                        = ~tup1 minus ~tup2)
+test_true($lineno$, { A4 := 44 }                                 = ~tup1 rminus ~tup2)
+test_true($lineno$, { A4 := 44 }                                 = ~tup2 minus ~tup1)
+test_true($lineno$, { A2 := 17, A3 := 0, A4 := 44 }              = ~tup1 symdiff ~tup2)
+test_true($lineno$, { A2 := 17, A3 := 0, A4 := 44 }              = ~tup2 symdiff ~tup1)
 
-#stop
 //-- relations
 ~rel0 := {{A2:0, A1:'', A3:0}}  
-~rel1 := {{A2 := 17, A1 := 'abc', A3 := 0}}  
+~rel1 := rel({A2 := 17, A1 := 'abc', A3 := 0})
 ~rel2 := {{A1 := 'def', A2 := 35, A3 := 0},
           {A2 := 199, A1 := 'ghij', A3 := 0 }} 
-~rel3 := {{A1 := 'abc', A2 := 17, A3 := 0},
-          {A1 := 'def', A2 := 35, A3 := 0},
-          {A2 := 199, A1 := 'ghij', A3 := 0 }} 
+~rel3 := {{A1:'', A2:0, A3:0} 
+          ('abc', 17, 0), 
+          ('def', 35, 0), 
+          ('ghij', 199, 0)} 
+def ~usr0(A2:0, A1:'', A3:0)
 
-test_true($lineno$, ~rel1 = {{ A1 := 'abc', A2 := 17, A3 := 0 }} )
-test_true($lineno$, ~rel1 = {{ A2 := 1+16, A1 := 'ab'&'c', A3 := 0 }})
-test_true($lineno$, ~rel1 = rel({ A2 := 18-1, A1 := 'a'&'bc', A3 := 0 }))
-test_true($lineno$, ~rel1 = rel(~t1))
+test_true($lineno$, {{ A1 := 'abc', A2 := 17, A3 := 0 }}         = ~rel1)
+test_true($lineno$, {{ A2 := 1+16, A1 := 'ab'&'c', A3 := 0 }}    = ~rel1)
+test_true($lineno$, rel({ A2 := 18-1, A1 := 'a'&'bc', A3 := 0 }) = ~rel1)
+test_true($lineno$, rel(~tup1)                                   = ~rel1)
+test_true($lineno$, rel:~rel3()                                  = ~rel0)
+test_true($lineno$, rel:~usr0()                                  = ~rel0)
 
 test_true($lineno$, ~rel3 = {{ A2 := 35, A1 := 'def', A3 := 0 },
       { A2 := 17, A1 := 'abc', A3 := 0},
@@ -136,6 +149,16 @@ test_true($lineno$, ~rel3_A1X     = ~rel3 .select{ X := A1 } )
 ~rel3_A1Y := {{ Y:''} ('abcY'), ('defY'), ('ghijY'), }
 test_true($lineno$, ~rel3_A1Y     = ~rel3 .select{ Y := A1 & 'Y' } )
 test_true($lineno$, ~rel3_A1Y     = ~rel3 .select{ *A1, A2, A3, Y := A1 & 'Y' } )
+
+//--- lift
+~rel2_lift := rel:{A1:'', A2:0}(('a',1),('b',5),('c',2),)
+test_true($lineno$, rel:{A2:0}((5),(1),(2)) = ~rel2_lift .select(A2) )
+test_true($lineno$, rel:{A2:0}((5))         = ~rel2_lift .where(A1 = 'b') .select(A2) )
+test_true($lineno$, 5                       = ~rel2_lift .where(A1 = 'b') .select((A2)) )
+test_true($lineno$, rel:{A2:0}((5),(1),(2)) = ~rel2_lift .select{A2} )
+test_true($lineno$, rel:{A2:0}((5))         = ~rel2_lift .where(A1 = 'b') .select{A2} )
+test_true($lineno$, 5                       = ~rel2_lift .where(A1 = 'b') .select{(A2)} )
+
 
 //--- skip take
 //get_s(s:S) => s .order(S#)  .select{ fold(&,S#) }

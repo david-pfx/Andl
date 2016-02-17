@@ -350,7 +350,8 @@ namespace Andl.Peg {
     }
 
     // Table with separate heading
-    public AstValue Table(AstValue heading, IList<AstValue> rows) {
+    public AstValue Table(AstType heading, IList<AstValue> rows) {
+      if (!heading.DataType.HasHeading) Parser.ParseError("type has no heading");
       var rowtype = Types.Tupof(heading.DataType);
       foreach (var r in rows)
         r.DataType = rowtype;
@@ -365,12 +366,6 @@ namespace Andl.Peg {
       return new AstTabCall {
         Func = FindFunc(SymNames.TableC), DataType = Types.Relof(value.DataType), Arguments = Args(value),
       };
-    }
-
-    // Heading
-    public AstValue Heading(IList<AstField> fields) {
-      var type = (fields == null) ? DataTypeRelation.Empty : Typeof(fields);
-      return new AstValue { DataType = type };
     }
 
     // Current row {*}
@@ -411,6 +406,12 @@ namespace Andl.Peg {
     ///--------------------------------------------------------------------------------------------
     /// Headings etc
     /// 
+
+    // Heading
+    public AstType Heading(IList<AstField> fields) {
+      var type = (fields == null) ? DataTypeRelation.Empty : Typeof(fields);
+      return new AstType { DataType = type };
+    }
 
     public AstField FieldTerm(string ident, AstType type) {
       return new AstField() {
@@ -625,13 +626,13 @@ namespace Andl.Peg {
     public AstType GetType(AstValue value) {
       return new AstType { DataType = value.DataType };
     }
-    public AstType TupType(AstValue value) {
-      if (!value.DataType.HasHeading) Parser.ParseError("value has no heading");
-      return new AstType { DataType = DataTypeTuple.Get(value.DataType.Heading) };
+    public AstType TupType(AstType type) {
+      if (!type.DataType.HasHeading) Parser.ParseError("value has no heading");
+      return new AstType { DataType = DataTypeTuple.Get(type.DataType.Heading) };
     }
-    public AstType RelType(AstValue value) {
-      if (!value.DataType.HasHeading) Parser.ParseError("value has no heading");
-      return new AstType { DataType = DataTypeRelation.Get(value.DataType.Heading) };
+    public AstType RelType(AstType type) {
+      if (!type.DataType.HasHeading) Parser.ParseError("value has no heading");
+      return new AstType { DataType = DataTypeRelation.Get(type.DataType.Heading) };
     }
 
     public Symbol FindCatVar(string name) {

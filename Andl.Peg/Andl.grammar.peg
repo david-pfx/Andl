@@ -143,8 +143,8 @@ Transformer <AstTransformer> = DOT LC WSC v:STAR? WSC w:TransformList SEP? RCexp
     / DOT SELECT LPexp WSC v:STAR? WSC w:TransformList SEP? RPexp { AST(state).Transformer(v.Count > 0, w) };
 
 TransformList = Transform<0,,SEP>;
-Transform <AstField> = !RC v:FieldIdent &(SEP / RC) { AST(state).Transfield(v) }        // project
-    / !RC v:Ident LA WSC w:FieldIdent &(SEP / RC) { AST(state).Transfield(v, w) }       // rename
+Transform <AstField> = !RC v:FieldIdent &(SEP / RC / RP) { AST(state).Transfield(v) }        // project
+    / !RC v:Ident LA WSC w:FieldIdent &(SEP / RC / RP) { AST(state).Transfield(v, w) }       // rename
     / !RC v:Ident LA WSC w:OpenAttrExprExp { AST(state).Transfield(v, null, w) }        // extend
     / !RC v:OpenAttrExprExp { AST(state).Transfield(null, null, v) };                   // lift
 
@@ -175,14 +175,12 @@ Function <AstValue> = v:Funcop LP w:ExpressionList RPexp { AST(state).Function(v
 
 Table <AstValue> = &(LC WSL LC) &{ AST(state).Enter() } LC WSC v:TableBody RCexp &{ AST(state).Exit() } { v }
     / REL LP &{ AST(state).Enter() } v:TableBody RPexp &{ AST(state).Exit() } { v }
+    / REL COLON &{ AST(state).Enter() } v:TypeRef LP w:TableRowList SEP? RPexp &{ AST(state).Exit() } { AST(state).Table(v,w) }
     / (REL / LC WSC LC) &{ Error(state, "invalid table body") } { null };
 
 TableBody <AstValue> = LC STAR RCexp  { AST(state).Table() }
-    / v:TableHeading WSC w:TableRowList SEP? { AST(state).Table(v,w) }
+    / v:Heading WSC w:TableRowList SEP? { AST(state).Table(v,w) }
     / v:RowList SEP? { AST(state).Table(v) };
-
-TableHeading <AstValue> = LC COLON RC { AST(state).Heading(null) }
-    / LC &(Ident COLON) v:FieldList RCexp { AST(state).Heading(v) };
 
 TableRowList = v:TableRowValue<0,,SEP>;
 TableRowValue <AstValue> = LP v:ExpressionList SEP? RPexp { AST(state).TableRowValues(v) };
@@ -199,14 +197,14 @@ RowTransList = RowTrans<0,,SEP>;
 RowTrans <AstField> = v:FieldIdent &(SEP / RC) { AST(state).Transfield(v) }
     / v:Ident LA w:Expression { AST(state).Transfield(v, null, w) }
 
-//--- type reference
+//--- type reference (after COLON)
 TypeRef <AstType> = v:Ident &{ IsTypename(v) } { AST(state).FindType(v) }
-    / TUP COLON v:Heading { AST(state).TupType(v) }
-    / REL COLON v:Heading { AST(state).RelType(v) }
+    / v:Heading { AST(state).TupType(v) }               // one LC
+    / LC v:Heading RCexp { AST(state).RelType(v) }      // two LC
     / v:SimplePrimary { AST(state).GetType(v) }
     / &{ Error(state, "type expected") } { null };
 
-Heading <AstValue> = LC COLON RC { AST(state).Heading(null) }
+Heading <AstType> = LC COLON RC { AST(state).Heading(null) }
     / LC &(Ident COLON) v:FieldList RCexp { AST(state).Heading(v) };
 
 FieldList = v:FieldTerm<0,,SEP>;
