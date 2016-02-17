@@ -44,6 +44,8 @@ namespace Andl.Runtime {
     // True if this heading is for a tuple type, so column order may have changed
     public bool IsTuple { get; private set; }
 
+    int _hashcode = 0;
+
     // overrides -------------------------------------------------------
     public override bool Equals(object obj) {
       var other = obj as DataHeading;
@@ -55,12 +57,15 @@ namespace Andl.Runtime {
       return true;
     }
 
-    public override int GetHashCode() { /// TODO: cache hash code
-      var h = Degree;
-      // note: must not rely on order of dict
-      for (var i = 0; i < Degree; ++i)
-        h = h ^ _columns[i].GetHashCode();
-      return h;
+    public override int GetHashCode() {
+      if (_hashcode == 0) {
+        var h = Degree;
+        // note: must not rely on order of dict
+        for (var i = 0; i < Degree; ++i)
+          h = h ^ _columns[i].GetHashCode();
+        _hashcode = (h == 0) ? 1 : h;
+      }
+      return _hashcode;
     }
 
     public override string ToString() {
@@ -130,7 +135,7 @@ namespace Andl.Runtime {
       return newexprs;
     }
 
-    // Check that the values provided match this heading
+    // Safety check that the values provided match this heading
     public void CheckValues(TypedValue[] values) {
       Logger.Assert(values.Length == Degree, "values length");
       Logger.Assert(values.Select((v, x) => v.DataType == Columns[x].DataType).All(b => b), "values type");

@@ -11,7 +11,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
-using Andl.Compiler;
 using Andl.Runtime;
 using Andl.Peg;
 
@@ -135,10 +134,10 @@ namespace Andl.Main {
     // Code is (now) always executed as compiled unless or until there is an error
     static bool Compile(string path) {
       Logger.WriteLine("*** Compiling: {0}", path);
-      //IParser parser = (_psw) ?
-      IParser parser = (!_psw) ? 
-        PegCompiler.Create(_catalog) : 
-        OldCompiler.Create(_catalog);
+      IParser parser = PegCompiler.Create(_catalog);
+      //IParser parser = (!_psw) ? 
+      //  PegCompiler.Create(_catalog) : 
+      //  OldCompiler.Create(_catalog);
       using (StreamReader input = File.OpenText(path)) {
         var ret = parser.Process(input, Console.Out, _evaluator, path);
         Logger.WriteLine("*** Compiled {0} {1} ", path, ret ? "OK"

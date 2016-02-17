@@ -97,7 +97,7 @@ namespace Andl.Runtime {
   ///   builtin for method calls
   /// </summary>
   public class Evaluator {
-    //BUG: obsolete, used by ?
+    //BUG: obsolete, used by DataTableLocal!!!
     public static Evaluator Current { get; private set; }
     public TextWriter Output { get; private set; }
     public TextReader Input { get; private set; }

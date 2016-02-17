@@ -44,10 +44,6 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Andl.Compiler\Andl.Compiler.csproj">
-      <Project>{c31f55ee-c0b0-4f5d-a84e-e5b466a69276}</Project>
-      <Name>Andl.Compiler</Name>
-    </ProjectReference>
     <ProjectReference Include="..\Andl.Peg\Andl.Peg.csproj">
       <Project>{29813458-2c61-4d97-bd9c-857e35985a6c}</Project>
       <Name>Andl.Peg</Name>

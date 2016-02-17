@@ -91,7 +91,7 @@ namespace Andl.Peg {
     }
 
     public AstStatement Source(string ident, AstLiteral value) {
-      var datatype = Cat.GetRelvarType(ident, value.ToString());  //FIX: better to be literal to here
+      var datatype = Cat.GetRelvarType(ident, value.ToString());
       if (datatype == null) Parser.ParseError("cannot find '{0}' as '{1}'", ident, value);
       Symbols.AddVariable(ident, datatype, SymKinds.CATVAR);
       Symbols.AddCatalog(Symbols.FindIdent(ident));

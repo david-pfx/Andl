@@ -14,7 +14,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Andl.Runtime {
-  // Check for mixed local and sql dyadics 
+  // Do check for mixed local and sql dyadics 
   public enum MixedDyadics { None, LeftLocal, RightLocal };
 
   abstract public class DataTable {
@@ -48,7 +48,7 @@ namespace Andl.Runtime {
     public abstract DataTable DyadicJoin(DataTable other, JoinOps joinops, DataHeading newheading);
     public abstract DataTable DyadicAntijoin(DataTable other, JoinOps joinops, DataHeading newheading);
     public abstract DataTable DyadicSet(DataTable other, JoinOps joinops, DataHeading newheading);
-    public abstract DataTable UpJoin(DataTable other, JoinOps joinops);
+    public abstract DataTable UpdateJoin(DataTable other, JoinOps joinops);
     public abstract DataTable UpdateTransform(ExpressionEval pred, ExpressionEval[] exprs);
     public abstract DataTable ConvertWrap(DataTable other);
 

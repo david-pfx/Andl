@@ -205,8 +205,9 @@ namespace Andl.Runtime {
     public string NameSetList(ExpressionBlock[] exprs) {
       var ss = new List<string>();
       foreach (var expr in exprs) {
-        if (expr.IsProject) { } else if (expr.IsRename)
-          ss.Add(String.Format("[{0}] = [{1}]", expr.Name, expr.OldName)); // CHECK:will this work?
+        if (expr.IsProject) { } 
+        else if (expr.IsRename)
+          ss.Add(String.Format("[{0}] = [{1}]", expr.Name, expr.OldName));
         else
           ss.Add(String.Format("[{0}] = {1}", expr.Name, EvalFunc(expr)));
       }

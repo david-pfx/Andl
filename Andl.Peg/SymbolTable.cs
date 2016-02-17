@@ -143,7 +143,7 @@ namespace Andl.Peg {
     public DataHeading Heading { get {
       return DataType is DataTypeRelation ? (DataType as DataTypeRelation).Heading
         : DataType is DataTypeTuple ? (DataType as DataTypeRelation).Heading
-        : null; // FIX: symbol heading
+        : null;
     } }
     public string Name { get; set; }
     public int Precedence { get; set; }

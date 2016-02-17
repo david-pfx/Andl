@@ -181,7 +181,6 @@ namespace Andl.Runtime {
     }
 
     // Create row by evaluating an expression list
-    // TODO: use exprs to derive heading directly
     public static DataRow Create(DataHeading heading, ExpressionEval[] exprs) {
       var newvalues = heading.Columns
         .Select(c => exprs.First(e => e.Name == c.Name).Evaluate())

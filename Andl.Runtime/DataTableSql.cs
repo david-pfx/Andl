@@ -465,7 +465,7 @@ namespace Andl.Runtime {
     //--- updates
 
     // Execute an update that is an INSERT
-    public override DataTable UpJoin(DataTable other, JoinOps joinops) {
+    public override DataTable UpdateJoin(DataTable other, JoinOps joinops) {
       if (other is DataTableSql)
         InsertValuesQuery(other as DataTableSql);
       else InsertValuesSingly(other);

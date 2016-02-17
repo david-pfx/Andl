@@ -64,7 +64,7 @@ namespace Andl.Sqlite {
       { SqlCommonType.Integer, (c, i, v) => sqlite3_bind_int(c, i, (int)v) },
       { SqlCommonType.None, (c,i, v) => sqlite3_bind_null(c, i) },
       { SqlCommonType.Number, (c, i, v) => sqlite3_bind_text(c, i, ((decimal)v).ToString(), -1, SQLITE_TRANSIENT) },
-      { SqlCommonType.Text, (c, i, v) => sqlite3_bind_text(c, i, v as string, -1, SQLITE_TRANSIENT) }, // TODO:utf
+      { SqlCommonType.Text, (c, i, v) => sqlite3_bind_text16(c, i, v as string, -1, SQLITE_TRANSIENT) },
       { SqlCommonType.Time, (c, i, v) => sqlite3_bind_text(c, i, ((DateTime)v).ToString("o"), -1, SQLITE_TRANSIENT) },
     };
 
@@ -76,7 +76,7 @@ namespace Andl.Sqlite {
       { SqlCommonType.Integer, (s,i) => sqlite3_column_int(s, i) },
       { SqlCommonType.None, (s,i) => null },
       { SqlCommonType.Number, (s,i) => SafeDecimalParse(sqlite3_column_text_wrapper(s, i)) },
-      { SqlCommonType.Text, (s,i) => sqlite3_column_text_wrapper_utf(s, i) },
+      { SqlCommonType.Text, (s,i) => sqlite3_column_text16_wrapper(s, i) },
       { SqlCommonType.Time, (s,i) => SafeDatetimeParse(sqlite3_column_text_wrapper(s, i)) },
     };
 
@@ -86,7 +86,7 @@ namespace Andl.Sqlite {
       { SqlCommonType.Bool, (s) => sqlite3_value_int(s) != 0 },
       { SqlCommonType.None, (s) => null },
       { SqlCommonType.Number, (s) => SafeDecimalParse(sqlite3_value_text_wrapper(s)) },
-      { SqlCommonType.Text, (s) => sqlite3_value_text_wrapper_utf(s) },
+      { SqlCommonType.Text, (s) => sqlite3_value_text16_wrapper(s) },
       { SqlCommonType.Time, (s) => SafeDatetimeParse(sqlite3_value_text_wrapper(s)) },
     };
 
@@ -96,7 +96,7 @@ namespace Andl.Sqlite {
       { SqlCommonType.Bool,   (c, v) => sqlite3_result_int(c, (bool)v ? 1 : 0) },
       { SqlCommonType.None,   (c, v) => sqlite3_result_null(c) },
       { SqlCommonType.Number, (c, v) => sqlite3_result_text(c, ((decimal)v).ToString(), -1, SQLITE_TRANSIENT) },
-      { SqlCommonType.Text,   (c, v) => sqlite3_result_text(c, v as string, -1, SQLITE_TRANSIENT) }, // TODO: utf
+      { SqlCommonType.Text,   (c, v) => sqlite3_result_text16(c, v as string, -1, SQLITE_TRANSIENT) },
       { SqlCommonType.Time,   (c, v) => sqlite3_result_text(c, ((DateTime)v).ToString("o"), -1, SQLITE_TRANSIENT) },
     };
 
@@ -161,7 +161,7 @@ namespace Andl.Sqlite {
 
     public bool CheckError() {
       if (LastResult == Result.OK || LastResult == Result.DONE || LastResult == Result.ROW) return true;
-      LastMessage = sqlite3_errmsg(_dbhandle);
+      LastMessage = sqlite3_errmsg_wrapper(_dbhandle);
       //Console.WriteLine("Error: {0} {1}", LastResult, LastMessage);
       return false;
     }

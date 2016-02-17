@@ -142,6 +142,14 @@ namespace Andl.Runtime {
       };
     }
 
+    static string ExprShort(ExpressionBlock expr) {
+      return string.Format("{0}:{1}[{2}]", expr.Name, expr.Kind, expr.Serial);
+    }
+
+    static string ExprShorts(ExpressionBlock[] exprs) {
+      return string.Join(",", exprs.Select(e => ExprShort(e).ToArray()));
+    }
+
     ///=================================================================
     ///
     /// Special operations
@@ -179,7 +187,6 @@ namespace Andl.Runtime {
     }
 
     // Invoke a do block with its own scope level
-    // FIX: does not really need its own code segment?
     public TypedValue DoBlock(CodeValue exprarg, PointerValue accblkarg) {
       Logger.WriteLine(3, "DoBlock {0}", exprarg);
       _catalog.PushScope();
@@ -219,7 +226,6 @@ namespace Andl.Runtime {
     }
 
     // Create a row by evaluating named expressions against a heading
-    // TODO:no heading
     public TupleValue Row(TypedValue hdgarg, params CodeValue[] exprargs) {
       var heading = hdgarg.AsHeading();
       var exprs = exprargs.Select(e => (e as CodeValue).AsEval).ToArray();
@@ -379,6 +385,7 @@ namespace Andl.Runtime {
     }
 
     // Fold an operation and one argument over a set of tuples
+    // CHECK: is this used?
     public TypedValue CumFold(TypedValue accumulator, CodeValue expr) {
       // if accum is Empty this is a request for a default value
       if (accumulator == TypedValue.Empty)
@@ -398,7 +405,6 @@ namespace Andl.Runtime {
     /// 
 
     // Create new table with less columns and perhaps less rows; can also rename
-    // TODO: optimise one pass
     public RelationValue Project(RelationValue relarg, params CodeValue[] exprargs) {
       Logger.WriteLine(3, "Project {0} {1}", relarg, exprargs.Select(e => e.AsEval.Kind.ToString()).ToArray());
       var rel = relarg.Value;
@@ -545,7 +551,7 @@ namespace Andl.Runtime {
     // Dyadic tuple: does Set ops depending on joinop bit flags
     public TupleValue DyadicTuple(TupleValue tup1, TupleValue tup2, NumberValue joparg) {
       var joinop = (JoinOps)joparg.Value;
-      var mergeop = (MergeOps)((int)(joinop & JoinOps.SETOPS) >> 3);   // FIX:
+      var mergeop = (MergeOps)((int)(joinop & JoinOps.SETOPS) >> 3);   // FIX: bit func?
       var newheading = DataHeading.Merge(mergeop, tup1.Value.Heading, tup2.Value.Heading);
       Logger.WriteLine(3, "DyadicTuple {0} {1} n={2} ({3} {4})", tup1, tup2, joparg, mergeop, newheading);
       var tupnew = DataRow.Create(newheading, tup1.Value, tup2.Value);
@@ -582,14 +588,6 @@ namespace Andl.Runtime {
     /// Update operations
     /// 
 
-    static string ExprShort(ExpressionBlock expr) {
-      return string.Format("{0}:{1}[{2}]", expr.Name, expr.Kind, expr.Serial);
-    }
-
-    static string ExprShorts(ExpressionBlock[] exprs) {
-      return string.Join(",", exprs.Select(e => ExprShort(e).ToArray()));
-    }
-
     // Update Select with predicate and attr exprs
     public VoidValue UpdateTrans(RelationValue rel1, CodeValue predarg, params CodeValue[] exprargs) {
       var exprs = exprargs.Select(e => (e as CodeValue).AsEval).ToArray();
@@ -606,7 +604,7 @@ namespace Andl.Runtime {
       Logger.WriteLine(3, "UpdateJoin {0} {1} {2}", rel1, rel2, joinop);
 
       // note: two different algorithms depending on dyadic status
-      rel1.Value.UpJoin(rel2.Value, joinop);
+      rel1.Value.UpdateJoin(rel2.Value, joinop);
       Logger.WriteLine(3, "[UJ]");
       return VoidValue.Default;
     }
@@ -854,7 +852,7 @@ namespace Andl.Runtime {
 
     public BinaryValue Binary(TypedValue value) {
       if (value.DataType == DataTypes.Text)
-        return BinaryValue.Default;   // TODO: conversion
+        return BinaryValue.Default;   // TODO: convert text to binary
       if (value.DataType == DataTypes.Number) {
         var size = (int)((NumberValue)value).Value;
         return BinaryValue.Create(new byte[size]);
