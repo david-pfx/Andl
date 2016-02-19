@@ -59,8 +59,8 @@ namespace Andl.Peg {
     }
 
     // just a set of statements (may be empty but not null)
-    public AstBlock Block(IList<AstStatement> statements) {
-      return new AstBlock {
+    public AstBlock VarBlock(IList<AstStatement> statements) {
+      return new AstVarBlock {
         Statements = statements.ToArray(),
         DataType = (statements.Count == 0) ? DataTypes.Void : statements.Last().DataType
       };

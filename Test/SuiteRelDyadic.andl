@@ -4,9 +4,11 @@
 
 start($filename$)
 
+var S(csv), P(csv), SP(csv)
+
 test_true($lineno$, 12=count(S join SP))
 test_true($lineno$, 4=count(S joinl SP))
-test_true($lineno$, 10=count(S joinr SP))
+test_true($lineno$, 9=count(S joinr SP))
 test_true($lineno$, 4=count(S joinlc SP))
 test_true($lineno$, 12=count(S joinlr SP))
 test_true($lineno$, 12=count(S joincr SP))

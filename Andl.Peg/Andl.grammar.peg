@@ -67,7 +67,7 @@ UserType <AstDefine> = v:DefGlobalExp LP
 Subtype <AstDefine> = v:DefGlobalExp COLON w:TypeRef 
     { AST(state).SubType(v, w) };
 
-Import <AstBlock> = VAR v:ImportSource<0,,SEP> { AST(state).Block(v) };
+Import <AstBlock> = VAR v:ImportSource<0,,SEP> { AST(state).VarBlock(v) };
 
 ImportSource <AstStatement> = v:DefGlobalExp LP w:SourceName RPexp { AST(state).Source(v, AST(state).Text(w)) };
 

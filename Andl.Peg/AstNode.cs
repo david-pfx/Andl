@@ -140,6 +140,15 @@ namespace Andl.Peg {
     }
   }
 
+  public class AstVarBlock : AstBlock {
+    public override void Emit(Emitter e) {
+      foreach (var s in Statements) {
+        s.Emit(e);
+        if (s != Statements.Last()) e.Out(Opcodes.EOS);
+      }
+    }
+  }
+
   public class AstDoBlock : AstValue {
     public Symbol Func { get; set; }
     public AstValue Value { get; set; }

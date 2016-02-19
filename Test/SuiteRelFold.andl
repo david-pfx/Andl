@@ -4,6 +4,8 @@
 
 start($filename$)
 
+var S(csv), P(csv), SP(csv)
+
 // simple folds
 test_true($lineno$, 30 = S .select{ fold(max,STATUS) })
 test_true($lineno$, 10 = S .select{ fold(min,STATUS) })
