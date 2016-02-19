@@ -88,6 +88,7 @@ namespace Andl.Peg {
           break;
         case Opcodes.LDLOOKUP:
         case Opcodes.LDACCBLK:
+        case Opcodes.EOS:
           Logger.WriteLine(3, "{0}", prefix);
           break;
         default:

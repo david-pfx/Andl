@@ -51,7 +51,6 @@ namespace Andl.Peg {
   /// </summary>
   public class AstField : AstNode {
     public string Name { get; set; }
-    //public DataType DataType { get; set; }
   }
 
   public class AstProject : AstField {
@@ -134,7 +133,10 @@ namespace Andl.Peg {
       return string.Format("[{0}]", String.Join("; ", Statements.Select(s => s.ToString())));
     }
     public override void Emit(Emitter e) {
-      foreach (var s in Statements) s.Emit(e);
+      foreach (var s in Statements) {
+        s.Emit(e);
+        e.Out(Opcodes.EOS);
+      }
     }
   }
 

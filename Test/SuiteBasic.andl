@@ -56,47 +56,47 @@ test_true($lineno$, if(true,{{}},{{:}}) = {{}})
 
 //--- assign
 // cover every type, checks value equality too
-~asvbi := b'05040302'
-test_true($lineno$, ~asvbi = b'05040302')
+_asvbi := b'05040302'
+test_true($lineno$, _asvbi = b'05040302')
 
-~asvbo := true
-test_true($lineno$, ~asvbo = true)
+_asvbo := true
+test_true($lineno$, _asvbo = true)
 
-~asvnu := 123456789.123456789  // beyond real
-test_true($lineno$, ~asvnu = 123456789.123456789)
-test_true($lineno$, ~asvnu = --123456789.123456789)
-test_true($lineno$, 123456789.123456789 = ~asvnu)
-test_true($lineno$, 123456789.123456789 = -- ~asvnu)
+_asvnu := 123456789.123456789  // beyond real
+test_true($lineno$, _asvnu = 123456789.123456789)
+test_true($lineno$, _asvnu = --123456789.123456789)
+test_true($lineno$, 123456789.123456789 = _asvnu)
+test_true($lineno$, 123456789.123456789 = -- _asvnu)
 
-~asvte := 'abc def' d'33'
-test_true($lineno$, ~asvte = 'abc def!')
+_asvte := 'abc def' d'33'
+test_true($lineno$, _asvte = 'abc def!')
 
-~asvti := t'2015-12-31 23:59:59.999'
-test_true($lineno$, ~asvti = t'2015-12-31 23:59:59.999')
+_asvti := t'2015-12-31 23:59:59.999'
+test_true($lineno$, _asvti = t'2015-12-31 23:59:59.999')
 
-~asvtu := { A1 := 'abd def', A2 := 99 }
-test_true($lineno$, ~asvtu = { A2 := 99, A1 := 'abd def' })
+_asvtu := { A1 := 'abd def', A2 := 99 }
+test_true($lineno$, _asvtu = { A2 := 99, A1 := 'abd def' })
 
-~asvre  := {{ A1 := 'abd def', A2 := 99}, { A2 := 98, A1 := 'Pqr'}}
-test_true($lineno$, ~asvre = {{ A2 := 98, A1 := 'Pqr'}, { A1 := 'abd def', A2 := 99 }})
+_asvre  := {{ A1 := 'abd def', A2 := 99}, { A2 := 98, A1 := 'Pqr'}}
+test_true($lineno$, _asvre = {{ A2 := 98, A1 := 'Pqr'}, { A1 := 'abd def', A2 := 99 }})
 
-def ~astus(C1:0, C2:'')
-~asvus := ~astus(45, 'x-y%z')
-test_true($lineno$, ~asvus = ~astus(45, 'x-y%z'))
+def _astus(C1:0, C2:'')
+_asvus := _astus(45, 'x-y%z')
+test_true($lineno$, _asvus = _astus(45, 'x-y%z'))
 
 // repeating literals ensures test of value semantics
-~asvall  := {{ bi := b'05040302', bo := true, nu := 123456789.123456789, te := 'abc def!', ti := t'2015-12-31 23:59:59.999',
-                tu := { A1 := 'abd def', A2 := 99 }, re := {{ A1 := 'abd def', A2 := 99}, { A2 := 98, A1 := 'Pqr'}}, us := ~astus(45, 'x-y%z') 
+_asvall  := {{ bi := b'05040302', bo := true, nu := 123456789.123456789, te := 'abc def!', ti := t'2015-12-31 23:59:59.999',
+                tu := { A1 := 'abd def', A2 := 99 }, re := {{ A1 := 'abd def', A2 := 99}, { A2 := 98, A1 := 'Pqr'}}, us := _astus(45, 'x-y%z') 
             }}
-test_true($lineno$, ~asvall = {{ bi := ~asvbi, bo := ~asvbo, nu := ~asvnu, te := ~asvte, ti := ~asvti, tu := ~asvtu, re := ~asvre, us := ~asvus }})
+test_true($lineno$, _asvall = {{ bi := _asvbi, bo := _asvbo, nu := _asvnu, te := _asvte, ti := _asvti, tu := _asvtu, re := _asvre, us := _asvus }})
 
 // test of database var, both ways
 
 ASVREL := {{ bi := b'05040302', bo := true, nu := 123456789.123456789, te := 'abc def!', ti := t'2015-12-31 23:59:59.999',
-                tu := { A1 := 'abd def', A2 := 99 }, re := {{ A1 := 'abd def', A2 := 99}, { A2 := 98, A1 := 'Pqr'}}, us := ~astus(45, 'x-y%z') 
+                tu := { A1 := 'abd def', A2 := 99 }, re := {{ A1 := 'abd def', A2 := 99}, { A2 := 98, A1 := 'Pqr'}}, us := _astus(45, 'x-y%z') 
             }}
-test_true($lineno$, ~asvall = ASVREL)
-test_true($lineno$, ASVREL = ~asvall)
+test_true($lineno$, _asvall = ASVREL)
+test_true($lineno$, ASVREL = _asvall)
 
 //--- builtin
 test_true($lineno$, {{N:=0},{N:=1},{N:=2}}       = seq(3))

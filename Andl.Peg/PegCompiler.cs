@@ -96,6 +96,8 @@ namespace Andl.Peg {
         emitter.OutCall(Symbols.FindIdent("pp"));
         emitter.OutCall(Symbols.FindIdent("write"));
       }
+      // statement will have left value on stack (even if void)
+      if (!(statement is AstDefine)) emitter.Out(Opcodes.EOS);
       var code = emitter.GetCode();
       return code;
     }

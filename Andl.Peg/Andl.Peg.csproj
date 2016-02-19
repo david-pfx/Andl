@@ -83,8 +83,6 @@
   <ItemGroup>
     <None Include="App.config" />
     <None Include="packages.config" />
-    <None Include="test.andl" />
-    <None Include="test-50.andl" />
   </ItemGroup>
   <ItemGroup>
     <PegGrammar Include="Andl.grammar.peg" />

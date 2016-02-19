@@ -35,6 +35,7 @@ namespace Andl.Runtime {
     LDSEG,      // load segment of code to be executed as arg
     LDVALUE,    // load actual value
     LDFIELDT,   // load value from tuple by name
+    EOS,        // end of statement, pop value as return
   };
 
   public struct ByteCode {
@@ -128,13 +129,14 @@ namespace Andl.Runtime {
       if (code.Length == 0) return VoidValue.Void;
       if (lookup != null) PushLookup(lookup);
       Current = this;
+      TypedValue retval = null;
       try {
-        Run(code, aggregate, accblock);
+        retval = Run(code, aggregate, accblock);
       } catch (TargetInvocationException ex) {
         throw ex.InnerException;
       }
       if (lookup != null) PopLookup();
-      return (_stack.Count > 0) ? _stack.Pop() : VoidValue.Void;
+      return retval;
     }
 
     // used by Invoke
@@ -183,7 +185,8 @@ namespace Andl.Runtime {
     }
 
     // Evaluation engine for ByteCode
-    void Run(ByteCode bcode, TypedValue aggregate, AccumulatorBlock accblock) {
+    TypedValue Run(ByteCode bcode, TypedValue aggregate, AccumulatorBlock accblock) {
+      TypedValue retval = null;
       var reader = PersistReader.Create(bcode.bytes);
       while (reader.More) {
         var opcode = reader.ReadOpcode();
@@ -269,13 +272,21 @@ namespace Andl.Runtime {
           for (; argx >= 0; --argx)
             args[argx] = _stack.Pop();
           var ret = meth.Invoke(_builtin, args) as TypedValue;
-          if (ret.DataType != DataTypes.Void)
-            _stack.Push(ret);
+          _stack.Push(ret);
+          //if (ret.DataType != DataTypes.Void)
+          //  _stack.Push(ret);
+          break;
+        case Opcodes.EOS:
+          retval = _stack.Pop();
+          //retval = (_stack.Count > 0) ? _stack.Pop() : VoidValue.Void;
           break;
         default:
           throw new NotImplementedException(opcode.ToString());
         }
       }
+      if (retval == null) retval = _stack.Pop();
+      //Logger.Assert(retval != null, "stack");
+      return retval;
     }
 
 #if SCODE_ENABLED

@@ -39,29 +39,10 @@ namespace Andl.Peg {
       _pw = PersistWriter.Create(_out);
     }
 
-    //public int GetMarker() {
-    //  return (int)_mstream.Position;
-    //}
-
-    //// Take all code since marker, resetting the output position
-    //public ByteCode GetSeg(int marker, bool keep = false) {
-    //  int curpos = (int)_mstream.Position;
-    //  byte[] code = new Byte[curpos - marker];
-    //  _mstream.Position = marker;
-    //  _mstream.Read(code, 0, curpos - marker);
-    //  _mstream.Position = (keep) ? curpos : marker;
-    //  return new ByteCode { bytes = code };
-    //}
-
     // Take a copy of all the code without making any changes
     public ByteCode GetCode() {
       return new ByteCode { bytes = _mstream.ToArray() };
     }
-
-    //public void Reset(int marker = 0) {
-    //  _mstream.Position = marker;
-    //  _mstream.SetLength(marker);
-    //}
 
     // Output a call according to the symbol type
     public void OutCall(Symbol symbol, int varargs = 0, CallInfo callinfo = null) {
