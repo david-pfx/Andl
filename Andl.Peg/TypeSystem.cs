@@ -1,9 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Andl.Runtime;
+using Andl.Common;
 
 namespace Andl.Peg {
   //public class Field {
@@ -29,6 +28,9 @@ namespace Andl.Peg {
     internal DataType Tupof(DataType type) {
       return DataTypeTuple.Get(type.Heading);
     }
+    internal DataType Tupof(DataHeading heading) {
+      return DataTypeTuple.Get(heading);
+    }
     internal DataType Relof(DataType type) {
       return DataTypeRelation.Get(type.Heading);
     }
@@ -40,13 +42,14 @@ namespace Andl.Peg {
     /// Type checking
     /// 
 
-    // calculate return type given a method and arguments
-    // returns true if type error detected 
+    // check symbol with a method and arguments, return return type and callinfo
+    // raises error if type error detected 
+    // no of args: symbol table sets a limit because some builtins have extra trailing args
     public void CheckTypeError(Symbol symbol, out DataType datatype, out CallInfo callinfo, params DataType[] datatypes) {
       datatype = symbol.DataType;
       callinfo = symbol.CallInfo;
-      var nargs = symbol.NumArgs; // how many to check
-      if (!(datatypes.Length == nargs))
+      var nargs = symbol.NumArgs; // max no to check
+      if (datatypes.Length > nargs)
         Parser.ParseError("'{0}' expected {1} arguments, found {2}", symbol.Name, nargs, datatypes.Length);
       if (symbol.IsCompareOp && datatypes[0] != datatypes[1])
         Parser.ParseError("'{0}' arguments must be same type", symbol.Name);
@@ -54,9 +57,13 @@ namespace Andl.Peg {
       var hasoverloads = symbol.CallInfo.OverLoad != null;
       for (var cinf = symbol.CallInfo; cinf != null && !match; cinf = cinf.OverLoad) {
         var argts = cinf.Arguments;
-        match = Enumerable.Range(0, nargs).All(x => TypeMatch(argts[x].DataType, datatypes[x]));
-        //match = Enumerable.Range(0, nargs).All(x => argts[x].DataType.IsTypeMatch(datatypes[x]));
-        if (match) {
+        var nargsi = Math.Min(symbol.NumArgs, argts.Length); // max no to check
+        if (datatypes.Length == nargsi
+          && Enumerable.Range(0, nargs).All(x => TypeMatch(argts[x].DataType, datatypes[x]))) {  
+        //match = Enumerable.Range(0, nargs).All(x => TypeMatch(argts[x].DataType, datatypes[x]));
+          if (match)
+            Parser.ParseError("'{0}' ambiguous type match", symbol.Name);
+          match = true;
           callinfo = cinf;
           if (hasoverloads)   // assume symbol table correct unless using overloads
             datatype = cinf.ReturnType; //FIX: bad feeling about this
@@ -65,33 +72,47 @@ namespace Andl.Peg {
         }
       }
       if (!match)
-        Parser.ParseError("'{0}' type mismatch", symbol.Name);
+        Parser.ParseError("'{0}' no matching function definition", symbol.Name);
       if (symbol.IsDyadic)
-        CheckDyadicType(symbol.JoinOp, datatypes[0], datatypes[1], ref datatype);
-      if (nargs >= 1 && (datatype == DataTypes.Table && datatypes[0] is DataTypeRelation
-                         || datatype == DataTypes.Unknown))
-        datatype = datatypes[0];
-      if (datatype == DataTypes.Table || datatype == DataTypes.Unknown) Parser.ParseError("cannot determine return type: {0}", symbol.Name);
+        CheckDyadicType(symbol, datatypes[0], datatypes[1], ref datatype);
+      else if (datatype == DataTypes.Table || datatype == DataTypes.Infer)
+        CheckInferType(symbol, datatypes, ref datatype);
+      else if (datatype == DataTypes.Unknown)
+        Parser.ParseError($"{symbol.Name}: cannot infer return type");
+      //if (nargs >= 1 && (datatype == DataTypes.Table && datatypes[0] is DataTypeRelation
+      //                   || datatype == DataTypes.Unknown))
+      //  datatype = datatypes[0];
+      //if (datatype == DataTypes.Table || datatype == DataTypes.Unknown) Parser.ParseError("cannot determine return type: {0}", symbol.Name);
       Logger.Assert(datatype.Flags.HasFlag(TypeFlags.Variable) || datatype == DataTypes.Void, datatype.Name);
     }
 
     // check dyadic ops and compute result type
-    void CheckDyadicType(JoinOps joinop, DataType datatype1, DataType datatype2, ref DataType datatype) {
+    void CheckDyadicType(Symbol sym, DataType datatype1, DataType datatype2, ref DataType datatype) {
+      var joinop = sym.JoinOp;
       if (datatype1 is DataTypeRelation && datatype2 is DataTypeRelation) {
         var cols = DataColumn.Merge(Symbol.ToMergeOp(joinop), datatype1.Heading.Columns, datatype2.Heading.Columns);
         var dups = cols.GroupBy(c => c.Name).Where(g => g.Count() > 1).Select(g => g.Key).ToArray();
         if (dups.Length > 0)
-          Parser.ParseError("duplicate attribute: {0}", String.Join(",", dups));
+          Parser.ParseError($"{sym.Name}: duplicate attribute: {dups.Join(",")}");
         datatype = DataTypeRelation.Get(DataHeading.Create(cols));
       } else if (datatype1 is DataTypeTuple && datatype2 is DataTypeTuple) {
         var cols = DataColumn.Merge(Symbol.ToTupleOp(joinop), datatype1.Heading.Columns, datatype2.Heading.Columns);
         var dups = cols.GroupBy(c => c.Name).Where(g => g.Count() > 1).Select(g => g.Key).ToArray();
         if (dups.Length > 0)
-          Parser.ParseError("duplicate attribute: {0}", String.Join(",", dups));
+          Parser.ParseError($"{sym.Name}: duplicate attribute: {dups.Join(",")}");
         datatype = DataTypeTuple.Get(DataHeading.Create(cols));
       } else
-        Parser.ParseError("relational or tuple arguments expected");
-      }
+        Parser.ParseError($"{sym.Name}: expected relational or tuple arguments");
+    }
+
+    // Functions that return a Table take their type from the first argument
+    void CheckInferType(Symbol sym, DataType[] datatypes, ref DataType datatype) {
+      if (datatype == DataTypes.Table && datatypes[0] is DataTypeRelation)
+        datatype = datatypes[0];
+      else if (datatype == DataTypes.Infer)
+        datatype = datatypes[0];
+      else Parser.ParseError($"{sym.Name}: cannot infer type from argument 1");
+    }
 
     // check single type match
     public void CheckTypeMatch(DataType typeexp, DataType typeis) {

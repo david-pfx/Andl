@@ -10,10 +10,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 using Andl.Runtime;
+using Andl.Common;
 
 namespace Andl.Peg {
   /// <summary>
@@ -36,14 +34,13 @@ namespace Andl.Peg {
   /// </summary>
   public enum FuncKinds {
     NUL,
-    DO,
-    FOLD,
-    IF,
-    RANK,
-    RESTRICT,
-    SKIPTAKE,
-    VALUE,
-    WHILE,
+    DO,         // do { statements }
+    FOLD,       // fold(op, arg)
+    IF,         // if(cond, <true>, <false>)
+    RESTRICT,   // Where clause
+    SKIPTAKE,   // Skip and take
+    WIN,        // Window function: applies an offset to the current row
+    WHILE,      // Recursive/iterative algorithm
   }
 
   /// <summary>
@@ -56,7 +53,7 @@ namespace Andl.Peg {
     VFUNCT,   // Ditto, TypedValue
     JFUNC,    // Dyadic join-like
     EFUNC,    // Expression code
-    LFUNC,    // tuple lookup function
+    LFUNC,    // tuple lookup function (also for window functions)
     UFUNC,    // UDT lookup function
     SFUNC,    // SELECTOR for udt
     CFUNC,    // compile-time function
@@ -121,12 +118,14 @@ namespace Andl.Peg {
     public const string RowE = ":rowe";
     public const string RowV = ":rowv";
     public const string RowC = ":rowc";
+    //public const string RowR = ":rowr";
     public const string Table = ":table";
     public const string TableV = ":tablev";
     public const string TableC = ":tablec";
     public const string Transform = ":transform";
     public const string TransAgg = ":transagg";
     public const string TransOrd = ":transord";
+    public const string TransWin = ":transwin";
     public const string TransTuple = ":transtup";
     public const string UpdateJoin = ":upjoin";
     public const string UpdateTransform = ":uptrans";
@@ -175,8 +174,8 @@ namespace Andl.Peg {
 
     public bool IsUserSel { get { return CallKind == CallKinds.SFUNC; } }
     public bool IsDefFunc { get { return CallKind == CallKinds.EFUNC; } }
-    public bool IsOrdFunc { get { return FuncKind == FuncKinds.VALUE || FuncKind == FuncKinds.RANK; } }
-    public bool IsDo{ get { return FuncKind == FuncKinds.DO; } }
+    public bool IsWin { get { return FuncKind == FuncKinds.WIN; } }
+    public bool IsDo { get { return FuncKind == FuncKinds.DO; } }
     public bool IsFold { get { return FuncKind == FuncKinds.FOLD; } }
     public bool IsIf { get { return FuncKind == FuncKinds.IF; } }
     public bool IsSkipTake { get { return FuncKind == FuncKinds.SKIPTAKE; } }
@@ -282,7 +281,7 @@ namespace Andl.Peg {
           : symbol.IsDefFunc ? EntryKinds.Code
           : EntryKinds.Value;
         var flags = EntryFlags.Public;  // FIX: when visibility control implemented
-        _catalog.GlobalVars.AddNew(symbol.Name, symbol.DataType, kind, flags);
+        _catalog.GlobalVars.AddNewEntry(symbol.Name, symbol.DataType, kind, flags);
       }
     }
 
@@ -444,8 +443,7 @@ namespace Andl.Peg {
       AddFunction(SymNames.Assign, 2, DataTypes.Void, CallKinds.FUNC, "Assign2");
       AddFunction(SymNames.Defer, 1, DataTypes.Void, CallKinds.FUNC, "Defer");
       AddFunction("do", 1, DataTypes.Any, CallKinds.FUNC, "DoBlock", FuncKinds.DO);
-      //AddFunction(SymNames.DoBlock, 1, DataTypes.Any, CallKinds.FUNC, "DoBlock", FuncKinds.DO);
-      AddFunction(SymNames.Import, 3, DataTypes.Void, CallKinds.FUNC, "Import");
+      AddFunction(SymNames.Import, 4, DataTypes.Void, CallKinds.FUNC, "Import");
       AddFunction(SymNames.Invoke, 2, DataTypes.Any, CallKinds.VFUNCT, "Invoke");
       AddFunction(SymNames.Lift, 1, DataTypes.Void, CallKinds.FUNC, "Lift");
       AddFunction(SymNames.Project, 2, DataTypes.Table, CallKinds.VFUNC, "Project");
@@ -453,11 +451,13 @@ namespace Andl.Peg {
       AddFunction(SymNames.RowE, 2, DataTypes.Row, CallKinds.VFUNC, "Row");
       AddFunction(SymNames.RowV, 2, DataTypes.Row, CallKinds.VFUNCT, "RowV");
       AddFunction(SymNames.RowC, 2, DataTypes.Row, CallKinds.VFUNCT, "RowC");
-      AddFunction("while", 3, DataTypes.Unknown, CallKinds.FUNC, "Recurse", FuncKinds.WHILE);
+      //AddFunction(SymNames.RowR, 2, DataTypes.Row, CallKinds.LFUNC, "RowR");
+      AddFunction("while", 3, DataTypes.Table, CallKinds.FUNC, "Recurse", FuncKinds.WHILE);
       AddFunction("where", 2, DataTypes.Table, CallKinds.VFUNC, "Restrict", FuncKinds.RESTRICT);
       AddFunction(SymNames.Transform, 2, DataTypes.Table, CallKinds.VFUNC, "Transform");
       AddFunction(SymNames.TransAgg, 2, DataTypes.Table, CallKinds.VFUNC, "TransAgg");
       AddFunction(SymNames.TransOrd, 2, DataTypes.Table, CallKinds.VFUNC, "TransOrd");
+      AddFunction(SymNames.TransWin, 2, DataTypes.Table, CallKinds.VFUNC, "TransWin");
       AddFunction(SymNames.TransTuple, 2, DataTypes.Table, CallKinds.VFUNC, "TransTuple");
       AddFunction(SymNames.Table, 2, DataTypes.Table, CallKinds.VFUNC, "Table");
       AddFunction(SymNames.TableV, 2, DataTypes.Table, CallKinds.VFUNCT, "TableV");
@@ -470,16 +470,16 @@ namespace Andl.Peg {
       AddFunction("skip", 2, DataTypes.Table, CallKinds.FUNC, "Skip", FuncKinds.SKIPTAKE);
       AddFunction("max", 2, DataTypes.Ordered, CallKinds.FUNC, "Max", FoldableFlags.ANY, FoldSeeds.MIN);
       AddFunction("min", 2, DataTypes.Ordered, CallKinds.FUNC, "Min", FoldableFlags.ANY, FoldSeeds.MAX);
-      AddFunction("fold", 2, DataTypes.Unknown, CallKinds.FUNC, "Fold", FuncKinds.FOLD);
-      //AddFunction("cfold", 2, DataTypes.Unknown, CallKinds.FUNC, "CumFold", FuncKinds.FOLD);
-      AddFunction("if", 3, DataTypes.Unknown, CallKinds.FUNC, "If", FuncKinds.IF);
+      AddFunction("fold", 2, DataTypes.Infer, CallKinds.FUNC, "Fold", FuncKinds.FOLD);
+      //AddFunction("cfold", 2, DataTypes.Infer, CallKinds.FUNC, "CumFold", FuncKinds.FOLD);
+      AddFunction("if", 3, DataTypes.Infer, CallKinds.FUNC, "If", FuncKinds.IF);
 
       AddFunction("ord", 0, DataTypes.Number, CallKinds.LFUNC, "Ordinal");
       AddFunction("ordg", 0, DataTypes.Number, CallKinds.LFUNC, "OrdinalGroup");
-      AddFunction("lead", 2, DataTypes.Unknown, CallKinds.LFUNC, "ValueLead", FuncKinds.VALUE);
-      AddFunction("lag", 2, DataTypes.Unknown, CallKinds.LFUNC, "ValueLag", FuncKinds.VALUE);
-      AddFunction("nth", 2, DataTypes.Unknown, CallKinds.LFUNC, "ValueNth", FuncKinds.VALUE);
-      AddFunction("rank", 2, DataTypes.Number, CallKinds.LFUNC, "Rank", FuncKinds.RANK);
+      AddFunction("lead", 2, DataTypes.Infer, CallKinds.LFUNC, "ValueLead", FuncKinds.WIN);
+      AddFunction("lag", 2, DataTypes.Infer, CallKinds.LFUNC, "ValueLag", FuncKinds.WIN);
+      AddFunction("nth", 2, DataTypes.Infer, CallKinds.LFUNC, "ValueNth", FuncKinds.WIN);
+      AddFunction("rank", 2, DataTypes.Number, CallKinds.LFUNC, "Rank", FuncKinds.WIN);
 
       AddDyadic("join", 2, 5, JoinOps.JOIN, "DyadicJoin");
       AddDyadic("compose", 2, 5, JoinOps.COMPOSE, "DyadicJoin");

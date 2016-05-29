@@ -1,33 +1,40 @@
-: Quick run through of available samples - dev only
+: Quick run through of available samples
+: usage: all, sql, pg
 
+@setlocal
 call ..\setvars.bat
+set andl=%binpath%\Andl /1 %*
+if (%1)==(all) set andl=%binpath%\Andl /1 %2$
+if (%1)==(sql) set andl=%binpath%\Andl /1 /s %2$
+if (%1)==(sql) set ord=no
+if (%1)==(pg) set andl=%binpath%\AndlPg /1 /p %2$
+if (%1)==(pg) set ord=no
 
 @if exist out.txt rm out.txt
-@if exist testandl.sqlite rm testandl.sqlite
-for /d %%f in (*.sandl) do rd %%f /s
+@rm *.sqandl
+for /d %%f in (*.sandl) do rd %%f /s /q
 
 @date /t >out.txt
 
 : create catalog
-%binpath%\Andl /1 %1 >> out.txt setup.andl 
-%binpath%\Andl /1 %1 >> out.txt sample1.andl
-%binpath%\Andl /1 %1 >> out.txt sample2.andl
-%binpath%\Andl /1 %1 >> out.txt sample3.andl
-%binpath%\Andl /1 %1 >> out.txt sample4.andl
-%binpath%\Andl /1 %1 >> out.txt sample5.andl
-%binpath%\Andl /1 %1 >> out.txt SPPsample1.andl
-%binpath%\Andl /1 %1 >> out.txt DbixCdSample.andl
-%binpath%\Andl /1 %1 >> out.txt family_tree.andl
-%binpath%\Andl /1 %1 >> out.txt recursive.andl
-%binpath%\Andl /1 %1 >> out.txt 100doors.andl
-%binpath%\Andl /1 %1 >> out.txt 99bottles.andl
-%binpath%\Andl /1 %1 >> out.txt fibonacci.andl
-%binpath%\Andl /1 %1 >> out.txt sudoku.andl
-%binpath%\Andl /1 %1 >> out.txt chinook.andl chinook_sqlite.sqandl
-: uncomment to run, but very slow
-:%binpath%\Andl /1 %1 >> out.txt mandelbrot.andl
+%andl% >> out.txt setup.andl 
+%andl% >> out.txt sample1.andl
+%andl% >> out.txt sample2.andl
+%andl% >> out.txt sample3.andl
+%andl% >> out.txt sample4.andl
+if not (%ord%)==(no) %andl% >> out.txt sample5.andl
+%andl% >> out.txt SPPsample1.andl
+%andl% >> out.txt DbixCdSample.andl
+%andl% >> out.txt family_tree.andl
+%andl% >> out.txt 100doors.andl
+%andl% >> out.txt 99bottles.andl
+%andl% >> out.txt fibonacci.andl
+if not (%ord%)==(no) %andl% >> out.txt recursive.andl
+if not (%ord%)==(no) %andl% >> out.txt sudoku.andl
+if (%1==sql) %andl% >> out.txt chinook.andl chinook_sqlite.sqandl
+: very slow
+if (%1==all) %andl% >> out.txt mandelbrot.andl
 
-@grep -n "False" out.txt
-@grep -ni "not found" out.txt
 @grep -ni "exception" out.txt
-@grep -ni "error" out.txt
+@grep -ni "*** Compiled" out.txt
+@grep -ni "Fatal:" out.txt

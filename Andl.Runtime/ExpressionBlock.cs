@@ -8,41 +8,39 @@
 /// explicit written permission.
 ///
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Andl.Common;
 
 namespace Andl.Runtime {
 
   public enum ExpressionKinds {
     Nul,        // nul, does nothing
-    IsFolded,   // fold expression that accumulates values using aggregation
-    HasFold,    // uses accumulator(s) during finalisation for final calculation
-    Closed,     // simple calculation
-    Open,       // iterated calculation requires field lookup
+    Value,      // a named value without evaluation
     Project,    // copies value, no code
     Rename,     // renames value, no code
-    Order,       // attributes used for sorting/grouping
-    Value,      // a named value without evaluation
+    IsOrder,    // attributes used for sorting/grouping, no code
+    Closed,     // simple calculation, no lookup
+    Open,       // iterated calculation requires lookup
+    IsFolded,   // fold expression that accumulates values using aggregation
+    HasFold,    // uses accumulator(s) during finalisation for final calculation
+    HasWin, // contains function that depends on ordering (and fold maybe)
   }
 
   /// <summary>
   /// Implements named expression for evaluation
   /// </summary>
   public interface IApiExpression {
-    // Name of expression
-    string Name { get; }
-    // Kind of expression
-    ExpressionKinds Kind { get; }
-    // Return type for this expression
-    DataType DataType { get; }
-    // Used by rename
-    string OldName { get; }
+    //// Name of expression
+    //string Name { get; }
+    //// Kind of expression
+    //ExpressionKinds Kind { get; }
+    //// Return type for this expression
+    //DataType DataType { get; }
+    //// Used by rename
+    //string OldName { get; }
 
-    bool IsRename { get; }
-    bool IsFolded { get; }
-    bool IsDesc { get; }
+    //bool IsRename { get; }
+    //bool IsFolded { get; }
+    //bool IsDesc { get; }
   }
 
   /// <summary>
@@ -65,20 +63,21 @@ namespace Andl.Runtime {
     // unique number for use by runtime
     public int Serial { get; protected set; }
 
-    public bool IsLazy { get; set; }            // true to defer evaluation (set later) //OBS:
-    public bool IsGrouped { get; protected set; }    // true to sort descending
+    public bool IsLazy { get; set; }              // OBS:true to defer evaluation (set later)
+    public bool IsGrouped { get; protected set; } // true to perform grouping
     public bool IsDesc { get; protected set; }    // true to sort descending
 
     static int _serialcounter = 0;
 
     public int NumArgs { get { return Lookup == null ? 0 : Lookup.Degree; } }
+    public bool IsValue { get { return Kind == ExpressionKinds.Value; } }
     public bool IsRename { get { return Kind == ExpressionKinds.Rename; } }
     public bool IsProject { get { return Kind == ExpressionKinds.Project; } }
+    public bool IsOrder { get { return Kind == ExpressionKinds.IsOrder; } }
     public bool IsOpen { get { return Kind == ExpressionKinds.Open; } }
     public bool IsFolded { get { return Kind == ExpressionKinds.IsFolded; } }
     public bool HasFold { get { return Kind == ExpressionKinds.HasFold; } }
-    public bool IsValue { get { return Kind == ExpressionKinds.Value; } }
-    public bool IsOrder { get { return Kind == ExpressionKinds.Order; } }
+    public bool HasWin { get { return Kind == ExpressionKinds.HasWin; } }
 
     // Unique name for heading used as arguments
     public string SubtypeName { get { return "(" + Serial + ")"; } }
@@ -93,13 +92,13 @@ namespace Andl.Runtime {
 
     public override string ToString() {
       if (Kind == ExpressionKinds.Value)
-        return String.Format("{0} kind:{1}={2}", Name, Kind, Value);
+        return String.Format("{0} {1}={2}", Kind, Name, Value);
       if (Kind == ExpressionKinds.Rename || Kind == ExpressionKinds.Project)
-        return String.Format("{0} kind:{1}<-{2} @{3}", Name, Kind, OldName, Lookup.ToString());
-      if (Kind == ExpressionKinds.Order)
-        return String.Format("{0} kind:{1} {2} {3}", Name, Kind, IsGrouped ? "grp" : "ord", IsDesc ? "desc" : "asc");
-      return String.Format("{0}[{1}] {2} type:{3} ac:{4} code:{5} args:{6} @{7}", Name, Serial, Kind, 
-        DataType, HasFold ? AccumCount : 0, Code.Length, NumArgs, Lookup.ToString());
+        return String.Format("{0} {1}<-{2} @{3}", Kind, Name, OldName, Lookup.ToString());
+      if (Kind == ExpressionKinds.IsOrder)
+        return String.Format("{0} {1} {2} {3}", Kind, Name, IsGrouped ? "grp" : "ord", IsDesc ? "desc" : "asc");
+      return String.Format("{0} {1}:{2} @{3} ac:{4} code:{5} #{6}", Kind, Name,
+        DataType, Lookup, AccumCount, Code.Length, Serial);
     }
 
     public string ToFormat() {
@@ -122,20 +121,21 @@ namespace Andl.Runtime {
     }
 
     // Create a codeless expression block for renames and projects
+    // Create a lookup so later code can easily track total set of inputs
     public static ExpressionBlock Create(string name, string oldname, DataType type) {
       return new ExpressionBlock {
         Kind = (name == oldname) ? ExpressionKinds.Project : ExpressionKinds.Rename,
         Name = name,
         DataType = type,
         OldName = oldname,
-        Lookup = DataHeading.Create(new DataColumn[] { DataColumn.Create(oldname, type) }), // CHECK: is this really needed?
+        Lookup = DataHeading.Create(new DataColumn[] { DataColumn.Create(oldname, type) }),
       };
     }
 
     // Create a codeless expression block for sorts
     public static ExpressionBlock Create(string name, DataType type, bool grouped, bool descending) {
       return new ExpressionBlock {
-        Kind = ExpressionKinds.Order,
+        Kind = ExpressionKinds.IsOrder,
         Name = name,
         DataType = type,
         IsGrouped = grouped,
@@ -153,7 +153,7 @@ namespace Andl.Runtime {
       };
     }
 
-    public DataColumn MakeDataColumn() {
+    public DataColumn ToDataColumn() {
       return DataColumn.Create(Name, DataType);
     }
 
@@ -202,7 +202,7 @@ namespace Andl.Runtime {
       if (IsRename || IsProject)
         ret = Evaluator.Lookup(OldName, lookup);
       else {
-        Logger.Assert(IsOpen || lookup == null, Name);
+        Logger.Assert(IsOpen || HasWin || lookup == null, Name);
         Logger.Assert(Evaluator != null, "evaluator null");
         ret = Evaluator.Exec(Code, lookup);
       }

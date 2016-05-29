@@ -10,9 +10,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Andl.Common;
 
 namespace Andl.Runtime {
   /// <summary>
@@ -36,7 +34,8 @@ namespace Andl.Runtime {
     // Create a persister, in memory or to a path
     public static Persist Create(string basepath, bool cancreate) {
       if (!Directory.Exists(basepath)) 
-        if (!cancreate) ProgramError.Fatal("Storage", "database does not exist: " + basepath);
+        if (!cancreate)
+          throw ProgramError.Fatal("Storage", "database does not exist: " + basepath);
       Directory.CreateDirectory(basepath);
       return new Persist { _basepath = basepath };
     }
@@ -67,8 +66,8 @@ namespace Andl.Runtime {
           var w = PersistWriter.Create(writer);
           w.Store(value);
         }
-      } catch (Exception) {
-        ProgramError.Fatal("Storage", "cannot store '{0}'", name);
+      } catch (Exception ex) {
+        throw ProgramError.Fatal("Storage", "cannot store '{0}' : {1}", name, ex.Message);
       }
     }
 
@@ -217,7 +216,7 @@ namespace Andl.Runtime {
         Write(eblock.OldName);
         Write(eblock.DataType);
         break;
-      case ExpressionKinds.Order:
+      case ExpressionKinds.IsOrder:
         Write(eblock.DataType);
         Write(eblock.IsGrouped);
         Write(eblock.IsDesc);
@@ -361,15 +360,18 @@ namespace Andl.Runtime {
     // Load the value of a variable from the database
     // Complements Store
     public TypedValue Load() {
-      if (_reader.ReadString() != Persist.Signature) ProgramError.Fatal("Catalog", "load found invalid signature");
+      if (_reader.ReadString() != Persist.Signature)
+        throw ProgramError.Fatal("Catalog", "load found invalid signature");
       var value = ReadValue();
-      if (_reader.ReadString() != Persist.Signature) ProgramError.Fatal("Catalog", "load found invalid signature");
+      if (_reader.ReadString() != Persist.Signature)
+        throw ProgramError.Fatal("Catalog", "load found invalid signature");
       return value;
     }
 
     // Peek the type of a variable in the database
     public DataType Peek() {
-      //Logger.Assert(_reader.ReadString() == Persist.Signature);
+      if (_reader.ReadString() != Persist.Signature)
+        throw ProgramError.Fatal("Catalog", "load found invalid signature");
       var type = ReadDataType();
       return type;
     }
@@ -434,7 +436,7 @@ namespace Andl.Runtime {
       case ExpressionKinds.Rename:
         eb = ExpressionBlock.Create(name, ReadString(), ReadDataType());
         break;
-      case ExpressionKinds.Order:
+      case ExpressionKinds.IsOrder:
         eb = ExpressionBlock.Create(name, ReadDataType(), _reader.ReadBoolean(), _reader.ReadBoolean());
         break;
       case ExpressionKinds.Value:
@@ -469,7 +471,11 @@ namespace Andl.Runtime {
 
     // read the base part of a data type
     DataType ReadBaseType() {
-      return DataTypes.Find(_reader.ReadString());
+      var name = _reader.ReadString();
+      var type = DataTypes.Find(name);
+      if (type == null)
+        throw ProgramError.Fatal("Storage", "Unknown type: '{0}'", name);
+      return type;
     }
 
     // read a heading

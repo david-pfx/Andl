@@ -53,13 +53,13 @@
     <Compile Include="gen-csharp\ThriftTest\VT2.cs" />
     <Compile Include="gen-csharp\ThriftTest\VT4.cs" />
     <Compile Include="gen-csharp\ThriftTest\VT5.cs" />
-    <Compile Include="Program.cs" />
+    <Compile Include="Client.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
     <None Include="packages.config" />
-    <None Include="setup.bat" />
+    <None Include="run-thrift.bat" />
     <None Include="ThriftTest.andl" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

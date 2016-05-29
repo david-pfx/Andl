@@ -4,7 +4,12 @@
 
 start($filename$)
 
-var S(csv), P(csv), SP(csv)
+#source 'd:\mydocs\dev\vs14\andl\test'
+var S(csv,{S#,SNAME,STATUS:number,CITY})
+var P(csv,{P#,PNAME,COLOR,WEIGHT:number,CITY})
+var SP(csv,{S#,P#,QTY:number})
+
+// simply one of each
 
 test_true($lineno$, 12=count(S join SP))
 test_true($lineno$, 4=count(S joinl SP))
@@ -42,6 +47,8 @@ test_true($lineno$, 1=degree(S rminus SP))
 test_true($lineno$, 1=degree(S symdiff SP))
 test_true($lineno$, 1=degree(S union SP))
 
+// where clauses
+
 sr := P .where(COLOR='Red')
 snr := P .where(PNAME='Screw')
 test_true($lineno$, 3=sr.count)
@@ -52,5 +59,9 @@ test_true($lineno$, 1=(sr intersect snr).count)
 test_true($lineno$, 1=(sr rminus snr).count)
 test_true($lineno$, 3=(sr symdiff snr).count)
 test_true($lineno$, 4=(sr union snr).count)
+
+// more complicated
+test_true($lineno$, {{ SNAME:='Adams' }} = (S ajoin SP .where(P# = 'P2')) .select{ SNAME })
+test_true($lineno$, 30 = (S .select{ S# } join P .select{ P# }) .count) // cross join
 
 finish($filename$)

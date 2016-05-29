@@ -10,8 +10,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Andl.Common;
 
 namespace Andl.Runtime {
   [Flags]
@@ -49,6 +48,7 @@ namespace Andl.Runtime {
     public static readonly DataType Unknown;
     public static readonly DataType Any;
     public static readonly DataType Default;  // default for import
+    public static readonly DataType Infer;    // infer function return from first arg
     // runtime argument types, not user visible
     public static readonly DataType Code;
     public static readonly DataType CodeArray;
@@ -80,6 +80,7 @@ namespace Andl.Runtime {
       TypeDict = new Dictionary<Type, DataType>();
 
       Unknown = DataType.Create("unknown", null);
+      Infer = DataType.Create("infer", null);
       Any = DataType.Create("any", typeof(TypedValue));
       Ordered = DataType.Create("ordered", typeof(IOrderedValue));
       Ordinal = DataType.Create("ordinal", typeof(IOrdinalValue));

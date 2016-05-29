@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Andl.Common;
 
 namespace Andl.Runtime {
 
@@ -78,6 +79,20 @@ namespace Andl.Runtime {
       if (type == DataTypes.Time) return Create(DateTime.Parse(value));
       if (type == DataTypes.Text) return Create(value);
       return TypedValue.Empty;
+    }
+
+    static Dictionary<string, Func<object, TypedValue>> _convertdict = new Dictionary<string, Func<object, TypedValue>> {
+      { "binary", o => BinaryValue.Create(o as byte[]) },
+      { "bool", o => BoolValue.Create((bool)o) },
+      { "number", o => NumberValue.Create((decimal)o) },
+      { "text", o => TextValue.Create(o as string) },
+      { "time", o => BinaryValue.Create((DateTime)o) },
+    };
+
+    public static TypedValue Convert(DataType type, object value) {
+      if (!_convertdict.ContainsKey(type.BaseName)) return null;
+      if (value == null) return type.DefaultValue();
+      return _convertdict[type.BaseName](value);
     }
 
     public static BinaryValue Create(byte[] value) {
@@ -206,10 +221,11 @@ namespace Andl.Runtime {
     }
 
     public override string ToString() {
-      var bs = Value as byte[];
-      if (bs == null) return Value.ToString();
-      var s = bs.Select(b => String.Format("{0:x2}", b));
-      return String.Join("", s);
+      return Value.Format().Shorten(50);
+      //var bs = Value as byte[];
+      //if (bs == null) return Value.ToString();
+      //var s = bs.Select(b => String.Format("{0:x2}", b));
+      //return String.Join("", s).Shorten(50);
     }
     public override string Format() {
       return "b'" + ToString() + "'";
@@ -576,12 +592,14 @@ namespace Andl.Runtime {
     public override string ToString() {
       // special case, please avoid
       if (Value == null) return "()";
-      var str = String.Join(",", Value.Select(s => s.ToString()));
-      return str;
+      return Value.Join(",");
+      //var str = String.Join(",", Value.Select(s => s.ToString()));
+      //return str;
     }
     public override string Format() {
       if (Value == null) return "()";
-      var str = _datatype.Name + "(" + String.Join(",", Value.Select(s => s.Format())) + ")";
+      var str = _datatype.Name + "(" + Value.Select(s => s.Format()).Join(",") + ")";
+      //var str = _datatype.Name + "(" + String.Join(",", Value.Select(s => s.Format())) + ")";
       return str;
     }
 

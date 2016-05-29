@@ -166,6 +166,10 @@
     <Resource Include="Images\Procedure_8937.png" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Andl.Common\Andl.Common.csproj">
+      <Project>{300417d4-dcfa-4f93-bafb-b9e9e73fbcd6}</Project>
+      <Name>Andl.Common</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Andl.Gateway\Andl.Gateway.csproj">
       <Project>{1201feff-69fc-4720-8b03-059697b41ed3}</Project>
       <Name>Andl.Gateway</Name>

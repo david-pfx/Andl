@@ -9,6 +9,13 @@ wait => pause(prompt)
 // Load some data (courtesy Date & Darwen)
 // Supplier dataset in CSV format
 
-var S(csv), P(csv), SP(csv), J(csv), SPJ(csv)
+#source 'D:\MyDocs\dev\vs14\Andl\Sample'
+var S(csv,{S#,SNAME,STATUS:number,CITY})
+var P(csv,{P#,PNAME,COLOR,WEIGHT:number,CITY})
+var SP(csv,{S#,P#,QTY:number})
+var J(csv,{J#,JNAME,CITY})
+var SPJ(csv,{S#,P#,J#,QTY:number})
+
+andl_catalog
 
 // end

@@ -41,12 +41,21 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Gateway.cs" />
+    <Compile Include="PostgresGateway.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Andl.Common\Andl.Common.csproj">
+      <Project>{300417d4-dcfa-4f93-bafb-b9e9e73fbcd6}</Project>
+      <Name>Andl.Common</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Andl.Peg\Andl.Peg.csproj">
       <Project>{29813458-2c61-4d97-bd9c-857e35985a6c}</Project>
       <Name>Andl.Peg</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Andl.Postgres\Andl.Postgres.csproj">
+      <Project>{7f850100-999d-4d43-9448-febf628fb9fb}</Project>
+      <Name>Andl.Postgres</Name>
     </ProjectReference>
     <ProjectReference Include="..\Andl.Runtime\Andl.Runtime.csproj">
       <Project>{c7d6d0e8-dc93-4d12-b580-34d09e284873}</Project>

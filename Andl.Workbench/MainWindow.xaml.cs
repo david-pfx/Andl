@@ -40,7 +40,13 @@ namespace Andl.Workbench {
       if (DataModel.Databases.Length > 0) {
         var name = DataModel.Databases.Select(d => d.OpenName)
           .FirstOrDefault(s => s.StartsWith("workbench", StringComparison.InvariantCultureIgnoreCase));
-        DataModel.DatabaseName = name ?? DataModel.Databases[0].OpenName;
+        var oname = name ?? DataModel.Databases[0].OpenName;
+        try {
+          DataModel.DatabaseName = oname;
+        } catch(Exception ex) {
+          MessageBox.Show($"Exception opening database {oname}:\n{ex.Message}");
+          Application.Current.Shutdown();
+        }
       }
 
       textEditor.Focus();
@@ -88,6 +94,7 @@ namespace Andl.Workbench {
       if (ask || CurrentFileName == null) {
         SaveFileDialog dlg = new SaveFileDialog() {
           InitialDirectory = Directory.GetCurrentDirectory(),
+          FileName = CurrentFileName,
         };
         dlg.DefaultExt = ".txt";
         if (dlg.ShowDialog() ?? false)
@@ -153,6 +160,7 @@ namespace Andl.Workbench {
       if (CloseCurrentFile()) {
         textEditor.Clear();
         CurrentFileName = null;
+        textEditor.IsModified = false;
       }
     }
 

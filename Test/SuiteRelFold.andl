@@ -4,7 +4,10 @@
 
 start($filename$)
 
-var S(csv), P(csv), SP(csv)
+#source 'd:\mydocs\dev\vs14\andl\test'
+var S(csv,{S#,SNAME,STATUS:number,CITY})
+var P(csv,{P#,PNAME,COLOR,WEIGHT:number,CITY})
+var SP(csv,{S#,P#,QTY:number})
 
 // simple folds
 test_true($lineno$, 30 = S .select{ fold(max,STATUS) })

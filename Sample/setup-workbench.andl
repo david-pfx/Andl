@@ -3,7 +3,9 @@
 
 #catalog new update
 
-var S(csv), P(csv), SP(csv)
+var S(csv,{S#,SNAME,STATUS:number,CITY})
+var P(csv,{P#,PNAME,COLOR,WEIGHT:number,CITY})
+var SP(csv,{S#,P#,QTY:number})
 
 suppliersbyname(name:text) => S .where(SNAME =~ name) .select{ *Sid:=S# } 
 addsuppliers(adds:S) => update S union adds

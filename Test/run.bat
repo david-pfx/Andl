@@ -1,6 +1,6 @@
-: Run an Andl script
+: Run an Andl program, with arguments
 
 call ..\setvars.bat
 
-%binpath%\Andl /i %$
+%binpath%\Andl /i %*
 

@@ -5,93 +5,100 @@
 start($filename$)
 
 //--- defer
-_dv1 => 22
-test_true($lineno$, 22 = _dv1)
+dv1 => 22
+test_true($lineno$, 22 = dv1)
 
-_av1 := 22
-_dv2 => _av1*2 + _dv1*2
-test_true($lineno$, 88 = _dv2)
+av1 := 22
+dv2 => av1*2 + dv1*2
+test_true($lineno$, 88 = dv2)
 
 //--- arguments
-_fn1(x:0) => x*10
-test_true($lineno$, 30 = _fn1(3))
+fn1(x:0) => x*10
+test_true($lineno$, 30 = fn1(3))
 
-_fn3(x:0) => seq(x)
-test_true($lineno$, seq(4) = _fn3(4))
+fn3(x:0) => seq(x)
+test_true($lineno$, seq(4) = fn3(4))
 
-_fact:0(n:0) => if(n<=1,1,n*_fact(n-1))
-test_true($lineno$, 720 = _fact(6))
+fact:0(n:0) => if(n<=1,1,n*fact(n-1))
+test_true($lineno$, 720 = fact(6))
 
 //--- do blocks
-_pot:0(n:0) => do { if(n<=0,1,10*_pot(n-1)) }
-test_true($lineno$, 1000000 = _pot(6))
+pot:0(n:0) => do { if(n<=0,1,10*pot(n-1)) }
+test_true($lineno$, 1000000 = pot(6))
 
-_dfact:0(n:0) => do {
-  nn => n*_dfact(n-1)
+dfact:0(n:0) => do {
+  nn => n*dfact(n-1)
   if(n<=1,1,nn)
 }
-test_true($lineno$, 720 = _dfact(6))
-test_true($lineno$, 2432902008176640000 = _dfact(20))
+test_true($lineno$, 720 = dfact(6))
+test_true($lineno$, 2432902008176640000 = dfact(20))
 
 //--- scopes
-_fns0(t:'') => do {
+fns0(t:'') => do {
   a := t & 'xxx'
   a
 }
-test_true($lineno$, 'xyzxxx' = _fns0('xyz'))
+test_true($lineno$, 'xyzxxx' = fns0('xyz'))
 
-_fns1(n:0) => do {
+fns1(n:0) => do {
   a := n+2
   a - 2
 }
-test_true($lineno$, 7 = _fns1(7))
+test_true($lineno$, 7 = fns1(7))
 
-_rv1 := {{ A1:='abc', A2:=17 }}
-_fns2(rr:_rv1) => do {
+rv1 := {{ A1:='abc', A2:=17 }}
+fns2(rr:rv1) => do {
   a := rr
   rr
 }
-test_true($lineno$, _rv1 = _fns2(_rv1))
+test_true($lineno$, rv1 = fns2(rv1))
 
 // --- user types as parameters
 
-_rv1 := {{ A2:number, A1:text }}
-_rv2 := {{ A1:='abc', A2:=17 }}
-def _usr1(A2:number, A1:text)
-def _usr2(A1:text, A2:number)
+rv1 := {{ A2:number, A1:text }}
+rv2 := {{ A1:='abc', A2:=17 }}
+def usr1(A2:number, A1:text)
+def usr2(A1:text, A2:number)
 
-fr1(arg:_rv1) => do {
+fr1(arg:rv1) => do {
   a := arg
   a
 }
-fr2(arg:_rv2) => do {
+fr2(arg:rv2) => do {
   a := arg
   a
 }
-fr3(arg:_usr1) => do {
+fr3(arg:usr1) => do {
   a := arg
   a
 }
-fr4(arg:_usr2) => do {
+fr4(arg:usr2) => do {
   a := arg
   a
 }
 
-test_true($lineno$, _rv2            = fr1(_rv2))
-test_true($lineno$, _rv2            = fr2(_rv2))
-test_true($lineno$, _usr1(3, 'abc')  = fr3(_usr1(3, 'abc')))
-test_true($lineno$, _usr2('abc', 4)  = fr4(_usr2('abc', 4)))
+test_true($lineno$, rv2            = fr1(rv2))
+test_true($lineno$, rv2            = fr2(rv2))
+test_true($lineno$, usr1(3, 'abc')  = fr3(usr1(3, 'abc')))
+test_true($lineno$, usr2('abc', 4)  = fr4(usr2('abc', 4)))
 
 // --- stack check
 
-_fnret2 => do {
+fnret2 => do {
     {{}}
     1111
 }
-test_true($lineno$, 1111 = _fnret2)
-_stv := _fnret2
-test_true($lineno$, 1111 = _stv)
+test_true($lineno$, 1111 = fnret2)
+stv3 := fnret2
+test_true($lineno$, 1111 = stv3)
 
+fnret3 => do {
+    def ut3(C1:0, C2:'')
+    1112
+}
+test_true($lineno$, 1112 = fnret3)
+stv3 := fnret3
+test_true($lineno$, 1112 = stv3)
 
 finish($filename$)
 //andl_catalog

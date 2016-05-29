@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Andl.Gateway;
 using System.IO;
+using Andl.Gateway;
+using Andl.Common;
 
 namespace Andl.Client {
   /// <summary>
@@ -46,7 +47,7 @@ namespace Andl.Client {
 
     void Run(string program) {
       Console.WriteLine("{0}", program);
-      ShowResult(_api.Execute(program));
+      ShowResult(_api.RunScript(program));
     }
         
     void ShowResult(Result result) {

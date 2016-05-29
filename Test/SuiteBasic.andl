@@ -56,47 +56,89 @@ test_true($lineno$, if(true,{{}},{{:}}) = {{}})
 
 //--- assign
 // cover every type, checks value equality too
-_asvbi := b'05040302'
-test_true($lineno$, _asvbi = b'05040302')
+asvbi := b'05040302'
+test_true($lineno$, asvbi = b'05040302')
 
-_asvbo := true
-test_true($lineno$, _asvbo = true)
+asvbo := true
+test_true($lineno$, asvbo = true)
 
-_asvnu := 123456789.123456789  // beyond real
-test_true($lineno$, _asvnu = 123456789.123456789)
-test_true($lineno$, _asvnu = --123456789.123456789)
-test_true($lineno$, 123456789.123456789 = _asvnu)
-test_true($lineno$, 123456789.123456789 = -- _asvnu)
+asvnu := 123456789.123456789  // beyond real
+test_true($lineno$, asvnu = 123456789.123456789)
+test_true($lineno$, asvnu = --123456789.123456789)
+test_true($lineno$, 123456789.123456789 = asvnu)
+test_true($lineno$, 123456789.123456789 = -- asvnu)
 
-_asvte := 'abc def' d'33'
-test_true($lineno$, _asvte = 'abc def!')
+asvte := 'abc def' d'33'
+test_true($lineno$, asvte = 'abc def!')
 
-_asvti := t'2015-12-31 23:59:59.999'
-test_true($lineno$, _asvti = t'2015-12-31 23:59:59.999')
+asvti := t'2015-12-31 23:59:59.999'
+test_true($lineno$, asvti = t'2015-12-31 23:59:59.999')
 
-_asvtu := { A1 := 'abd def', A2 := 99 }
-test_true($lineno$, _asvtu = { A2 := 99, A1 := 'abd def' })
+asvtu := { A1 := 'abd def', A2 := 99 }
+test_true($lineno$, asvtu = { A2 := 99, A1 := 'abd def' })
 
-_asvre  := {{ A1 := 'abd def', A2 := 99}, { A2 := 98, A1 := 'Pqr'}}
-test_true($lineno$, _asvre = {{ A2 := 98, A1 := 'Pqr'}, { A1 := 'abd def', A2 := 99 }})
+asvre  := {{ A1 := 'abd def', A2 := 99}, { A2 := 98, A1 := 'Pqr'}}
+test_true($lineno$, asvre = {{ A2 := 98, A1 := 'Pqr'}, { A1 := 'abd def', A2 := 99 }})
 
-def _astus(C1:0, C2:'')
-_asvus := _astus(45, 'x-y%z')
-test_true($lineno$, _asvus = _astus(45, 'x-y%z'))
+def astus(C1:0, C2:'')
+asvus := astus(45, 'x-y%z')
+test_true($lineno$, asvus = astus(45, 'x-y%z'))
 
-// repeating literals ensures test of value semantics
-_asvall  := {{ bi := b'05040302', bo := true, nu := 123456789.123456789, te := 'abc def!', ti := t'2015-12-31 23:59:59.999',
-                tu := { A1 := 'abd def', A2 := 99 }, re := {{ A1 := 'abd def', A2 := 99}, { A2 := 98, A1 := 'Pqr'}}, us := _astus(45, 'x-y%z') 
-            }}
-test_true($lineno$, _asvall = {{ bi := _asvbi, bo := _asvbo, nu := _asvnu, te := _asvte, ti := _asvti, tu := _asvtu, re := _asvre, us := _asvus }})
+// tupe/relation types leave until later
 
-// test of database var, both ways
+//--- user type defs
+def utype1(C1:0, C2:'')
+uvar1 := utype1(17, 'abd def')
+test_true($lineno$, uvar1      = utype1(17, 'abd def'))
+test_true($lineno$, 17         = uvar1.C1)
+test_true($lineno$, 'abd def'  = uvar1.C2)
 
-ASVREL := {{ bi := b'05040302', bo := true, nu := 123456789.123456789, te := 'abc def!', ti := t'2015-12-31 23:59:59.999',
-                tu := { A1 := 'abd def', A2 := 99 }, re := {{ A1 := 'abd def', A2 := 99}, { A2 := 98, A1 := 'Pqr'}}, us := _astus(45, 'x-y%z') 
-            }}
-test_true($lineno$, _asvall = ASVREL)
-test_true($lineno$, ASVREL = _asvall)
+uvar11 := utype1(18, 'Pqr')
+test_true($lineno$, uvar11 > uvar1)
+uvar12 := utype1(16, 'Pqr')
+//test_true($lineno$, uvar12 < uvar1)
+
+def utype2(C1:0, C2:'', C3:'')
+uvar2 := utype2(63, 'Pqr', 'x-y%z')
+test_true($lineno$, uvar2      = utype2(63, 'Pqr', 'x-y%z'))
+test_true($lineno$, 63         = uvar2.C1)
+test_true($lineno$, 'Pqr'    = uvar2.C2)
+test_true($lineno$, 'x-y%z'     = uvar2.C3)
+
+//--- functions
+// note: same code will be used later for testing the catalog
+^devbi := b'05040301'
+^devbo := true
+^devnu := 123456789.123456798
+^devte := 'abc dfe' d'33'
+^devti := t'2015-12-31 23:59:59.989'
+^devtu := { A1 := 'abd def', A2 := 89 }
+^devre  := {{ A1 := 'abd def', A2 := 89}, { A2 := 98, A1 := 'Pqr'}}
+def ^detus(C1:0, C2:'')
+^devus := ^detus(45, 'x-y?z')
+
+test_true($lineno$, ^devbi = b'05040301')
+test_true($lineno$, ^devbo = true)
+test_true($lineno$, ^devnu = 123456789.123456798)
+test_true($lineno$, ^devte = 'abc dfe' d'33')
+test_true($lineno$, ^devti = t'2015-12-31 23:59:59.989')
+test_true($lineno$, ^devtu = { A1 := 'abd def', A2 := 89 })
+test_true($lineno$, ^devre = {{ A1 := 'abd def', A2 := 89}, { A2 := 98, A1 := 'Pqr'}})
+test_true($lineno$, ^devus = ^detus(45, 'x-y?z'))
+
+def1 => 42
+def2() => 43
+def3(p1:0) => 44*p1
+def4(p1:binary,p2:bool,p3:number,p4:time,p5:text) => p1 & p2 & p3 & p4 & p5
+def5(p1:^devbi,p2:^devbo,p3:^devnu,p4:^devti,p5:^devte) => p1 & p2 & p3 & p4 & p5
+def6(p1:b'',p2:true,p3:0,p4:t'2016-12-31',p5:'') => p1 & p2 & p3 & p4 & p5
+
+test_true($lineno$, def1     = 42)
+test_true($lineno$, def2     = 43)
+test_true($lineno$, def3(17) = 44*17)
+test_true($lineno$, def4(^devbi,^devbo,^devnu,^devti,^devte) = ^devbi & ^devbo & ^devnu & ^devti & ^devte)
+test_true($lineno$, def5(^devbi,^devbo,^devnu,^devti,^devte) = ^devbi & ^devbo & ^devnu & ^devti & ^devte)
+test_true($lineno$, def4(^devbi,^devbo,^devnu,^devti,^devte) = ^devbi & ^devbo & ^devnu & ^devti & ^devte)
 
 //--- builtin
 test_true($lineno$, {{N:=0},{N:=1},{N:=2}}       = seq(3))
@@ -173,22 +215,5 @@ test_true($lineno$, "xyz" = max("xyz","xyx"))
 test_true($lineno$, "xyz" = max("xyx","xyz"))
 test_true($lineno$, "xyz" = min("xyz","xzz"))
 test_true($lineno$, "xyz" = min("xzz","xyz"))
-
-//--- user type defs
-def utype1(C1:0, C2:'')
-uvar1 := utype1(17, 'abd def')
-test_true($lineno$, uvar1      = utype1(17, 'abd def'))
-test_true($lineno$, 17         = uvar1.C1)
-test_true($lineno$, 'abd def'  = uvar1.C2)
-
-uvar11 := utype1(18, 'Pqr')
-test_true($lineno$, uvar11 > uvar1)
-
-def utype2(C1:0, C2:'', C3:'')
-uvar2 := utype2(63, 'Pqr', 'x-y%z')
-test_true($lineno$, uvar2      = utype2(63, 'Pqr', 'x-y%z'))
-test_true($lineno$, 63         = uvar2.C1)
-test_true($lineno$, 'Pqr'    = uvar2.C2)
-test_true($lineno$, 'x-y%z'     = uvar2.C3)
 
 finish($filename$)

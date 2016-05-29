@@ -1,22 +1,37 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Pegasus.Common;
 using System.IO;
 using Andl.Runtime;
 using System.Text.RegularExpressions;
+using Andl.Common;
 
 namespace Andl.Peg {
   /// <summary>
   /// Special exception to handle parse errors and enable restart of parser
   /// </summary>
   public class ParseException : Exception {
-    public Cursor State { get; set; }
-    public ParseException(Cursor state, string message) : base(message) {
+    public Cursor State { get; private set; }
+    public bool Stop { get; private set; }
+    public ParseException(Cursor state, string message, bool stop = false) : base(message) {
       State = state;
+      Stop = stop;
     }
+  }
+
+  /// <summary>
+  /// Implement holder for include files
+  /// </summary>
+  public class ParserInput {
+    public ParserInput Parent;
+    public string Filename;
+    public string InputText;
+    public Cursor State;
+    public List<int> LineStarts = new List<int>();
+    public int LastLocation = -1;
+    public bool IsIncluded { get { return Parent != null; } }
+    public int Level { get { return Parent == null ? 0 : 1 + Parent.Level; } }
   }
 
   /// <summary>
@@ -28,13 +43,16 @@ namespace Andl.Peg {
     public SymbolTable Symbols { get; set; }
     public AstFactory Factory { get; set; }
     public Catalog Cat { get; set; }
-    public int ErrorCount = 0;
-    public bool Done = false;
-    public string InputText { get; private set; }
-    public Cursor State { get; private set; }
+    public ParserInput NewInput { get; set; }
+    public string InputText {  get { return _input.InputText; } }
+    public Cursor State {
+      get { return _input.State; }
+      set { _input.State = value; }
+    }
 
-    Stack<string> _inputpaths = new Stack<string>();
-    bool _skip = false;
+    ParserInput _input;
+    bool _started = false;
+    bool _skip = false;       // error restart via skip to next
 
     public PegParser() {
       Factory = new AstFactory { Parser = this };
@@ -47,32 +65,48 @@ namespace Andl.Peg {
       return Factory;
     }
 
-    List<int> _linestarts = new List<int>();
-    int _last_location = -1;
-
-    // Initialise catalog and import symbols, but not until parse has started
-    bool _started = false;
+    // Import symbols, but not until parse has started
     public bool Start() {
       if (_started) return false;
       Logger.WriteLine(4, "Start parse");
-      Cat.Start();
+      // critical: enable cataloguing here and not before
+      Cat.BeginSession(SessionState.Full);
       Symbols.ResetScope();
       Symbols.Import(Cat.GlobalVars);
       Symbols.Import(Cat.PersistentVars);
       return true;
     }
 
-    // Called to restart parse after error
+    // Called to restart parse after possible error or switched input
     public AstStatement Restart(ref Cursor state) {
       Logger.WriteLine(4, "Restart parse skip={0} line={1} column={2} location={3}", _skip, state.Line, state.Column, state.Location);
       var cursor = state.WithMutability(mutable: false);
       // next line only needed if memoize active
       //this.storage = new Dictionary<CacheKey, object>();
 
+      // true if was error, need to skip to known good point
       var restart = _skip;
       _skip = false;
+      _input.State = cursor;
       var result = (restart) ? MainRestart(ref cursor) : MainNext(ref cursor);
       return result.Value;
+    }
+
+    // Push state stack
+    public bool TryPushState() {
+      if (NewInput == null) return false;
+      NewInput.Parent = _input;
+      NewInput.State = new Cursor(NewInput.InputText, 0, NewInput.Filename);
+      _input = NewInput;
+      NewInput = null;
+      return true;
+    }
+
+    // Pop state stack or return false
+    public bool TryPopState() {
+      if (_input.Parent == null) return false;
+      _input = _input.Parent;
+      return true;
     }
 
     // Get a single line of source code from position
@@ -85,14 +119,17 @@ namespace Andl.Peg {
     // true predicate to print the line containing the current location
     // due to backtracking may be called more than once, so just do once and not off end
     public bool PrintLine(Cursor state, bool force = false) {
+      if (NewInput != null) return true;   // suppress printing if #include pending
       var bol = state.Location - state.Column + 1;
-      if (bol > _last_location) {
-        _linestarts.Add(bol);
+      if (bol > _input.LastLocation) {
+        _input.LineStarts.Add(bol);
         Symbols.FindIdent("$lineno$").Value = NumberValue.Create(state.Line);
         if (Logger.Level >= 1 || force)
-          Output.WriteLine("{0,3}: {1} {2}", state.Line, GetLine(state.Subject, bol),
+          Output.WriteLine("{0}{1,3}: {2} {3}", 
+            new string('>', _input.Level),
+            state.Line, GetLine(state.Subject, bol),
             (Logger.Level >= 4) ? " <bol="+bol.ToString()+">" : "");
-        _last_location = bol;
+        _input.LastLocation = bol;
       }
       return true;
     }
@@ -113,10 +150,9 @@ namespace Andl.Peg {
     void ParseError(Cursor state, string message, params object[] args) {
       Logger.WriteLine(4, "Error msg='{0}' line={1} column={2} location={3}", message, state.Line, state.Column, state.Location);
       PrintLine(state, true);
-      var offset = state.Location - _linestarts.Last();
+      var offset = state.Location - _input.LineStarts.Last();
       if (offset > 0) Output.WriteLine("      {0}^", new string(' ', offset));
       Output.WriteLine("Error: {0}!", String.Format(message, args));
-      ErrorCount++;
       _skip = true;
       throw new ParseException(state, message);
     }
@@ -127,23 +163,22 @@ namespace Andl.Peg {
     ///
 
     // Load up the first source file
-    public void Start(TextReader input, string filename) {
+    public void LoadSource(TextReader input, string filename) {
       Symbols.FindIdent("$filename$").Value = TextValue.Create(filename);
-      _inputpaths.Push(filename);
-      InputText = input.ReadToEnd();
+      _input = new ParserInput {
+        InputText = input.ReadToEnd()
+      };
     }
 
     // Insert a file into this one
-    public bool Include(string input) {
-      if (!File.Exists(input)) return false;
-      ParseError("#include not supported");
-      using (StreamReader sr = File.OpenText(input)) {
-        Symbols.FindIdent("$filename$").Value = TextValue.Create(input);
-        _inputpaths.Push(input);
-        InputText = InputText.Insert(State.Location, sr.ReadToEnd());
-        //State.Subject = InputText; <<-- no can do
-        _inputpaths.Pop();
-        Symbols.FindIdent("$filename$").Value = TextValue.Create(_inputpaths.Peek());
+    // TODO: pass new input back up the tree
+    public bool Include(string filename) {
+      if (!File.Exists(filename)) return false;
+      using (StreamReader sr = File.OpenText(filename)) {
+        NewInput = new ParserInput {
+          Filename = filename, InputText = sr.ReadToEnd(), 
+        };
+        Symbols.FindIdent("$filename$").Value = TextValue.Create(filename);
       }
       return true;
     }
@@ -156,11 +191,10 @@ namespace Andl.Peg {
     // #catalog with options additional to any command line switches !?
     string CatalogDirective(Cursor state, IList<string> options) {
       State = state;
-      // override command line
       Cat.LoadFlag = !options.Any(o => o == "new");
-      Cat.SaveFlag = options.Any(o => o == "update");
-      // allow command line if set
-      Cat.DatabaseSqlFlag |= options.Any(o => o == "sql");
+      Cat.SaveFlag |= options.Any(o => o == "update");
+      Cat.SqlFlag |= options.Any(o => o == "sql");
+      Cat.Directive();
       return "";
     }
     string IncludeDirective(Cursor state, string path) {
@@ -176,14 +210,17 @@ namespace Andl.Peg {
     }
     string SourceDirective(Cursor state, string path) {
       State = state;
-      Cat.SourcePath = (path.Length >= 2) ? Unquote(path) : "";
+      try {
+        Cat.SourcePath = Path.GetFullPath(path);
+      } catch {
+        ParseError("invalid path '{0}'", path);
+      }
       return "";
     }
     string StopDirective(Cursor state, string level) {
       State = state;
       if (level != "") Logger.Level = int.Parse(level);
-      Done = true;
-      throw new ParseException(null, null);
+      throw new ParseException(null, null, true);
     }
 
     ///============================================================================================

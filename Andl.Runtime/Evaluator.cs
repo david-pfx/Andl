@@ -9,14 +9,9 @@
 ///
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Linq.Expressions;
 using System.Reflection;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
+using Andl.Common;
 
 namespace Andl.Runtime {
   public enum Opcodes {
@@ -133,6 +128,7 @@ namespace Andl.Runtime {
       try {
         retval = Run(code, aggregate, accblock);
       } catch (TargetInvocationException ex) {
+        Logger.WriteLine(3, "Exception {0}", ex.ToString());
         throw ex.InnerException;
       }
       if (lookup != null) PopLookup();
@@ -200,8 +196,7 @@ namespace Andl.Runtime {
           var val = _catalog.GetValue(reader.ReadString());
           if (val.DataType == DataTypes.Code)
             val = this.Exec((val as CodeValue).Value.Code);
-          if (val.DataType != DataTypes.Void)
-            _stack.Push(val);
+          _stack.Push(val);
           break;
         case Opcodes.LDCATR:
           PushStack(_catalog.GetValue(reader.ReadString()));

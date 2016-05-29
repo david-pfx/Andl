@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.IO;
+using System.Windows;
 using Andl.Gateway;
 using Andl.Runtime;
-using System.Windows;
+using Andl.Common;
 
 namespace Andl.Workbench {
 
@@ -58,7 +58,7 @@ namespace Andl.Workbench {
     DatabaseInfo[] GetTestDatabaseInfo() {
       return new DatabaseInfo[] {
         new DatabaseInfo {
-          Name = "data",
+          Name = "first",
         },
         new DatabaseInfo {
           Name = "second",
@@ -108,7 +108,7 @@ namespace Andl.Workbench {
     public Result Execute(string command) {
       if (Selector.IsTest) return Result.Failure("This is a test!!!");
       if (Gateway == null) return Result.Failure(String.Format("Database {0} not connected!", Name));
-      return Gateway.Execute(command, ExecModes.Raw);
+      return Gateway.RunScript(command, ExecModes.Raw);
     }
 
     ItemInfo GetTestRelationInfo(string name) {

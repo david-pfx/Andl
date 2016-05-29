@@ -1,4 +1,4 @@
-﻿// webhostspsetup.andl -- set up for access by Web Host (WCF)
+﻿// hostsetup.andl -- set up for access by Web Host (WCF)
 // 
 #catalog new update
 

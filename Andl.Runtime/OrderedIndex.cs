@@ -10,8 +10,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Andl.Common;
 
 namespace Andl.Runtime {
   /// <summary>
@@ -114,7 +113,7 @@ namespace Andl.Runtime {
         datatype = e.DataType,
         descending = e.IsDesc,
         grouped = e.IsGrouped,
-        columnno = heading.FindIndex(e.MakeDataColumn()),
+        columnno = heading.FindIndex(e.ToDataColumn()),
       }).ToArray();
       return Create(seginfo);
     }

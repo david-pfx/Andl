@@ -10,10 +10,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-//using System.Reflection;
-using System.Text;
-//using System.Threading.Tasks;
 using Andl.Runtime;
+using Andl.Common;
 
 namespace Andl.Peg {
   /// <summary>
@@ -25,7 +23,6 @@ namespace Andl.Peg {
   public class CallInfo {
     // dictionary of functions discovered by reflection, some not yet linked for use
     static Dictionary<string, CallInfo> _callables = new Dictionary<string, CallInfo>();
-    //static Dictionary<string, CallInfo> Callables = new Dictionary<string, CallInfo>();
 
     // function name
     public string Name { get; private set; }
@@ -41,26 +38,28 @@ namespace Andl.Peg {
     public int NumArgs { get { return Arguments.Length; } }
     // return true if a fold was used
     public bool HasFold { get { return AccumCount > 0; } }
+    // return true if an ordered func was used
+    public bool HasWin { get; set; }
 
     // flag indicating final init
     bool _finalinit = false;
 
-    // find the call info by name (including overloads)
+    // find the call info by name (including overloads), return a chain
     public static CallInfo Get(string name) {
       if (_callables.Count == 0)
         Init(BuiltinInfo.GetBuiltinInfo());
-      var names = name.Split(',');
+      var ovnames = name.Split(',');
       // Chain overloads together, but make sure to only do this once, for static
       CallInfo callinfo = null;
-      foreach (var overload in names) {
-        Logger.Assert(_callables.ContainsKey(overload), overload);
-        if (_callables[overload]._finalinit) break;
-        Logger.Assert(_callables[overload].OverLoad == null, overload);
-        _callables[overload].OverLoad = callinfo;
-        _callables[overload]._finalinit = true;
-        callinfo = _callables[overload];
+      foreach (var ovname in ovnames) {
+        Logger.Assert(_callables.ContainsKey(ovname), ovname);
+        if (_callables[ovname]._finalinit) break;
+        Logger.Assert(_callables[ovname].OverLoad == null, ovname);
+        _callables[ovname].OverLoad = callinfo;
+        _callables[ovname]._finalinit = true;
+        callinfo = _callables[ovname];
       }
-      return _callables[names.Last()];
+      return _callables[ovnames.Last()];
     }
 
     // Create for user defined

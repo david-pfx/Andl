@@ -1,48 +1,24 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Newtonsoft.Json;
-using Andl;
-using Andl.Runtime;
-using Andl.Peg;
 using System.IO;
 using System.Text.RegularExpressions;
+using Newtonsoft.Json;
+using Andl.Runtime;
+using Andl.Peg;
+using Andl.Common;
 
 namespace Andl.Gateway {
-  /// <summary>
-  /// Encapsulates a result
-  /// 
-  /// If successful, there may be a value
-  /// If not, there must be a message
-  /// </summary>
-  public class Result {
-    public bool Ok { get; set; }
-    public string Message { get; set; }
-    public object Value { get; set; }
-
-    public static Result Success(object value) {
-      return new Result { Ok = true, Message = null, Value = value };
-    }
-    public static Result Failure(string message) {
-      return new Result { Ok = false, Message = message, Value = null };
-    }
+  class KeyValue {
+    internal string Key;
+    internal string Value;
   }
 
-  public class KeyValue {
-    public string Key;
-    public string Value;
-  }
-
-  public enum ExecModes { Raw, JsonString, JsonArray, JsonObj };
-
   /// <summary>
-  /// Anstract class representing runtime
+  /// Implement a factory to create a gateway
+  /// FIX: not really a good organisation
   /// </summary>
   public static class GatewayFactory {
-    public const string DefaultDatabaseName = "data";
-
     // Start the engine for a specified database and configuration settings
     public static GatewayBase Create(string database, Dictionary<string, string> settings) {
       return GatewayImpl.Create(database, settings);
@@ -51,19 +27,19 @@ namespace Andl.Gateway {
 
 
   /// <summary>
-  /// Anstract class representing runtime
+  /// Abstract class representing gateway to runtime
   /// </summary>
-  public abstract class GatewayBase {
-    //public const string DefaultDatabaseName = "data";
-
-    //// Start the engine and let it configure itself
-    //public static GatewayBase Create(string database, Dictionary<string, string> settings) {
-    //  return GatewayImpl.Create(database, settings);
-    //}
+  public abstract class GatewayBase : IExecuteGateway {
+    public static string DefaultDatabaseName { get { return Catalog.DefaultDatabaseName; } }
 
     public bool JsonReturnFlag { get; set; }
     public abstract string DatabaseName { get; }
+    public abstract DatabaseKinds DatabaseKind { get; }
     public abstract IParser Parser { get; }
+
+    //--- A gateway for a global session
+    public abstract void OpenSession();
+    public abstract void CloseSession(bool ok = true);
 
     //--- A gateway for catalog level access
 
@@ -117,7 +93,7 @@ namespace Andl.Gateway {
     // Result.Ok true means request executed, value is return.
     // In raw mode input and output both raw text
     // In Json mode, input is Json string and output is Json object
-    public abstract Result Execute(string program, ExecModes kind = ExecModes.Raw);
+    public abstract Result RunScript(string program, ExecModes kind = ExecModes.Raw, string sourcname = "");
 
     //public abstract Result Execute(string program, bool isjson = false);
     // Compile and execute the program, returning error or program output as lines of text
@@ -135,7 +111,7 @@ namespace Andl.Gateway {
     static Dictionary<string, SettingOptions> _settingsdict = new Dictionary<string, SettingOptions> {
       { "Noisy", SettingOptions.Common },
       { "DatabasePath", SettingOptions.Common },
-      { "DatabaseSqlFlag", SettingOptions.Common },
+      { "Sql", SettingOptions.Common },
       { "DatabaseName", SettingOptions.Common },
       //{ "^Database.*$", SettingOptions.Split },
     };
@@ -163,7 +139,7 @@ namespace Andl.Gateway {
           var settingsx = new Dictionary<string, string>(settings);
           _gatewaydict[values[0]] = GatewayFactory.Create(values[2], settingsx);
           //settingsx.Add("DatabaseName", values[0]);
-          //if (values.Length >= 2) settingsx.Add("DatabaseSqlFlag", values[1]);
+          //if (values.Length >= 2) settingsx.Add("Sql", values[1]);
           //if (values.Length >= 3) settingsx.Add("DatabasePath", values[2]);
           //_gatewaydict[values[0]] = GatewayImpl.Create(settingsx);
         }
@@ -187,20 +163,23 @@ namespace Andl.Gateway {
     Dictionary<string, string> _settings;
 
     public static GatewayImpl Create(string database, Dictionary<string, string> settings) {
-      var ret = new GatewayImpl() { _database = database, _settings = settings };
+      var ret = new GatewayImpl() {
+        _database = database,
+        _settings = settings
+      };
       ret.Start();
       return ret;
     }
 
     // Load and start the catalog
     void Start() {
+      Logger.WriteLine(2, ">Gateway: Start");
       _catalog = Catalog.Create();
       _catalog.LoadFlag = true;
       _catalog.ExecuteFlag = true;
       _catalog.SetConfig(_settings);
       _catalog.Start(_database);
       _parser = PegCompiler.Create(_catalog);
-      //_parser = OldCompiler.Create(_catalog); // FIX: allow access to old compiler?
     }
 
     // Finish the catalog, optionally with different settings eg Save
@@ -209,6 +188,7 @@ namespace Andl.Gateway {
       _catalog.Finish();
     }
 
+    public override DatabaseKinds DatabaseKind { get { return _catalog.DatabaseKind; } }
     public override string DatabaseName { get { return _catalog.DatabaseName; } }
     public override IParser Parser { get { return _parser; } }
 
@@ -229,7 +209,7 @@ namespace Andl.Gateway {
     }
 
     public override Type GetSetterType(string name) {
-      var type = _catalog.GlobalVars.GetSetterType(name);
+      var type = _catalog.GlobalVars.GetReturnType(name);
       if (type == null) return null;
       return type.NativeType;
     }
@@ -249,37 +229,60 @@ namespace Andl.Gateway {
       return _catalog.PersistentVars.GetSubEntryInfoDict(kind, name);
     }
 
+    public override void OpenSession() {
+      _catalog.BeginSession(SessionState.Full);
+    }
+    public override void CloseSession(bool ok) {
+      _catalog.EndSession(ok ? SessionResults.Ok : SessionResults.Failed);
+    }
+
     ///--------------------------------------------------------------------------------------------
     /// Main implementation functions, request session based
     /// 
 
     //-- direct calls, native types
     public override Result GetValue(string name) {
-      return RequestSession.Create(this, _catalog).GetValue(name);
+      var session = RequestSession.Open(this, _catalog);
+      var value = session.GetValue(name);
+      session.Close();
+      return value;
     }
     public override Result SetValue(string name, object value) {
-      return RequestSession.Create(this, _catalog).SetValue(name, value);
+      var session = RequestSession.Open(this, _catalog);
+      var result = session.SetValue(name, value);
+      session.Close();
+      return result;
     }
 
     public override Result Evaluate(string name, params object[] arguments) {
-      return RequestSession.Create(this, _catalog).Evaluate(name, arguments);
+      var session = RequestSession.Open(this, _catalog);
+      var result = session.Evaluate(name, arguments);
+      session.Close();
+      return result;
     }
 
     public override Result Command(string name, params object[] arguments) {
-      return RequestSession.Create(this, _catalog).Evaluate(name, arguments);
+      var session = RequestSession.Open(this, _catalog);
+      var result = session.Evaluate(name, arguments);
+      session.Close();
+      return result;
     }
 
     //--- json calls
     public override Result JsonCall(string name, string[] arguments) {
       Logger.WriteLine(3, "JsonCall {0} args {1}", name, arguments.Length);
-      var result = RequestSession.Create(this, _catalog).JsonCall(name, arguments);
+      var session = RequestSession.Open(this, _catalog);
+      var result = session.JsonCall(name, arguments);
+      session.Close();
       Logger.WriteLine(3, "[JC {0}]", result.Ok);
       return result;
     }
 
     public override Result JsonCall(string name, string id, KeyValuePair<string, string>[] query, string body) {
       Logger.WriteLine(3, "JsonCall {0} id={1} q={2} body={3}", name, id, query != null, body);
-      var result = RequestSession.Create(this, _catalog).JsonCall(name, id, query, body);
+      var session = RequestSession.Open(this, _catalog);
+      var result = session.JsonCall(name, id, query, body);
+      session.Close();
       Logger.WriteLine(3, "[JC {0}]", result.Ok);
       return result;
     }
@@ -288,30 +291,39 @@ namespace Andl.Gateway {
     public override Result JsonCall(string method, string name, string id, KeyValuePair<string, string>[] query, string body) {
       Logger.WriteLine(3, "JsonCall {0} method={1} id={2} q={3} body={4}", name, method, id, query != null, body);
       var newname = BuildName(method, name, id != null, query != null);
-      var result = RequestSession.Create(this, _catalog).JsonCall(newname, id, query, body);
+      var session = RequestSession.Open(this, _catalog);
+      var result = session.JsonCall(newname, id, query, body);
+      session.Close();
       Logger.WriteLine(3, "[JC {0}]", result.Ok);
       return result;
     }
 
     //-- serialised native interface
-    public override bool NativeCall(string name, byte[] arguments, out byte[] result) {
-      return RequestSession.Create(this, _catalog).NativeCall(name, arguments, out result);
+    public override bool NativeCall(string name, byte[] arguments, out byte[] output) {
+      var session = RequestSession.Open(this, _catalog);
+      var result = session.NativeCall(name, arguments, out output);
+      session.Close();
+      return result;
     }
 
     //-- builder interface
     public override Result BuilderCall(string name, TypedValueBuilder arguments) {
       Logger.WriteLine(3, "BuilderCall {0} args={1}", name, arguments.StructSize);
-      var result = RequestSession.Create(this, _catalog).BuilderCall(name, arguments);
+      var session = RequestSession.Open(this, _catalog);
+      var result = session.BuilderCall(name, arguments);
+      session.Close();
       Logger.WriteLine(3, "[BC {0}]", result.Ok);
       return result;
     }
 
     //-- execute and return result
-    public override Result Execute(string program, ExecModes kind) {
-      Logger.WriteLine(3, "Execute <{0}> len={1} kind={2}", program.Shorten(20), program.Length, kind);
-      var result = (kind == ExecModes.Raw) ? RequestSession.Create(this, _catalog).RawExecute(program)
-        : RequestSession.Create(this, _catalog).JsonExecute(program);
-      Logger.WriteLine(3, "[Ex {0}]", result.Ok);
+    // session state connect only, to allow program to set catalog options
+    public override Result RunScript(string program, ExecModes kind, string sourcename) {
+      var session = RequestSession.Open(this, _catalog, SessionState.Connect);
+      Logger.WriteLine(2, ">RunScript <{0}> len={1} kind={2}", program.Shorten(20), program.Length, kind);
+      var result = (kind == ExecModes.Raw) ? session.RunScriptRaw(program, sourcename)
+        : session.RunScriptJson(program, sourcename);
+      session.Close();
       return result;
     }
 
@@ -338,18 +350,32 @@ namespace Andl.Gateway {
 
   internal class RequestSession {
     GatewayBase _runtime;
+    Catalog _catalog;
     CatalogPrivate _catalogpriv;
     Evaluator _evaluator;
     StringWriter _output = new StringWriter();
     StringReader _input = new StringReader("");
+    TextWriter _savelog;
 
-    // Create a request session
-    internal static RequestSession Create(GatewayBase runtime, Catalog catalog) {
-      var ret = new RequestSession();
-      ret._runtime = runtime;
-      ret._catalogpriv = CatalogPrivate.Create(catalog);
+    // Open a request session
+    // Session state defaults to full, but may be connect only to allow script to set catalog options
+    internal static RequestSession Open(GatewayBase runtime, Catalog catalog, SessionState state = SessionState.Full) {
+      var ret = new RequestSession() {
+        _runtime = runtime,
+        _catalog = catalog,
+        _catalogpriv = CatalogPrivate.Create(catalog),
+        _savelog = Logger.Out,
+      };
+      Logger.Out = ret._output;
       ret._evaluator = Evaluator.Create(ret._catalogpriv, ret._output, ret._input);
+      ret._catalog.BeginSession(state);
       return ret;
+    }
+
+    // Close the session, restore logging
+    public void Close() {
+      _catalog.EndSession(SessionResults.Ok);
+      Logger.Out = _savelog;
     }
 
     // Get a native value from a variable or parameterless function
@@ -539,23 +565,27 @@ namespace Andl.Gateway {
 
     // call to execute a piece of Andl code against the current catalog
     // raw text in, Result var out
-    internal Result RawExecute(string program, string source = "Line") {
+    internal Result RunScriptRaw(string program, string sourcename = "-raw-") {
+      Logger.WriteLine(1, "*** Compiling: {0}", sourcename);
       var input = new StringReader(program);
       try {
-        var ret = _runtime.Parser.Process(input, _output, _evaluator, source);
+        var ret = _runtime.Parser.RunScript(input, _output, _evaluator, sourcename);
+        Logger.WriteLine(1, "*** Compiled {0} {1} ", sourcename, ret ? "OK" : "with errors");
         if (ret) return Result.Success(_output.ToString());
         else return Result.Failure(_output.ToString());
-      } catch (ProgramException ex) {
-        return Result.Failure(ex.ToString());
+      } catch (AndlException ex) {
+        Logger.WriteLine(1, "*** Compiled {0} {1} ", sourcename, "aborted");
+        _catalog.EndSession(SessionResults.Failed);
+        return Result.Failure($"{_output}\n{ex}");
       }
     }
 
     // call to execute a piece of Andl code against the current catalog
     // Json in, Json out
-    internal Result JsonExecute(string program) {
+    internal Result RunScriptJson(string program, string sourcename = "-json-") {
       var input = new StringReader(JsonConvert.DeserializeObject<string>(program));
       try {
-        var ret = _runtime.Parser.Process(input, _output, _evaluator, "-api-");
+        var ret = _runtime.Parser.RunScript(input, _output, _evaluator, sourcename);
         // Construct object for Json return
         var result = new { ok = ret, value = _output.ToString() };
         return Result.Success(JsonConvert.SerializeObject(result));

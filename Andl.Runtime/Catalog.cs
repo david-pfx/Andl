@@ -14,10 +14,20 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Andl.Sql;
+using Andl.Common;
 
 namespace Andl.Runtime {
-    // scope levels, can be compared in this order
-    public enum ScopeLevels { Persistent = 0, Global = 1, Local = 2 };
+  // scope levels, can be compared in this order
+  public enum ScopeLevels { Persistent = 0, Global = 1, Local = 2 };
+  // session state
+  public enum SessionState {
+    None, Connect, Full, Ended
+  }
+  // session result
+  public enum SessionResults {
+    Ok, Failed
+  }
 
   // entry flags -- including visibility
   [Flags]
@@ -42,6 +52,8 @@ namespace Andl.Runtime {
   // entry kinds -- persistence is sorted in this order, to ensure it restores correctly
   public enum EntryKinds { None = 0, Type = 1, Value = 2, Code = 3 };
 
+  enum CatalogStatus { None, Started, Connected, Cataloguing, Finished };
+
   ///===========================================================================
   /// <summary>
   /// Implement the catalog as a whole, including multiple scope levels
@@ -57,14 +69,16 @@ namespace Andl.Runtime {
 
     public static readonly string DefaultDatabaseExtension = ".sandl";
     public static readonly string DefaultSqlDatabaseExtension = ".sqandl";
-    public static readonly string DefaultDatabaseName = "data";
+    public static readonly string DefaultDatabaseName = "db";
     public static readonly string CatalogTableName = "andl_catalog";
+    public static readonly DatabaseKinds DefaultDatabaseKind = DatabaseKinds.Memory;
+    public static readonly DatabaseKinds DefaultDatabaseSqlServer = DatabaseKinds.Sqlite;
 
     public enum CatalogTables {
       Catalog, Variable, Operator, Member
     };
 
-    static readonly Dictionary<CatalogTables, DataHeading> _catalogtableheadings = new Dictionary<CatalogTables,DataHeading> {
+    static readonly Dictionary<CatalogTables, DataHeading> _catalogtableheadings = new Dictionary<CatalogTables, DataHeading> {
       { CatalogTables.Catalog,  DataHeading.Create("Name:text", "Kind:text", "Type:text", "Value:binary") },
       { CatalogTables.Variable, DataHeading.Create("Name:text", "Type:text", "Members:text") },
       { CatalogTables.Operator, DataHeading.Create("Name:text", "Type:text", "Members:text", "Arguments:text") },
@@ -75,7 +89,7 @@ namespace Andl.Runtime {
       return _catalogtableheadings[table];
     }
 
-    static readonly DataHeading _catalogkey = DataHeading.Create("Name:text");
+    static readonly DataHeading _catalogkey = DataHeading.Create("Name:text", "Kind:text", "Type:text");
     static readonly DataHeading _catalogtableheading = _catalogtableheadings[CatalogTables.Catalog];
 
     static Dictionary<CatalogTables, Func<CatalogTableMaker, IEnumerable<CatalogEntry>, CatalogTableMaker>> _catalogtablemaker =
@@ -88,28 +102,29 @@ namespace Andl.Runtime {
 
     internal static readonly Dictionary<string, CatalogTables> _catalogtables = new Dictionary<string, CatalogTables> {
       { CatalogTableName, CatalogTables.Catalog },
-      { "andl_variables", CatalogTables.Variable }, 
-      { "andl_operators", CatalogTables.Operator }, 
-      { "andl_members", CatalogTables.Member },  
+      { "andl_variables", CatalogTables.Variable },
+      { "andl_operators", CatalogTables.Operator },
+      { "andl_members", CatalogTables.Member },
     };
-    
-    static Dictionary<string, Action<Catalog, string>> _settings = new Dictionary<string, Action<Catalog, string>> {
+
+    static Dictionary<string, Action<Catalog, string>> _setconfigdict = new Dictionary<string, Action<Catalog, string>> {
       { "DatabaseName", (c,s) => c.DatabaseName = s },
       { "DatabasePath", (c,s) => c.DatabasePath = s },
-      { "DatabaseSqlFlag", (c,s) => c.DatabaseSqlFlag = (s != null && s.ToLower() == "true") },
-      { "Load", (c,s) => c.LoadFlag = Boolean.Parse(s) },
-      { "Save", (c,s) => c.SaveFlag = Boolean.Parse(s) },
-      { "Execute", (c,s) => c.ExecuteFlag = Boolean.Parse(s) },
-      { "Noisy", (c,s) => Logger.Level = Int32.Parse(s) },
+      { "DatabaseKind", (c,s) => c.DatabaseKind = (DatabaseKinds)Enum.Parse(typeof(DatabaseKinds), s) },
+      { "Sql", (c,s) => c.SqlFlag = s.SafeBoolParse() ?? false },
+      { "Load", (c,s) => c.LoadFlag = s.SafeBoolParse() ?? false },
+      { "Save", (c,s) => c.SaveFlag = s.SafeBoolParse() ?? false },
+      { "Execute", (c,s) => c.ExecuteFlag = s.SafeBoolParse() ?? false },
+      { "Noisy", (c,s) => Logger.Level = s.SafeIntParse() ?? 1 },
     };
 
     // configuration settings
-    //public bool IsCompiling { get; set; }       // invoke builtin functions in preview/compile mode
     public bool InteractiveFlag { get; set; }   // execute during compilation
     public bool ExecuteFlag { get; set; }       // execute after compilation
     public bool LoadFlag { get; set; }          // load an existing catalog (else create new)
     public bool SaveFlag { get; set; }          // save the updated the catalog after compilation
-    public bool DatabaseSqlFlag { get; set; }   // use sql as the database
+    public bool SqlFlag { get; set; }           // use sql as the database
+    public DatabaseKinds DatabaseKind { get; set; }   // kind of database
 
     public string SystemPattern { get; set; }   // variables protected from update
     public string PersistPattern { get; set; }  // variables that are persisted
@@ -120,7 +135,8 @@ namespace Andl.Runtime {
     public string DatabasePath { get; set; }    // path to the database (either kind)
     public string SourcePath { get; set; }      // base path for reading a source
 
-    bool _started = false;
+    CatalogStatus _status = CatalogStatus.None;
+    SessionState _sessionstate = SessionState.None;
 
     // predefined scopes, accessed globally
     public CatalogScope PersistentVars { get; private set; }
@@ -139,11 +155,15 @@ namespace Andl.Runtime {
     }
 
     public override string ToString() {
-      return String.Format("Catalog '{0}' load:{1} save:{2} pers:{3} glob:{4}",
-        DatabasePath, LoadFlag, SaveFlag, PersistentVars, GlobalVars);
+      return String.Format("{0} {1} load:{2} save:{3} [{4}] [{5}]",
+        DatabasePath, _status, LoadFlag, SaveFlag, PersistentVars, GlobalVars);
     }
 
-    //--- create
+    //-------------------------------------------------------------------------
+    // create the catalog
+    // then set some options
+    // then Start
+    // then Restart
 
     Catalog() { }
     public static Catalog Create() {
@@ -159,75 +179,125 @@ namespace Andl.Runtime {
     }
 
     // Configure settings. Most need to be done before Start
-    public bool SetConfig(Dictionary<string,string> settings) {
+    public bool SetConfig(Dictionary<string, string> settings) {
       foreach (var key in settings.Keys)
-        SetConfig(key, settings[key]);
+        if (!SetConfig(key, settings[key]))
+          Logger.WriteLine(1, $"Invalid setting ignored: '{key}'");
       return true;
     }
 
     // Configure settings. Most need to be done before Start
-    public bool SetConfig(string key, string value) {
-      if (!_settings.ContainsKey(key)) return false;
-      _settings[key](this, value);
+    bool SetConfig(string key, string value) {
+      if (!_setconfigdict.ContainsKey(key)) return false;
+      _setconfigdict[key](this, value);
       return true;
     }
 
-    // open the catalog for use, after all flags set up
-    // create catalog table here, local until the end
-    // only do it once
-    public bool Start(string path = null) {
-      if (_started) return false;
-      Logger.WriteLine(3, "Catalog Start {0} path:'{1}' sql={2}", this, path, DatabaseSqlFlag);
+    // open the catalog for use and set database name
+    // defer connect until begin session
+    public void Start(string path = null) {
+      if (_status > CatalogStatus.None) return;  // just the once
+      Logger.WriteLine(2, $"Catalog Start path:'{path}'");
 
-      // path logic
       DatabasePath = path ?? DatabasePath ?? DefaultDatabaseName;
+      _status = CatalogStatus.Started;
+      // if already known to be Sql get connected, else defer until reading directive or begin session
+      if (SqlFlag)
+        ConnectDatabase();
+      Logger.WriteLine(3, "[CS {0}]", this);
+      return;
+    }
+
+    // Make connection to database based on available flags and current status
+    // does not return on error
+    void ConnectDatabase() {
+      if (_status > CatalogStatus.Started) return;  // just the once
+      Logger.Assert(_status == CatalogStatus.Started, _status);
+      Logger.WriteLine(2, $"Catalog Connect database {this}");
+
+      // create empty catalog
+      var table = DataTableLocal.Create(_catalogtableheading);
+      GlobalVars.AddEntry(CatalogTableName, table.DataType, EntryKinds.Value,
+        EntryFlags.Public | EntryFlags.System, TypedValue.Create(table));
+      GlobalVars.FindEntry(CatalogTableName).Flags |= EntryFlags.Database;
+
+      // Sql or not? Open it.
       var ext = Path.GetExtension(DatabasePath);
       if (ext == "")
-        DatabasePath = Path.ChangeExtension(DatabasePath, (DatabaseSqlFlag) ? DefaultSqlDatabaseExtension : DefaultDatabaseExtension);
-      else if (ext == DefaultSqlDatabaseExtension)
-        DatabaseSqlFlag = true;
+        DatabasePath = Path.ChangeExtension(DatabasePath, (SqlFlag) ? DefaultSqlDatabaseExtension : DefaultDatabaseExtension);
+      SqlFlag |= (ext == DefaultSqlDatabaseExtension || DatabaseKind != DatabaseKinds.Memory);
       DatabaseName = Path.GetFileNameWithoutExtension(DatabasePath);
-      Logger.WriteLine(3, "Catalog database={0} sql={1}", DatabasePath, DatabaseSqlFlag);
-
-      if (LoadFlag) {
-        var exists = (DatabaseSqlFlag) ? File.Exists(DatabasePath) : Directory.Exists(DatabasePath);
-        if (!exists)
-          ProgramError.Fatal("Catalog", "Database does not exist: {0}", DatabasePath);
+      if (SqlFlag) {
+        if (DatabaseKind == DatabaseKinds.Memory) DatabaseKind = DatabaseKinds.Sqlite;
+        Logger.WriteLine(3, "Catalog database={0} kind={1}", DatabasePath, DatabaseKind);
+        if (!SqlTarget.Open(DatabasePath, DatabaseKind))
+          throw ProgramError.Fatal("Catalog", "Cannot open database: {0} ({1})", DatabasePath, DatabaseKind);
+      } else {
+        if (LoadFlag && !Directory.Exists(DatabasePath))
+          throw ProgramError.Fatal("Catalog", "Database does not exist: {0}", DatabasePath);
       }
-      if (DatabaseSqlFlag) {
-        var sqleval = SqlEvaluator.Create();
-        var database = Sqlite.SqliteDatabase.Create(DatabasePath, sqleval);
-        SqlTarget.Configure(database);
-      }
+      _status = CatalogStatus.Connected;
+      Logger.WriteLine(3, "[CC {0}]", this);
+    }
 
-      var table = DataTableLocal.Create(_catalogtableheading);
-      GlobalVars.Add(CatalogTableName, table.DataType, EntryKinds.Value, EntryFlags.Public | EntryFlags.System, TypedValue.Create(table));
-      GlobalVars.FindEntry(CatalogTableName).Flags |= EntryFlags.Database;
+    // Final step is to load or create catalog in connected database
+    void EnableCatalog() {
+      if (_status > CatalogStatus.Connected) return;  // just the once
+      Logger.WriteLine(3, $"Catalog Enable {this}");
+      Logger.Assert(_status == CatalogStatus.Connected, _status);
+      // load or create catalog (but must start session first)
       if (LoadFlag) {
         if (!LinkRelvar(CatalogTableName))
-          ProgramError.Fatal("Catalog", "cannot load catalog for '{0}'", DatabaseName);
+          throw ProgramError.Fatal("Catalog", "cannot load catalog for '{0}'", DatabaseName);
         LoadFromTable();
+        _status = CatalogStatus.Cataloguing;
+      } else if (SaveFlag) {
+        StoreToTable();  // create empty catalog
+        _status = CatalogStatus.Cataloguing;
       }
-      _started = true;
-      Logger.WriteLine(3, "[CS {0}]", this);
-      Logger.WriteLine(4, "[Relations: {0} Variables: {1} Operators: {2} Types: {3}]",
-          PersistentVars.GetEntryInfoDict(EntryInfoKind.Relation).Count,
-          PersistentVars.GetEntryInfoDict(EntryInfoKind.Variable).Count,
-          PersistentVars.GetEntryInfoDict(EntryInfoKind.Operator).Count,
-          PersistentVars.GetEntryInfoDict(EntryInfoKind.Type).Count);
-      return true;
+    }
+
+    // Called by the #catalog directive
+    public void Directive() {
+      if (_status > CatalogStatus.Connected)
+        throw ProgramError.Fatal("Catalog", "invalid catalog options");
+      //Connect(true);
     }
 
     // All done, persist catalog if required
     public bool Finish() {
-      if (!_started) return false;
+      Logger.Assert(_status != CatalogStatus.Finished);
+      if (_sessionstate > SessionState.None) EndSession(SessionResults.Ok);
       Logger.WriteLine(2, "Catalog Finish '{0}'", this);
-      if (SaveFlag) {
-        StoreToTable();
-        Logger.WriteLine(2, "Saved catalog for '{0}'", DatabaseName);
-      }
-      _started = false;
+      SqlTarget.Close();
+      _status = CatalogStatus.Finished;
       return true;
+    }
+
+    // Called before carrying out a request (perhaps more than once)
+    // Sql will begin a transaction
+    public void BeginSession(SessionState starts) {
+      if (_sessionstate >= SessionState.Full) return;
+      Logger.WriteLine(3, $"Begin session {starts}");
+      ConnectDatabase();
+      if (SqlFlag)
+        SqlTarget.Current.BeginSession();
+      if (starts == SessionState.Full) EnableCatalog();
+      _sessionstate = starts;
+    }
+
+    // Called after processing a script, ok=normal termination
+    // Local will save if update true
+    // Sql will commit if update true, else abort
+    public void EndSession(SessionResults result) {
+      if (_sessionstate == SessionState.None) return;
+      if (_sessionstate == SessionState.Ended) return;
+      Logger.WriteLine(3, $"End session {result}");
+      if (SqlFlag)
+        SqlTarget.Current.EndSession(result == SessionResults.Ok && SaveFlag);
+      else if (result == SessionResults.Ok && SaveFlag)
+        StoreToTable();
+      _sessionstate = SessionState.Ended;
     }
 
     // return value for system tables
@@ -240,19 +310,20 @@ namespace Andl.Runtime {
     // get the type of a relation from some persistence store
     // Used during compilation or startup -- if successful, variable will be created with flags
     // Then use AddRelvar to import the value
-    public DataType GetRelvarType(string name, string source) {
+    public DataType GetRelvarType(string source, string what) {
       var islinked = (source == "");
       if (islinked) {
-        if (DatabaseSqlFlag) {
-          var heading = SqlTarget.Create().GetTableHeading(name);
+        if (SqlFlag) {
+          var heading = SqlTarget.Current.GetTableHeading(what);
           return (heading == null) ? null : DataTypeRelation.Get(heading);
         } else {
-          var type = Persist.Create(DatabasePath, false).Peek(name);
+          var type = Persist.Create(DatabasePath, false).Peek(what);
           return type;
         }
+      } else {
+        var heading = DataSourceStream.Create(source, SourcePath).Peek(what);
+        if (heading != null) return DataTypeRelation.Get(heading);
       }
-      var table = DataSourceStream.Create(source, SourcePath).Input(name, InputMode.Preview);
-      if (table != null) return table.DataType;
       return null;
     }
 
@@ -263,22 +334,22 @@ namespace Andl.Runtime {
       Logger.Assert(entry != null && entry.IsDatabase);
 
       var heading = entry.DataType.Heading;
-      if (DatabaseSqlFlag) {
-        var sqlheading = SqlTarget.Create().GetTableHeading(name);
+      if (SqlFlag) {
+        var sqlheading = SqlTarget.Current.GetTableHeading(name);
         if (sqlheading == null)
-          ProgramError.Fatal("Catalog", "sql table not found: '{0}'", name);
+          throw ProgramError.Fatal("Catalog", "sql table not found: '{0}'", name);
         // TODO: smarter test, but still may not match exactly
         //if (!heading.Equals(sqlheading))
         if (heading.Degree != sqlheading.Degree)
-          ProgramError.Fatal("Catalog", "sql table schema mismatch: '{0}'", name);
+          throw ProgramError.Fatal("Catalog", "sql table schema mismatch: '{0}'", name);
         var table = DataTableSql.Create(name, heading);
         entry.Value = RelationValue.Create(table);
       } else {
         var tablev = Persist.Create(DatabasePath, false).Load(name);
         if (tablev == null)
-          ProgramError.Fatal("Catalog", "local table not found: '{0}'", name);
+          throw ProgramError.Fatal("Catalog", "local table not found: '{0}'", name);
         if (!heading.Equals(tablev.Heading))
-          ProgramError.Fatal("Catalog", "local table schema mismatch: '{0}'", name);
+          throw ProgramError.Fatal("Catalog", "local table schema mismatch: '{0}'", name);
         entry.Value = RelationValue.Create(tablev.AsTable());
       }
       return true;
@@ -286,41 +357,44 @@ namespace Andl.Runtime {
 
     // Get the value of a relation by importing some other format
     // Entry previously created by peeking
-    public bool ImportRelvar(string source, string name, string locator) {
+    public bool ImportRelvar(string source, string name, string what, string locator) {
       var entry = GlobalVars.FindEntry(name);
       Logger.Assert(entry != null, name);
       var heading = entry.DataType.Heading;
-      var table = DataSourceStream.Create(source, locator).Input(name, InputMode.Import);
+      var stream = DataSourceStream.Create(source, locator);
+      var table = stream.Read(what, heading);
       if (table == null || !heading.Equals(table.Heading))
-        ProgramError.Fatal("Catalog", "{0} table not found: '{1}'", source, name);
+        throw ProgramError.Fatal("Catalog", "{0} table not found: '{1}'", source, stream.GetPath(what));
       GlobalVars.SetValue(name, RelationValue.Create(table));
       return true;
     }
 
     // Add a user type, just so it will get persisted
     public void AddUserType(string name, DataTypeUser datatype, EntryFlags flags) {
-      GlobalVars.Add(name, datatype, EntryKinds.Type, flags);
+      GlobalVars.AddEntry(name, datatype, EntryKinds.Type, flags);
     }
 
     //--- persistence Mk II
 
-    // Store the persistent catalog with current values
+    // Store the persistent catalog and modified tables, local only
+    // note: for Sql, only used to create new empty catalog
     public void StoreToTable() {
-      var table = DataTableLocal.Create(_catalogtableheading);
-      foreach (var entry in PersistentVars.GetEntries()) {
-        var addrow = DataRow.Create(_catalogtableheading, new TypedValue[] 
-          { TextValue.Create(entry.Name), 
-            TextValue.Create(entry.Kind.ToString()), 
-            TextValue.Create(entry.DataType.BaseType.Name), 
-            BinaryValue.Create(entry.ToBinary()) });
-        table.AddRow(addrow);
-      }
-      if (DatabaseSqlFlag)
+      Logger.WriteLine(2, "Save catalog for '{0}'", DatabaseName);
+      var ctm = CatalogTableMaker.Create(_catalogtableheading);
+      var table = ctm.AddEntries(PersistentVars.GetEntries()).Table;
+      if (SqlFlag)
         DataTableSql.Create(CatalogTableName, table);
-      else Persist.Create(DatabasePath, true).Store(CatalogTableName, RelationValue.Create(table));
+      else {
+        Persist.Create(DatabasePath, true).Store(CatalogTableName, RelationValue.Create(table));
+        var savers = PersistentVars.GetEntries().Where(e => e.IsUnsaved);
+        Logger.WriteLine(2, $"Persist {savers.Count()} entries");
+        foreach (var entry in savers)
+          Persist.Create(DatabasePath, true).Store(entry.Name, entry.Value);
+      }
     }
 
     public void LoadFromTable() {
+      Logger.WriteLine(2, "Load catalog for '{0}'", DatabaseName);
       var table = GlobalVars.FindEntry(CatalogTableName).Value.AsTable();
       foreach (var row in table.GetRows()) {
         var blob = (row.Values[3] as BinaryValue).Value;
@@ -328,8 +402,24 @@ namespace Andl.Runtime {
         PersistentVars.Add(entry);
         if (entry.IsDatabase) {
           if (!LinkRelvar(entry.Name))
-            ProgramError.Fatal("Catalog", "cannot add '{0}'", entry.Name);
+            throw ProgramError.Fatal("Catalog", "cannot add '{0}'", entry.Name);
         }
+      }
+    }
+
+    // Store new entry to catalog, perhaps removing old value first
+    // Currently only for Sql -- Local does total dump
+    internal void StoreEntry(CatalogEntry entry, CatalogEntry oldentry = null) {
+      var ctm = CatalogTableMaker.Create(_catalogtableheading);
+      if (SqlFlag) {
+        var table = DataTableSql.Create(CatalogTableName, _catalogtableheading);
+        if (oldentry != null) {
+          var ctmx = CatalogTableMaker.Create(_catalogtableheading);
+          ctmx.Table.AddRow(ctmx.MakeEntry(oldentry));
+          table.UpdateJoin(ctmx.Table, JoinOps.MINUS);
+        }
+        ctm.Table.AddRow(ctm.MakeEntry(entry));
+        table.UpdateJoin(ctm.Table, JoinOps.UNION);
       }
     }
   }
@@ -339,19 +429,19 @@ namespace Andl.Runtime {
   /// Implement a single catalog scope level containing variables
   /// </summary>
   public class CatalogScope {
-    internal Catalog Catalog { get; private set; }
+    internal Catalog Cat { get; private set; }
     internal CatalogScope Parent { get; private set; }
     internal ScopeLevels Level { get; private set; }
 
     internal Dictionary<string, CatalogEntry> _entries = new Dictionary<string, CatalogEntry>();
 
     public override string ToString() {
-      return String.Format("CatScope {0} entries:{1}", Level, _entries.Count);
+      return String.Format("{0} entries:{1}", Level, _entries.Count);
     }
 
     public static CatalogScope Create(Catalog catalog, ScopeLevels level, CatalogScope parent = null) {
       return new CatalogScope {
-        Catalog = catalog,
+        Cat = catalog,
         Level = level,
         Parent = parent,
       };
@@ -361,32 +451,14 @@ namespace Andl.Runtime {
       return _entries.Values;
     }
 
-    // Add a named entry
-    internal void Add(CatalogEntry entry) {
-      _entries[entry.Name] = entry;
-    }
-
-    // Add new catalog entry to proper scope
-    // Risky: caller may not know where it went; maybe merge Global & Persistent?
-    public void Add(string name, DataType datatype, EntryKinds kind, EntryFlags flags = EntryFlags.None, TypedValue value = null) {
-      var scope = (flags.HasFlag(EntryFlags.Persistent)) ? Catalog.PersistentVars : this;
-      scope.Add(new CatalogEntry {
-        Name = name,
-        DataType = datatype,
-        Kind = kind,
-        Flags = flags,
-        Scope = scope,
-        Value = value,
-      });
-    }
-
     // Add a new entry to the catalog.
     // Do kind, flags and other stuff here
-    public void AddNew(string name, DataType datatype, EntryKinds kind, EntryFlags flags) {
-      if (Catalog.IsPersist(name)) flags |= EntryFlags.Persistent;
-      if (kind == EntryKinds.Value && datatype is DataTypeRelation && Catalog.IsDatabase(name))
+    public void AddNewEntry(string name, DataType datatype, EntryKinds kind, EntryFlags flags) {
+      if (Cat.IsPersist(name)) flags |= EntryFlags.Persistent;
+      if (kind == EntryKinds.Value && datatype is DataTypeRelation && Cat.IsDatabase(name))
         flags |= EntryFlags.Database;
-      Add(name, datatype, kind, flags, datatype.DefaultValue());   // make sure it has something, to avoid later errrors
+      AddEntry(name, datatype, kind, flags, null);   // preliminary entry, value can only be set by code
+      //AddEntry(name, datatype, kind, flags, datatype.DefaultValue());   // make sure it has something, to avoid later errrors
       if (kind == EntryKinds.Value) {
         if (datatype is DataTypeRelation)
           (datatype as DataTypeRelation).ProposeCleanName(name);
@@ -395,78 +467,8 @@ namespace Andl.Runtime {
       }
     }
 
-
-    // set a variable to a new value of the same type
-    // NOTE: if level is global, needs concurrency control
-    internal void Set(string name, TypedValue value) {
-      _entries[name].Set(value);
-    }
-
-    // Return raw value from variable
-    internal CatalogEntry FindEntry(string name) {
-      CatalogEntry entry;
-      return (_entries.TryGetValue(name, out entry)) ? entry
-        : Parent != null ? Parent.FindEntry(name)
-        : null;
-    }
-
-    // Return raw value from variable
-    // special handling of system catalog names
-    internal TypedValue GetValue(string name) {
-      if (Catalog.IsSystem(name)) {
-        if (Catalog._catalogtables.ContainsKey(name))
-          return Catalog.GetCatalogTableValue(Catalog._catalogtables[name]);
-        return null;
-      }
-      var entry = FindEntry(name);
-      if (entry == null) return null;
-
-      // Choose whether to get value from database or catalog
-      if (entry.IsDatabase) {
-        if (Catalog.DatabaseSqlFlag) {
-          var table = DataTableSql.Create(name, entry.DataType.Heading);
-          return RelationValue.Create(table);
-        } else {
-          return Persist.Create(Catalog.DatabasePath, true).Load(name);
-        }
-      } else return entry.Value;
-    }
-
-    // Return type from variable as evaluated if needed
-    public DataType GetDataType(string name) {
-      var entry = FindEntry(name);
-      return entry == null ? null : entry.DataType;
-    }
-
-    // Value replaces existing, type should be compatible
-    // Supports assignment. Handles linked tables.
-    public void SetValue(string name, TypedValue value) {
-      if (Catalog.IsSystem(name)) {
-        ProgramError.Error("Catalog", "cannot set '{0}'", name);
-        return;
-      }
-      var entry = FindEntry(name);
-      if (entry == null && Level == ScopeLevels.Local) {
-        Add(name, value.DataType, EntryKinds.Value);
-        entry = FindEntry(name);
-      }
-      Logger.Assert(entry != null);
-
-      // Choose whether to store value in database or in catalog
-      if (entry.IsDatabase) {
-        var table = value.AsTable();
-        if (Catalog.DatabaseSqlFlag)
-          DataTableSql.Create(name, table);
-        else {
-          var finalvalue = RelationValue.Create(DataTableLocal.Convert(table));
-          // note: could defer persistence until shutdown
-          Persist.Create(Catalog.DatabasePath, true).Store(name, finalvalue);
-        }
-      } else entry.Set(value);
-    }
-
     // Return type for an entry that is settable
-    public DataType GetSetterType(string name) {
+    public DataType GetReturnType(string name) {
       var entry = FindEntry(name);
       if (entry == null) return null;
       if (entry.Kind == EntryKinds.Value) return entry.DataType;
@@ -486,7 +488,120 @@ namespace Andl.Runtime {
       return expr.Value.Lookup.Columns.Select(c => c.DataType).ToArray();
     }
 
-    // Provide formatted dictionary of strings for external tools
+    //-------------------------------------------------------------------------
+    // implementation
+
+    // Return raw value from variable
+    internal CatalogEntry FindEntry(string name) {
+      CatalogEntry entry;
+      return (_entries.TryGetValue(name, out entry)) ? entry
+        : Parent != null ? Parent.FindEntry(name)
+        : null;
+    }
+
+    // Return raw value from variable
+    // special handling of system catalog names
+    internal TypedValue GetValue(string name) {
+      if (Cat.IsSystem(name)) {
+        if (Catalog._catalogtables.ContainsKey(name))
+          return Cat.GetCatalogTableValue(Catalog._catalogtables[name]);
+        return null;
+      }
+      var entry = FindEntry(name);
+      if (entry == null) return null;
+
+      // Choose whether to get value from database or catalog
+      if (entry.IsDatabase) {
+        if (Cat.SqlFlag) {
+          var table = DataTableSql.Create(name, entry.DataType.Heading);
+          return RelationValue.Create(table);
+        } else if (!entry.IsLoaded) { // lazy load
+          var value = Persist.Create(Cat.DatabasePath, true).Load(name);
+          if (entry.DataType != value.DataType)
+            throw ProgramError.Fatal("Catalog", "Type mismatch for variable {0}", name);
+          entry.IsLoaded = true;
+          return Persist.Create(Cat.DatabasePath, true).Load(name);
+        }
+      }
+      return entry.Value;
+    }
+
+    // Value replaces existing, type should be compatible
+    // Supports assignment. Handles linked tables.
+    internal void SetValue(string name, TypedValue value) {
+      if (Cat.IsSystem(name))
+        throw ProgramError.Fatal("Catalog", "cannot set '{0}'", name);
+      var entry = FindEntry(name);
+      if (entry == null && Level == ScopeLevels.Local) {
+        AddEntry(name, value.DataType, EntryKinds.Value);
+        entry = FindEntry(name);
+      }
+      Logger.Assert(entry != null);
+
+      // Choose where to store and whether to convert
+      TypedValue finalvalue;
+
+      if (entry.IsDatabase && Cat.SqlFlag) {
+        // Database plus sql => hand it to sql (could be a query)
+        // catalog requires a default value to carry the type
+        DataTableSql.Create(name, value.AsTable());
+        finalvalue = value.DataType.DefaultValue();
+      } else {
+        if (value.DataType is DataTypeRelation)
+          finalvalue = RelationValue.Create(DataTableLocal.Convert(value.AsTable()));
+        else finalvalue = value;
+        // set flags for persisting
+        if (entry.IsPersistent) {
+          entry.IsUnsaved = true;
+          entry.IsLoaded = true;
+        }
+      }
+
+      // store value if changed
+      if (finalvalue != entry.Value) {
+        var oldvalue = (entry.Value == null) ? null : entry;
+        entry.Set(finalvalue);
+        if (entry.IsPersistent && Cat.SaveFlag)
+          Cat.StoreEntry(entry, oldvalue);
+      }
+    }
+
+    // Return type from variable as evaluated if needed
+    internal DataType GetEntryType(string name) {
+      var entry = FindEntry(name);
+      return entry == null ? null : entry.DataType;
+    }
+
+    // Add a named entry
+    internal void Add(CatalogEntry entry) {
+      _entries[entry.Name] = entry;
+    }
+
+    // Add new catalog entry to proper scope
+    // Risky: caller may not know where it went; maybe merge Global & Persistent?
+    internal void AddEntry(string name, DataType datatype, EntryKinds kind, EntryFlags flags = EntryFlags.None, TypedValue value = null) {
+      var scope = (flags.HasFlag(EntryFlags.Persistent)) ? Cat.PersistentVars : this;
+      var entry = new CatalogEntry {
+        Name = name,
+        DataType = datatype,
+        Kind = kind,
+        Flags = flags,
+        Scope = scope,
+        Value = value,
+      };
+      scope.Add(entry);
+      // update catalog
+      if (flags.HasFlag(EntryFlags.Persistent) && Cat.SaveFlag) {
+        Logger.Assert(entry.Kind == EntryKinds.Type || entry.Value == null, entry);
+        if (entry.Kind == EntryKinds.Type)
+          Cat.StoreEntry(entry);
+      }
+    }
+
+    ///------------------------------------------------------------------------
+    /// Functions to provide formatted dictionary of strings for external tools
+    /// 
+
     // Searches current scope, not parent
     public Dictionary<string, string> GetEntryInfoDict(EntryInfoKind kind) {
       switch (kind) {
@@ -532,18 +647,6 @@ namespace Andl.Runtime {
       return heading.Columns.ToDictionary(c => c.Name, c => c.DataType.BaseName);
     }
 
-    //public Dictionary<string, string> GetRelationsDict() {
-    //  return GetEntryValuesDict(ce => ce.IsDatabase, ce => ce.RelationToStringValue());
-    //}
-    //public Dictionary<string, string> GetOperatorsDict() {
-    //  return GetEntryValuesDict(ce => ce.IsCode, ce => ce.CodeToStringValue());
-    //}
-    //public Dictionary<string, string> GetVariablesDict() {
-    //  return GetEntryValuesDict(ce => ce.IsVariable, ce => ce.ValueToStringValue());
-    //}
-    //public Dictionary<string, string> GetTypesDict() {
-    //  return GetEntryValuesDict(ce => ce.IsType, ce => ce.TypeToStringValue());
-    //}
   }
 
 
@@ -591,7 +694,7 @@ namespace Andl.Runtime {
 
     // Return raw type of variable 
     public DataType GetDataType(string name) {
-      return Current.GetDataType(name);
+      return Current.GetEntryType(name);
     }
 
   }
@@ -608,6 +711,8 @@ namespace Andl.Runtime {
     public TypedValue Value { get; set; }
     public object NativeValue { get; set; }
     public CatalogScope Scope { get; set; }
+    public bool IsUnsaved { get; set; }
+    public bool IsLoaded { get; set; }
 
     public bool IsCode { get { return Kind == EntryKinds.Code; } }
     public bool IsType { get { return Kind == EntryKinds.Type; } }
@@ -700,51 +805,49 @@ namespace Andl.Runtime {
 
     public CatalogTableMaker AddEntries(IEnumerable<CatalogEntry> entries) {
       foreach (var entry in entries) {
-        AddEntry(entry);
+        Table.AddRow(MakeEntry(entry));
       }
       return this;
     }
 
-    public void AddEntry(CatalogEntry entry) {
-      var addrow = DataRow.Create(Table.Heading, new TypedValue[]
-          { TextValue.Create(entry.Name),
-            TextValue.Create(entry.Kind.ToString()),
-            TextValue.Create(entry.DataType.BaseType.Name),
-            BinaryValue.Create(entry.ToBinary()) });
-      Table.AddRow(addrow);
+    public DataRow MakeEntry(CatalogEntry entry) {
+      return DataRow.Create(Table.Heading, new TypedValue[] {
+        TextValue.Create(entry.Name),
+        TextValue.Create(entry.Kind.ToString()),
+        TextValue.Create(entry.DataType.BaseType.Name),
+        BinaryValue.Create(entry.ToBinary())
+      });
     }
 
     // Fill a table of variables
     public CatalogTableMaker AddVariables(IEnumerable<CatalogEntry> entries) {
       foreach (var entry in entries.Where(e => !e.IsCode)) {
-        AddVariable(entry.Name, entry.DataType);
+        Table.AddRow(MakeVariable(entry.Name, entry.DataType));
       }
       return this;
     }
 
-    void AddVariable(string name, DataType datatype) {
-      var addrow = DataRow.Create(Table.Heading, new TypedValue[]
+    public DataRow MakeVariable(string name, DataType datatype) {
+      return DataRow.Create(Table.Heading, new TypedValue[]
           { TextValue.Create(name),
             TextValue.Create(datatype.BaseType.Name),
             TextValue.Create(datatype.GetUniqueName ?? "") });
-      Table.AddRow(addrow);
     }
 
     // Fill a table of operators
     public CatalogTableMaker AddOperators(IEnumerable<CatalogEntry> entries) {
       foreach (var entry in entries.Where(e => e.IsCode)) {
-        AddOperator(entry.Name, entry.CodeValue.DataType, entry.CodeValue.Value);
+        Table.AddRow(MakeOperator(entry.Name, entry.CodeValue.DataType, entry.CodeValue.Value));
       }
       return this;
     }
 
-    void AddOperator(string name, DataType datatype, ExpressionBlock value) {
-      var addrow = DataRow.Create(Table.Heading, new TypedValue[]
+    DataRow MakeOperator(string name, DataType datatype, ExpressionBlock value) {
+      return DataRow.Create(Table.Heading, new TypedValue[]
           { TextValue.Create(name),
             TextValue.Create(value.DataType.BaseType.Name),
             TextValue.Create(value.DataType.GetUniqueName ?? ""),
             TextValue.Create(value.NumArgs == 0 ? "" : value.SubtypeName) }); // suppress empty arg list
-      Table.AddRow(addrow);
     }
 
     // Fill a table of members
@@ -790,17 +893,6 @@ namespace Andl.Runtime {
       AddTypes(operators.SelectMany(e => e.Lookup.Columns.Select(c => c.DataType)));
       ThriftGen.Process(tw, basename, _datatypes.ToArray(), operators);
     }
-
-    //public void WriteThrift(TextWriter tw, string basename, IEnumerable<CatalogEntry> entries) {
-    //  var operators = entries.Where(e => e.IsCode)
-    //    .Select(e => e.CodeValue.Value).ToArray();
-    //  var rtypes = operators.Select(e => e.DataType);
-    //  var atypes = operators.SelectMany(e => e.Lookup.Columns.Select(c => c.DataType));
-    //  var types = rtypes.Union(atypes)
-    //    .Where(t => t.HasHeading)
-    //    .OrderBy(t => t.GenCleanName).ToArray();
-    //  ThriftGen.Process(tw, basename, types, operators);
-    //}
 
     // Recursively add types that have headings to list
     void AddTypes(IEnumerable<DataType> types) {

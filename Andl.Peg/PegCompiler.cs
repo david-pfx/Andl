@@ -4,6 +4,7 @@ using System.Linq;
 using Pegasus.Common;
 using System.IO;
 using Andl.Runtime;
+using Andl.Common;
 
 namespace Andl.Peg {
   /// <summary>
@@ -20,46 +21,55 @@ namespace Andl.Peg {
     // get instance of symbol table
     public SymbolTable Symbols { get; private set; }
     // get set instance of Catalog
-    public Catalog Catalog { get; private set; }
+    public Catalog Cat { get; private set; }
 
     // Create a parser with catalog and symbols
     public static IParser Create(Catalog catalog) {
       return new PegCompiler {
         Symbols = SymbolTable.Create(catalog),
-        Catalog = catalog,
+        Cat = catalog,
       };
     }
 
     // Compile from input, write to output
     // Evaluate incrementally
-    public bool Process(TextReader input, TextWriter output, Evaluator evaluator, string filename) {
-      var parser = new PegParser {
-        Symbols = Symbols, Output = output, Cat = Catalog
+    // Note: compiler will load symbols from catalog after processing initial whitespace,
+    // including directives if any.
+    public bool RunScript(TextReader input, TextWriter output, Evaluator evaluator, string filename) {
+      Logger.WriteLine(2, $">Parser '{filename}'");
+        var parser = new PegParser {
+        Symbols = Symbols, Output = output, Cat = Cat
       };
       Error = false;
       ErrorCount = 0;
       Aborted = false;
+      bool done = false;
+      var exec = Cat.ExecuteFlag;
 
-      //var intext = input.ReadToEnd();
-      var exec = Catalog.ExecuteFlag;
-      parser.Start(input, filename);
+      parser.LoadSource(input, filename);
       Cursor state = null;
-      while (!parser.Done) { // also set by #stop
+      while (!done) {
         try {
           var result = (state == null) ? parser.Parse(parser.InputText) : parser.Restart(ref state);
-          if (result == null) // EOF
-            parser.Done = true;
-          else {
+          if (result is AstEof) {
+            if (parser.TryPopState())
+              state = parser.State;
+            else done = true;
+          } else if (result is AstEmpty) {
+            parser.TryPushState(); // maybe changed because of #include
+            state = parser.State;
+          } else {
             var code = Emit(result);
             if (Logger.Level >= 3)
               Decoder.Create(code).Decode();
-            if (exec && parser.ErrorCount == 0)
+            if (exec && ErrorCount == 0)
               Execute(evaluator, code);
-            //allcode.Add(code.bytes);
             state = parser.State;
           }
         } catch (ParseException ex) {
-          state = ex.State;
+           state = ex.State;
+          if (ex.Stop) done = true;
+          else ErrorCount++;
         } catch (Exception ex) {
           output.WriteLine(ex.ToString());
           //output.WriteLine(ex.Data["state"]);
@@ -68,17 +78,10 @@ namespace Andl.Peg {
           break;
         }
       }
-      ErrorCount += parser.ErrorCount;
-      //if (parser.Done && ErrorCount == 0) {
-      //  if (Logger.Level >= 4)
-      //    Decoder.Create(allcode).Decode();
-      //  if (Catalog.ExecuteFlag) {
-      //    output.WriteLine("*** Begin execution");
-      //    Execute(evaluator, allcode);
-      //  }
-      //  return true;
-      //}
-      return parser.Done && ErrorCount == 0 && !Aborted;
+
+      var ok = done && ErrorCount == 0 && !Aborted;
+      Cat.EndSession(ok ? SessionResults.Ok : SessionResults.Failed);
+      return ok;
     }
 
     ///============================================================================================
@@ -88,7 +91,7 @@ namespace Andl.Peg {
 
     ByteCode Emit(AstStatement statement) {
       Logger.Assert(statement.DataType != null);
-      Logger.WriteLine(4, ">{0}", statement);
+      Logger.WriteLine(4, "|{0}", statement);  // nopad
       var emitter = new Emitter();
       statement.Emit(emitter);
       if (statement.DataType.IsVariable) {
@@ -103,11 +106,14 @@ namespace Andl.Peg {
     }
 
     void Execute(Evaluator evaluator, ByteCode code) {
+      Logger.WriteLine(3, "Execute: len:{0}", code.Length);
       try {
         evaluator.Exec(code);
       } catch (ProgramException ex) {
-        Logger.WriteLine(ex.ToString());
+        Logger.WriteLine("Program error: {0}", ex.ToString());
+        ++ErrorCount;
       }
+      Logger.WriteLine(3, "[Ex {0}]", ErrorCount);
     }
   }
 }

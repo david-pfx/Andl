@@ -29,7 +29,7 @@ namespace Andl.Runtime {
     public abstract string Format();
     public abstract bool IsLocal { get; }
     public abstract IEnumerable<DataRow> GetRows();
-    public virtual void DropRows() { }
+    public virtual void Release() { }
     public abstract int GetCount();
     public abstract bool IsEqual(DataTable other);
     public abstract bool Subset(DataTable other);
@@ -44,6 +44,7 @@ namespace Andl.Runtime {
     public abstract DataTable Transform(DataHeading newheading, ExpressionEval[] exprs);
     public abstract DataTable TransformAggregate(DataHeading newheading, ExpressionEval[] exprs);
     public abstract DataTable TransformOrdered(DataHeading newheading, ExpressionEval[] exprs, ExpressionEval[] orderexps);
+    public abstract DataTable TransformWindowed(DataHeading newheading, ExpressionEval[] exprs, ExpressionEval[] orderexps);
     public abstract DataTable Recurse(int flags, ExpressionEval expr);
     public abstract DataTable DyadicJoin(DataTable other, JoinOps joinops, DataHeading newheading);
     public abstract DataTable DyadicAntijoin(DataTable other, JoinOps joinops, DataHeading newheading);

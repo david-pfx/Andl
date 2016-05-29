@@ -10,9 +10,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Andl.Sqlite;
+using Andl.Common;
 
 namespace Andl.Runtime {
   public delegate string SubstituteDelegate(int index);
@@ -39,6 +37,8 @@ namespace Andl.Runtime {
     public bool HasGroupBy { get; set; }
     // Value for Limit clause
     public string SqlLimitText { get; set; }
+    // This is a temporary table, that will be dropped when released
+    public bool IsTemporary { get; set; }
 
     // True if this is just a table, otherwise it's a query
     public bool IsTableOnly { get { return TableName != null
@@ -54,6 +54,7 @@ namespace Andl.Runtime {
     // previously set limit and offset
     int? _limit = null;
     int? _offset = null;
+    bool _isactive = false;
 
     // Retrieve SQL text for various purposes
     // From => '[ <tablename> ]'      -- if tablename and there are no other clauses
@@ -64,13 +65,14 @@ namespace Andl.Runtime {
     // Return sql for a full query with all clauses
     string GetQuery() {
       Logger.Assert(TableName != null || SqlSelectText != null);
-      return String.Join(" ", SqlSelectText ?? _gen.SelectAll('[' + TableName + ']', this), 
-        SqlWhereText, SqlOrderByText, SqlLimitText).Trim();
+      return _gen.FullSelect(SqlSelectText ?? _gen.SelectAll(TableName, this),
+        SqlWhereText, SqlOrderByText, SqlLimitText);
     }
 
     // return sql for use in a FROM clause
+    // If first char no paren, ident will be quoted
     string GetFrom() {
-      return IsTableOnly ? '[' + TableName + ']' : "( " + GetQuery() + ")";
+      return IsTableOnly ? TableName : _gen.SubSelect(GetQuery());
     }
 
     //--- overrides
@@ -100,27 +102,31 @@ namespace Andl.Runtime {
     // Get rows from result set by executing query
     public override IEnumerable<DataRow> GetRows() {
       _database.OpenStatement();
-      _database.ExecuteQuery(GetQuery());
+      _isactive = true;
+      _database.ExecuteQueryMulti(GetQuery());
       while (_database.HasData) {
         var values = new TypedValue[Degree];
         _database.GetData(Heading, values);
         yield return DataRow.Create(Heading, values);
         _database.Fetch();
       }
+      _isactive = false;
       _database.CloseStatement();
     }
 
     // Release result set
-    // TODO: delete temporaries
-    public override void DropRows() {
-      _database.CloseStatement();
+    // Must close statement if Fetch did not run to completion
+    public override void Release() {
+      if (_isactive) _database.CloseStatement();
+      _isactive = false;
+      if (IsTemporary) DropTable();
     }
 
     //--- factories
 
     DataTableSql() {
-      _database = SqlTarget.Create();
-      _gen = SqlTarget.SqlGen;
+      _database = SqlTarget.Current;
+      _gen = SqlTarget.Current.SqlGen;
     }
 
     // Create new base table, assumed to exist
@@ -134,11 +140,10 @@ namespace Andl.Runtime {
     }
 
     // Create new table from a partial query, allow more clauses to be added
-    static DataTableSql CreateFromSql(DataHeading heading, string sql, string ord = null) {
+    static DataTableSql CreateFromSql(DataHeading heading, string sql) {
       var newtable = new DataTableSql {
         DataType = DataTypeRelation.Get(heading),
         SqlSelectText = sql,
-        SqlOrderByText = ord,
       };
       return newtable;
     }
@@ -158,13 +163,13 @@ namespace Andl.Runtime {
       // cannot copy base table to itself
       if (oldtable != null && name == oldtable.TableName) return oldtable;
       var newtable = Create(name, other.Heading);
-      newtable._database.Begin();
+      newtable._database.OpenStatement(true);
       newtable.CreateTable();
       if (oldtable != null)
         newtable.InsertValuesQuery(oldtable);
       else
         newtable.InsertValuesSingly(other);
-      newtable._database.Commit();
+      newtable._database.CloseStatement();
       return newtable;
     }
 
@@ -172,12 +177,13 @@ namespace Andl.Runtime {
     // NOTE: receiver not used, but allows desired dispatch
     public static DataTableSql Convert(DataTable other) {
       if (other is DataTableSql) return other as DataTableSql;
-      var name = SqlTarget.SqlGen.TempName();
+      var name = SqlTarget.Current.SqlGen.TempName();
       var newtable = Create(name, other.Heading);
-      newtable._database.Begin();
+      newtable.IsTemporary = true;
+      newtable._database.OpenStatement(true);
       newtable.CreateTable();           //TODO: schedule for deletion. When?
       newtable.InsertValuesSingly(other);
-      newtable._database.Commit();
+      newtable._database.CloseStatement();
       return newtable;
     }
 
@@ -220,13 +226,27 @@ namespace Andl.Runtime {
       _database.CloseStatement();
     }
 
+    // Create new base table
+    void DropTable() {
+      _database.OpenStatement();
+      Logger.Assert(IsTableOnly, TableName);
+      var sql = _gen.DropTable(TableName);
+      _database.ExecuteCommand(sql);
+      _database.CloseStatement();
+    }
+
     // Sql to insert multiple rows of data into named table
     void InsertValuesSingly(DataTable other) {
       _database.OpenStatement();
       var sql = _gen.InsertValuesParam(TableName, other);
-      _database.ExecutePrepare(sql);
-      foreach (var row in other.GetRows())
+      var types = other.Heading.Columns.Select(c => c.DataType).ToArray();
+      // slightly strange way to defer prepare until we know there is a row
+      var n = 0;
+      foreach (var row in other.GetRows()) {
+        if (n++ == 0)
+          _database.Prepare(sql, types);
         _database.ExecuteSend(row.Values);
+      }
       _database.CloseStatement();
     }
 
@@ -235,6 +255,30 @@ namespace Andl.Runtime {
       _database.OpenStatement();
       // SQL does positional matching, so column order must come from other
       var sql = _gen.InsertNamed(TableName, other.Heading, other.GetQuery()); //WRONG?
+      _database.ExecuteCommand(sql);
+      _database.CloseStatement();
+    }
+
+    // Sql to delete multiple rows of data from named table
+    void DeleteValuesSingly(DataTable other) {
+      _database.OpenStatement();
+      var sql = _gen.DeleteValues(TableName, other.Heading);
+      var types = other.Heading.Columns.Select(c => c.DataType).ToArray();
+      // slightly strange way to defer prepare until we know there is a row
+      var n = 0;
+      foreach (var row in other.GetRows()) {
+        if (n++ == 0)
+          _database.Prepare(sql, types);
+        _database.ExecuteSend(row.Values);
+      }
+      _database.CloseStatement();
+    }
+
+    // Sql to delete multiple rows of data from named table
+    void DeleteValuesQuery(DataTableSql other) {
+      _database.OpenStatement();
+      // SQL does positional matching, so column order must come from other
+      var sql = _gen.DeleteNamed(TableName, other.Heading, other.GetQuery()); //WRONG?
       _database.ExecuteCommand(sql);
       _database.CloseStatement();
     }
@@ -257,18 +301,19 @@ namespace Andl.Runtime {
 
     // generate SQL code for LIMIT
     DataTableSql AddLimit(int limit) {
-      if (_limit != null) return DataTableSql.CreateFromSubquery(this).AddLimit(limit);
+      if (_limit != null) return CreateFromSubquery(this).AddLimit(limit);
       _limit = limit;
-      SqlLimitText = (_offset == null) ? _gen.Limit(_limit.Value) : _gen.Limit(_limit.Value, _offset.Value);
+      SqlLimitText = _gen.LimitOffset(_limit, _offset);
       return this;
     }
 
     // generate SQL code for OFFSET
     DataTableSql AddOffset(int offset) {
-      if (_offset != null) return DataTableSql.CreateFromSubquery(this).AddOffset(offset);
+      if (_offset != null) return CreateFromSubquery(this).AddOffset(offset);
       _offset = offset;
       // special case when .skip() .take()
-      SqlLimitText = (_limit == null) ? _gen.Limit(-1, _offset.Value) : _gen.Limit(_limit.Value - _offset.Value, _offset.Value);
+      SqlLimitText = (_limit == null) ? _gen.LimitOffset(_limit, _offset) 
+        : _gen.LimitOffset(_limit.Value - _offset.Value, _offset);
       return this;
     }
 
@@ -282,7 +327,7 @@ namespace Andl.Runtime {
     // generate SQL code for dyadic antijoin operations
     DataTableSql DyadicAntijoin(DataTableSql other, DataHeading joinhdg, DataHeading newheading) {
       var sql = _gen.SelectAntijoin(GetFrom(), other.GetFrom(), newheading, joinhdg);
-      var newtable = DataTableSql.CreateFromSql(newheading, sql);
+      var newtable = CreateFromSql(newheading, sql);
       return newtable;
     }
 
@@ -305,6 +350,8 @@ namespace Andl.Runtime {
       Logger.Assert(Heading.Equals(other.Heading));
       var sql = _gen.SelectOneWhere(GetQuery(), other.GetQuery(), joinop, both);
       var ret = GetBoolValue(sql);
+      Release();
+      other.Release();
       return ret;
     }
 
@@ -353,7 +400,7 @@ namespace Andl.Runtime {
     public override TypedValue Lift() {
       if (!(Degree > 0)) return TypedValue.Empty;
       var row = GetRows().FirstOrDefault();
-      DropRows();
+      Release();
       return row != null ? row.Values[0] : Heading.Columns[0].DataType.DefaultValue();
     }
 
@@ -407,7 +454,9 @@ namespace Andl.Runtime {
 
     public override DataTable TransformAggregate(DataHeading heading, ExpressionEval[] exprs) {
       _database.RegisterExpressions(exprs);
-      var sql = _gen.SelectAsGroup(GetFrom(), exprs);
+      // groups must include all cols that are input to anything other than Aggregate
+      var groups = GroupColumns(exprs);
+      var sql = _gen.SelectAsGroup(GetFrom(), exprs, groups);
       var newtable = DataTableSql.CreateFromSql(heading, sql);
       newtable.HasGroupBy = true;
       Logger.WriteLine(4, "[TrnA '{0}']", newtable);
@@ -416,12 +465,35 @@ namespace Andl.Runtime {
 
     public override DataTable TransformOrdered(DataHeading heading, ExpressionEval[] exprs, ExpressionEval[] orderexps) {
       _database.RegisterExpressions(exprs);
-      var sql = _gen.SelectAsGroup(GetFrom(), exprs);
-      var ord = _gen.OrderBy(orderexps);
-      var newtable = DataTableSql.CreateFromSql(heading, sql, ord);
-      newtable.HasGroupBy = true;
+      var names = exprs.Where(e => e.IsProject).Select(e => e.Name);
+      var isagg = exprs.Any(e => e.HasFold);
+      var allin = orderexps.All(o => names.Contains(o.Name));
+
+      // if all ordering fields are in exprs then add order to newtable, else to this table
+      if (!allin)
+        AddOrderBy(orderexps);
+      var sql = (isagg) ? _gen.SelectAsGroup(GetFrom(), exprs, GroupColumns(exprs)) 
+        : _gen.SelectAs(GetFrom(), exprs);
+      var newtable = DataTableSql.CreateFromSql(heading, sql);
+      if (allin)
+        newtable.AddOrderBy(orderexps);
+      newtable.HasGroupBy = isagg;
       Logger.WriteLine(4, "[TrnO '{0}']", newtable);
       return newtable;
+    }
+
+    // For now same algorithm for both
+    public override DataTable TransformWindowed(DataHeading newheading, ExpressionEval[] exprs, ExpressionEval[] orderexps) {
+      throw ProgramError.Fatal("Sql data", "ordered query function not supported");
+    }
+
+    //-- impl
+    // groups must include all cols that are input to anything other than Aggregate
+    DataColumn[] GroupColumns(ExpressionEval[] exprs) {
+      var groups = exprs.Where(e => !e.HasFold).ToArray();
+      var cols = new HashSet<DataColumn>(exprs.Select(e => e.ToDataColumn()));
+      cols.ExceptWith(exprs.Where(e => e.HasFold).Select(e => e.ToDataColumn()));
+      return cols.ToArray();
     }
 
     //--- dyadics
@@ -433,6 +505,7 @@ namespace Andl.Runtime {
       if (joinops.HasFlag(JoinOps.REV))
         newtable = (other).DyadicJoin(this, joinhdg, newheading);
       else newtable = DyadicJoin(other, joinhdg, newheading);
+      other.Release();
       Logger.WriteLine(4, "[DJ '{0}']", newtable);
       return newtable;
     }
@@ -444,6 +517,7 @@ namespace Andl.Runtime {
       if (joinops.HasFlag(JoinOps.REV))
         newtable = (other).DyadicAntijoin(this, joinhdg, newheading);
       else newtable = DyadicAntijoin(other, joinhdg, newheading);
+      other.Release();
       Logger.WriteLine(4, "[DAJ '{0}']", newtable);
       return newtable;
     }
@@ -458,21 +532,32 @@ namespace Andl.Runtime {
         var r2 = other.DyadicSet(this, newheading, JoinOps.MINUS);
         newtable = r1.DyadicSet(r2, newheading, JoinOps.UNION);
       }  else newtable = DyadicSet(other, newheading, joinop);
+      other.Release();
       Logger.WriteLine(4, "[DS '{0}']", newtable);
       return newtable;
     }
 
     //--- updates
 
-    // Execute an update that is an INSERT
+    // Execute an update using a JOIN op
+    // Only INSERT and DELETE actually supported
     public override DataTable UpdateJoin(DataTable other, JoinOps joinops) {
-      if (other is DataTableSql)
-        InsertValuesQuery(other as DataTableSql);
-      else InsertValuesSingly(other);
-      return this;
+      switch (joinops) {
+      case JoinOps.UNION:
+        if (other is DataTableSql)
+          InsertValuesQuery(other as DataTableSql);
+        else InsertValuesSingly(other);
+        return this;
+      case JoinOps.MINUS:
+        if (other is DataTableSql)
+          DeleteValuesQuery(other as DataTableSql);
+        else DeleteValuesSingly(other);
+        return this;
+      }
+      throw ProgramError.Fatal("Sql data", "join operation not supported: {0}", joinops);
     }
 
-    // Execute an update that is a DELETE or UPDATE
+    // Execute an update that is a DELETE (no exprs) or UPDATE
     public override DataTable UpdateTransform(ExpressionEval pred, ExpressionEval[] exprs) {
       _database.RegisterExpressions(pred);
       _database.RegisterExpressions(exprs);
@@ -491,7 +576,7 @@ namespace Andl.Runtime {
     }
 
     public override DataTable Recurse(int flags, ExpressionEval expr) {
-      throw new NotImplementedException();
+      throw ProgramError.Fatal("Sql data", "while not supported");
     }
   }
 }

@@ -8,32 +8,32 @@
 /// explicit written permission.
 ///
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace Andl.Runtime {
+namespace Andl.Common {
+  public class AndlException : Exception {
+    public AndlException(string message) : base(message) { }
+  }
+
   // error in evaluator VM
-  public class EvaluatorException : Exception {
-    public EvaluatorException(string message, params object[] args) : base("Evaluator error: " + String.Format(message, args)) { }
+  public class EvaluatorException : AndlException {
+    public EvaluatorException(string message, params object[] args) : base("(Evaluator): " + String.Format(message, args)) { }
   }
 
   // error in runtime support libraries
-  public class RuntimeException : Exception {
-    public RuntimeException(string message, params object[] args) : base("Runtime error: " + String.Format(message, args)) { }
+  public class RuntimeException : AndlException {
+    public RuntimeException(string message, params object[] args) : base("(Runtime): " + String.Format(message, args)) { }
   }
 
   // error in sql libraries
-  public class SqlException : Exception {
-    public SqlException(string message, params object[] args) : base("Sql error: " + String.Format(message, args)) { }
+  public class SqlException : AndlException {
+    public SqlException(string message, params object[] args) : base("(Sql): " + String.Format(message, args)) { }
   }
 
   // error in application program code or data
-  public class ProgramException : Exception {
+  public class ProgramException : AndlException {
     public ErrorKind Kind = ErrorKind.Error;
     public override string ToString() {
-      return String.Format("Program error ({0}): {1}", Source, Message);
+      return String.Format("({0}): {1}", Source, Message);
     }
 
     public ProgramException(string message) : base(message) { }
@@ -50,6 +50,14 @@ namespace Andl.Runtime {
     public delegate bool ErrorHandler(string code, string message);
     public static ErrorHandler ErrorEvent;
 
+    static ProgramException Throwable(ErrorKind kind, string source, string message) {
+      return new ProgramException(message) {
+        Kind = kind,
+        Source = source,
+      };
+    }
+
+    // common code for errors that can be handled
     static void Raise(ErrorKind kind, string source, string message) {
       bool handled = (kind != ErrorKind.Panic && ErrorEvent != null && ErrorEvent(source, message))
         || kind == ErrorKind.Warn;
@@ -57,12 +65,7 @@ namespace Andl.Runtime {
         //string msg = "Fatal error " + source + ": " + message;
         if (kind == ErrorKind.Warn)
           Logger.WriteLine("Program error ({0}): {1}", source, message);
-        else {
-          throw new ProgramException(message) {
-            Kind = kind,
-            Source = source,
-          };
-        }
+        else throw Throwable(kind, source, message);
       }
     }
 
@@ -77,12 +80,12 @@ namespace Andl.Runtime {
     }
 
     // Will never return
-    public static void Fatal(string code, string format, params object[] args) {
-      Raise(ErrorKind.Fatal, code, args.Length == 0 ? format : String.Format(format, args));
+    public static ProgramException Fatal(string code, string format, params object[] args) {
+      return Throwable(ErrorKind.Fatal, code, args.Length == 0 ? format : String.Format(format, args));
     }
 
-    public static void Panic(string code, string format, params object[] args) {
-      Raise(ErrorKind.Fatal, code, args.Length == 0 ? format : String.Format(format, args));
+    public static ProgramException Panic(string code, string format, params object[] args) {
+      return Throwable(ErrorKind.Panic, code, args.Length == 0 ? format : String.Format(format, args));
     }
 
   }

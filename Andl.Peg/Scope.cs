@@ -10,9 +10,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Andl.Runtime;
+using Andl.Common;
 
 namespace Andl.Peg {
   /// <summary>
@@ -21,6 +20,7 @@ namespace Andl.Peg {
   public class LookupItems {
 
     public DataColumn[] Items { get { return _lookupitems.ToArray(); } }
+    public int Count { get { return Items.Length; } }
     public bool IsEmpty { get { return Items.Length == 0; } }
 
     HashSet<DataColumn> _lookupitems = new HashSet<DataColumn>();
@@ -34,7 +34,6 @@ namespace Andl.Peg {
       foreach (var col in cols)
         _lookupitems.Add(col);
     }
-
   }
   
   ///-------------------------------------------------------------------
@@ -70,10 +69,10 @@ namespace Andl.Peg {
     public bool IsGlobal { get; set; }
 
     public override string ToString() {
-      return String.Format("Scope {0} syms:{1} glob:{2} hdr:{3}", Level, Dict.Count, IsGlobal, _heading);
+      return $"Scope {Level} glob:{IsGlobal} syms:{Dict.Count} luit:{_lookupitems.Count} hdr:{_heading}";
     }
     public string AllToString() {
-      return String.Format("Scope {0} syms:{1} glob:{2} hdr:{3} par:{4}", Level, Dict.Count, IsGlobal, _heading, _parent);
+      return $"Scope {Level} glob:{IsGlobal} syms:{Dict.Count} luit:{_lookupitems.Count} hdr:{_heading} par:{_parent}";
     }
 
     // Create a new scope level
@@ -85,7 +84,7 @@ namespace Andl.Peg {
         _owner = owner,
       };
       owner.CurrentScope = news;
-      Logger.WriteLine(4, "Create scope {0}", news.Level);
+      Logger.WriteLine(4, $"Create {news}");
       return news;
     }
 
@@ -97,7 +96,7 @@ namespace Andl.Peg {
         _owner = this._owner,
       };
       _owner.CurrentScope = news;
-      Logger.WriteLine(4, "Push scope {0}", news.Level);
+      Logger.WriteLine(4, $"Push {news}");
       return news;
     }
 
@@ -119,10 +118,13 @@ namespace Andl.Peg {
     }
 
     // Return to previous scope level
+    // Propagate any uncleared lookup items back to parent
     public void Pop() {
       Logger.Assert(!IsGlobal, "pop");
-      Logger.WriteLine(4, "Pop scope {0}", Level);
+      Logger.WriteLine(4, $"Pop {_owner.CurrentScope} => {_parent}");
+      var keepitems = _lookupitems.Items.Where(i => _parent.FindAny(i)).ToArray();
       _owner.CurrentScope = _parent;
+      _parent._lookupitems.Add(keepitems);
       Logger.Assert(_owner.CurrentScope != null, "pop");
     }
 
@@ -147,11 +149,6 @@ namespace Andl.Peg {
       Dict.Add(sym.Name, sym);
     }
 
-    // Add a symbol -- all go through here
-    public void Update(Symbol sym) {
-      Dict[sym.Name] = sym;
-    }
-
     // Find a symbol in this scope, or delegate to parent, or return null
     public Symbol FindAny(string name) {
       Symbol sym = Find(name);
@@ -166,6 +163,11 @@ namespace Andl.Peg {
       if (Dict.TryGetValue(name, out sym))
         return sym;
       else return null;
+    }
+
+    bool FindAny(DataColumn item) {
+      return (_heading != null && _heading.Contains(item)) ||
+        (_parent != null && _parent.FindAny(item));
     }
 
   }

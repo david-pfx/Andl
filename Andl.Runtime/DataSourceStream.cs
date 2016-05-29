@@ -8,13 +8,10 @@
 /// explicit written permission.
 ///
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Microsoft.VisualBasic.FileIO;
-using System.Text.RegularExpressions;
 using System.IO;
+using Andl.Common;
 
 namespace Andl.Runtime {
   public enum InputMode {
@@ -57,8 +54,15 @@ namespace Andl.Runtime {
       else return Path.Combine(_locator, filename);
     }
 
-    // default input handler does nothing
-    public virtual DataTable Input(string file, InputMode mode = InputMode.Import) {
+    // default input handlers do nothing
+
+    // peek the file and return a heading
+    public virtual DataHeading Peek(string file) {
+      return DataHeading.Empty;
+    }
+
+    // read the file using the heading
+    public virtual DataTable Read(string file, DataHeading heading) {
       return DataTable.Empty;
     }
   }
@@ -74,34 +78,45 @@ namespace Andl.Runtime {
       };
     }
 
-    public override DataTable Input(string file, InputMode mode = InputMode.Import) {
-      var table = DataTable.Empty as DataTableLocal;
+    public override DataHeading Peek(string file) {
       var path = GetPath(file);
       if (!File.Exists(path)) return null;
-      using (var rdr = new TextFieldParser(path) { 
-              TextFieldType = FieldType.Delimited,
-              Delimiters = new string[] { "," }, 
-            }) {
-        for (var id = 0; !rdr.EndOfData; ++id ) {
+      using (var rdr = new TextFieldParser(path) {
+        TextFieldType = FieldType.Delimited,
+        Delimiters = new string[] { "," },
+      }) {
+        var row = rdr.ReadFields();
+        if (_hasid)
+          row = (new string[] { "Id:number" })
+            .Concat(row).ToArray();
+        return DataHeading.Create(row);
+      }
+    }
+
+    public override DataTable Read(string file, DataHeading heading) {
+      var path = GetPath(file);
+      if (!File.Exists(path)) return null;
+      var table = DataTableLocal.Create(heading);
+      using (var rdr = new TextFieldParser(path) {
+        TextFieldType = FieldType.Delimited,
+        Delimiters = new string[] { "," },
+      }) {
+        for (var id = 0; !rdr.EndOfData; ++id) {
           var row = rdr.ReadFields();
-          if (id == 0) {
-            if (_hasid)
-              row = (new string[] { "Id:number" })
-                .Concat(row).ToArray();
-            table = DataTableLocal.Create(DataHeading.Create(row));
-            if (mode == InputMode.Preview)
-              break;
-          } else {
+          if (id > 0) {
             if (_hasid)
               row = (new string[] { id.ToString() })
                 .Concat(row).ToArray();
-            table.AddRow(row);
+            try {
+              table.AddRow(row);
+            } catch(Exception ex) {
+              throw ProgramError.Fatal("Source Csv", "Error in row {0} of {1}: {2}", id, path, ex.Message);
+            }
           }
         }
       }
       return table;
     }
-
   }
 
   /// <summary>
@@ -115,36 +130,39 @@ namespace Andl.Runtime {
       };
     }
 
-    public override DataTable Input(string file, InputMode mode = InputMode.Import) {
-      var heading = DataHeading.Create("Line");
-      var newtable = DataTableLocal.Create(heading);
+    public override DataHeading Peek(string file) {
+      return DataHeading.Create("Line");
+    }
+
+    public override DataTable Read(string file, DataHeading heading) {
       var path = GetPath(file);
       if (!File.Exists(path)) return null;
-      if (mode == InputMode.Preview) return newtable;
-      using (var rdr = File.OpenText(path)) { 
+      var newtable = DataTableLocal.Create(heading);
+      using (var rdr = File.OpenText(path)) {
         for (var line = rdr.ReadLine(); line != null; line = rdr.ReadLine()) {
           newtable.AddRow(DataRow.Create(heading, line));
         }
       }
       return newtable;
     }
-  }
+}
 
-
-  /// <summary>
-  /// Source that is a console (really!)
-  /// </summary>
-  public class DataSourceCon : DataSourceStream {
+/// <summary>
+/// Source that is a console (really!)
+/// </summary>
+public class DataSourceCon : DataSourceStream {
     public static DataSourceCon Create(string locator) {
       return new DataSourceCon {
         _locator = locator,
       };
     }
 
-    public override DataTable Input(string file, InputMode mode = InputMode.Import) {
-      var heading = DataHeading.Create("line");
+    public override DataHeading Peek(string file) {
+      return DataHeading.Create("line");
+    }
+
+    public override DataTable Read(string file, DataHeading heading) {
       var newtable = DataTableLocal.Create(heading);
-      if (mode == InputMode.Preview) return newtable;
       Console.WriteLine(file);
       var line = Console.ReadLine();
       newtable.AddRow(DataRow.Create(heading, line));

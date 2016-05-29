@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
 using Andl.Runtime;
+using Andl.Common;
 using Andl.Peg;
 
 namespace Andl.Main {
@@ -23,13 +24,14 @@ namespace Andl.Main {
   class Program {
     const string AndlVersion = "Andl 1.0b2";
     static bool _csw = false; // compile only
-    static bool _isw = false; // interactive
+    static bool _isw = false; // interactive: min level 1, can accept input
     static bool _nsw = false;  // new catalog
     static bool _tsw = false; // Thrift IDL
     static bool _usw = false; // update catalog
     static bool _ssw = false; // sql
     static string _defaultinput = @"test.andl";
 
+    static TextWriter _output;
     static Catalog _catalog;
     static Evaluator _evaluator;
 
@@ -49,7 +51,8 @@ namespace Andl.Main {
 
     static void Main(string[] args) {
       Logger.Open(0);   // no default logging
-      Logger.WriteLine(AndlVersion);
+      _output = Logger.Out;  // FIX:?
+      _output.WriteLine(AndlVersion);
       for (var i = 0; i < args.Length; ++i) {
         if (args[i].StartsWith("/") || args[i].StartsWith("-")) {
           if (!Option(args[i].Substring(1))) {
@@ -62,21 +65,21 @@ namespace Andl.Main {
         if (ok && _catalog.ExecuteFlag) Finish(_paths[0]);
       } catch (Exception ex) {
         if (ex.GetBaseException() is ProgramException)
-          Logger.WriteLine("*** {0} error ({1}): {2}", (ex as ProgramException).Kind, (ex as ProgramException).Source, ex.Message);
+          _output.WriteLine("*** {0} error ({1}): {2}", (ex as ProgramException).Kind, (ex as ProgramException).Source, ex.Message);
         else if (ex.GetBaseException() is UtilAssertException)
-          Logger.WriteLine("*** Assert failure: {0}", ex.ToString());
+          _output.WriteLine("*** Assert failure: {0}", ex.ToString());
         else {
-          Logger.WriteLine("*** Unexpected exception: {0}", ex.ToString());
+          _output.WriteLine("*** Unexpected exception: {0}", ex.ToString());
         }
-        Logger.WriteLine("*** Abort");
+        _output.WriteLine("*** Abort");
       }
-      Logger.WriteLine("");
+      _output.WriteLine("");
     }
 
     // Capture the options
     static bool Option(string arg) {
       if (arg == "?") {
-        Logger.WriteLine(_help);
+        _output.WriteLine(_help);
         return false;
       } else if (arg.StartsWith("c")) {
         _nsw = arg.Contains("n");
@@ -92,7 +95,7 @@ namespace Andl.Main {
       else if (Regex.IsMatch(arg, "[0-9]+"))
         Logger.Level = int.Parse(arg);
       else {
-        Logger.WriteLine("*** Bad option: {0}", arg);
+        _output.WriteLine("*** Bad option: {0}", arg);
         return false;
       }
       return true;
@@ -104,7 +107,7 @@ namespace Andl.Main {
       if (_paths.Count == 0)
         _paths.Add(_defaultinput);
       if (!File.Exists(_paths[0])) {
-        Logger.WriteLine("File not found: {0}", _paths[0]);
+        _output.WriteLine("File not found: {0}", _paths[0]);
         return false;
       }
       // set up components
@@ -114,10 +117,11 @@ namespace Andl.Main {
       _catalog.ExecuteFlag = !_csw;
       _catalog.LoadFlag = _paths.Count > 1 && !_nsw;
       _catalog.SaveFlag = _usw;
-      _catalog.DatabaseSqlFlag = _ssw;
+      _catalog.SqlFlag = _ssw;
       _catalog.BaseName = Path.GetFileNameWithoutExtension(_paths[0]);
       if (_paths.Count > 1)
         _catalog.DatabasePath = _paths[1];
+      _catalog.Start();
 
       // Create private catalog with access to global level, for evaluator
       var catalogp = CatalogPrivate.Create(_catalog, true);
@@ -130,14 +134,14 @@ namespace Andl.Main {
     // Compile using selected parser
     // Code is (now) always executed as compiled unless or until there is an error
     static bool Compile(string path) {
-      Logger.WriteLine("*** Compiling: {0}", path);
+      _output.WriteLine("*** Compiling: {0}", path);
       IParser parser = PegCompiler.Create(_catalog);
       //IParser parser = (!_psw) ? 
       //  PegCompiler.Create(_catalog) : 
       //  OldCompiler.Create(_catalog);
       using (StreamReader input = File.OpenText(path)) {
-        var ret = parser.Process(input, Console.Out, _evaluator, path);
-        Logger.WriteLine("*** Compiled {0} {1} ", path, ret ? "OK"
+        var ret = parser.RunScript(input, Console.Out, _evaluator, path);
+        _output.WriteLine("*** Compiled {0} {1} ", path, ret ? "OK"
           : parser.Aborted ? "- terminated with fatal error"
           : "with error count = " + parser.ErrorCount.ToString());
         return parser.ErrorCount == 0;
@@ -149,13 +153,12 @@ namespace Andl.Main {
       if (_tsw) {
         var thriftname = Path.ChangeExtension(path, ".thrift");
         using (StreamWriter sw = new StreamWriter(thriftname)) {
-          Logger.WriteLine("*** Writing: {0}", thriftname);
+          _output.WriteLine("*** Writing: {0}", thriftname);
           (new CatalogInterfaceWriter()).WriteThrift(sw, _catalog.BaseName, _catalog.PersistentVars.GetEntries());
         }
       }
       if (_catalog.SaveFlag) {
-      //if (_catalog.SaveFlag && _catalog.ExecuteFlag) {
-        Logger.WriteLine("*** Updating catalog: {0}", _catalog.DatabasePath);
+        _output.WriteLine("*** Updating catalog: {0}", _catalog.DatabasePath);
         _catalog.Finish();
       }
     }

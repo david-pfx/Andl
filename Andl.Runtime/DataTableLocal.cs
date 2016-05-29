@@ -13,6 +13,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Andl.Common;
 
 namespace Andl.Runtime {
   /// <summary>
@@ -71,7 +72,8 @@ namespace Andl.Runtime {
     }
 
     public override string Format() {
-      var v = (Cardinality == 0) ? "()" : String.Join("", _rows.Select(r => r.ToString()));
+      var v = (Cardinality == 0) ? "()" : _rows.Join("");
+      //var v = (Cardinality == 0) ? "()" : String.Join("", _rows.Select(r => r.ToString()));
       return String.Format("{{{0}{1}[{2}]}}", Heading.ToString(), v, Cardinality);
     }
 
@@ -486,7 +488,7 @@ namespace Andl.Runtime {
     }
 
     // Rename some columns, data unchanged
-    // It can be possible to copy and graft on new heading, but for now don't try
+    // It can be possible to copy and graft on new heading, but for now just don't
     public override DataTable Rename(ExpressionEval[] exprs) {
       Logger.Assert(exprs.Length == Degree, "reorder mismatch");
       // note: this is an explicit heading. Order matters.
@@ -546,8 +548,8 @@ namespace Andl.Runtime {
       return newtable;
     }
 
-    // Transform with Aggregation - transform but with aggregation so different algorithm
-    // TODO: tidy up to match Ordered
+    // Transform with Aggregation
+    // Maintain index on output
     public override DataTable TransformAggregate(DataHeading newheading, ExpressionEval[] exprs) {
       Logger.WriteLine(4, "TransformAggregate {0} exprs={1}", newheading, exprs.Length);
 
@@ -561,6 +563,7 @@ namespace Andl.Runtime {
       foreach (var oldrow in this.GetRows()) {  //TODO:Enumerable
         var temprow = oldrow.Transform(newheading, newexprs);
         if (!dict.ContainsKey(temprow)) {
+          // First time this new row seen, add to output and index it
           var accblk = AccumulatorBlock.Create(numacc);
           var newrow = oldrow.TransformAggregate(newheading, accblk, newexprs);
           newtable.AddRaw(newrow);
@@ -568,6 +571,8 @@ namespace Andl.Runtime {
           dict.Add(temprow, newtable.Cardinality - 1);
           accblks.Add(accblk);
         } else {
+          // Subsequent time row seen, update output by index
+          // TODO: only need to update each row once at end from accumulators
           var ord = dict[temprow];
           var newrow = newtable._rows[ord];
           var accblk = accblks[ord];
@@ -630,16 +635,21 @@ namespace Andl.Runtime {
 
       var newtable = DataTableLocal.Create(Heading);
       foreach (var row in _rows)
-        AddRaw(row);
+        newtable.AddRaw(row);
 
-      for (var ord = 0; ord < _rows.Count; ++ord) {
-        var newrows = expr.EvalOpen(_rows[ord]).AsTable();
+      // by ordinal, to main position and notice new rows
+      for (var ord = 0; ord < newtable._rows.Count; ++ord) {
+        var newrows = expr.EvalOpen(newtable._rows[ord]).AsTable();
         foreach (var row in newrows.GetRows())
-          AddRow(row);
+          newtable.AddRow(row);
       }
-      return this;
+      return newtable;
     }
 
+    // For now same algorithm for both
+    public override DataTable TransformWindowed(DataHeading newheading, ExpressionEval[] exprs, ExpressionEval[] orderexps) {
+      return TransformOrdered(newheading, exprs, orderexps);
+    }
 
     ///=================================================================
     ///
@@ -663,7 +673,7 @@ namespace Andl.Runtime {
           if (++matched > Cardinality)
             break;
         } else {
-          other.DropRows(); // because of early termination
+          other.Release(); // because of early termination
           return false;
         }
       }
@@ -678,7 +688,7 @@ namespace Andl.Runtime {
       var matched = 0;
       foreach (var row in other.GetRows()) {
         if (Contains(row) && ++matched == Cardinality) {
-          other.DropRows();
+          other.Release();
           break;
         }
       }
@@ -691,7 +701,7 @@ namespace Andl.Runtime {
       if (other is DataTableLocal && (other as DataTableLocal).Cardinality > Cardinality) return false;
       foreach (var row in other.GetRows()) {
         if (!Contains(row)) {
-          other.DropRows();
+          other.Release();
           return false;
         }
       }
@@ -704,7 +714,7 @@ namespace Andl.Runtime {
       Logger.Assert(Heading.Equals(other.Heading));
       foreach (var row in other.GetRows()) {
         if (Contains(row)) {
-          other.DropRows();
+          other.Release();
           return false;
         }
       }

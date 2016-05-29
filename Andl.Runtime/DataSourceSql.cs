@@ -10,13 +10,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Data;
 using System.Data.SqlClient;
 using System.Data.OleDb;
 using System.Data.Odbc;
 using System.Data.Common;
+using Andl.Common;
 
 namespace Andl.Runtime {
   public enum ConversionTypes {
@@ -37,7 +36,7 @@ namespace Andl.Runtime {
       try {
         ds._connection = new SqlConnection(locator);
       } catch(Exception ex) {
-        ProgramError.Fatal("Source sql", ex.Message);
+        throw ProgramError.Fatal("Source Sql", ex.Message);
       }
       ds._convdict = new Dictionary<string, ConversionTypes> {
         { "char", ConversionTypes.String },
@@ -70,13 +69,20 @@ namespace Andl.Runtime {
       try {
         _connection.Open();
       } catch (Exception ex) {
-        ProgramError.Fatal("Source sql", ex.Message);
+        throw ProgramError.Fatal("Source Sql", ex.Message);
       }
       return cmd.ExecuteReader();
     }
 
     protected override void Close() {
       _connection.Close();
+    }
+
+    protected override System.Data.DataTable GetSchema() {
+      _connection.Open();
+      var ret = _connection.GetSchema("tables");
+      _connection.Close();
+      return ret;
     }
   }
 
@@ -95,7 +101,7 @@ namespace Andl.Runtime {
       try {
         ds._connection = new OdbcConnection(locator);
       } catch (Exception ex) {
-        ProgramError.Fatal("Source odbc", ex.Message);
+        throw ProgramError.Fatal("Source Odbc", ex.Message);
       }
       ds._convdict = new Dictionary<string, ConversionTypes> {
         { "CHAR", ConversionTypes.String },
@@ -113,13 +119,20 @@ namespace Andl.Runtime {
       try {
         _connection.Open();
       } catch (Exception ex) {
-        ProgramError.Fatal("Source odbc", ex.Message);
+        throw ProgramError.Fatal("Source Odbc", ex.Message);
       }
       return cmd.ExecuteReader();
     }
 
     protected override void Close() {
       _connection.Close();
+    }
+
+    protected override System.Data.DataTable GetSchema() {
+      _connection.Open();
+      var ret = _connection.GetSchema("tables");
+      _connection.Close();
+      return ret;
     }
   }
 
@@ -138,7 +151,7 @@ namespace Andl.Runtime {
       try {
         ds._connection = new OleDbConnection(locator);
       } catch (Exception ex) {
-        ProgramError.Fatal("Source OleDb", ex.Message);
+        throw ProgramError.Fatal("Source OleDb", ex.Message);
       }
       ds._convdict = new Dictionary<string, ConversionTypes> {
         { "DBTYPE_BOOL", ConversionTypes.Bool },
@@ -146,6 +159,9 @@ namespace Andl.Runtime {
         { "DBTYPE_DATE", ConversionTypes.DateTime },
         { "DBTYPE_WVARCHAR", ConversionTypes.String },
         { "DBTYPE_WVARLONGCHAR", ConversionTypes.String },
+      };
+      ds._schemadict = new Dictionary<string, ConversionTypes> {
+        { "_TABLE", ConversionTypes.Bool },
       };
       return ds;
     }
@@ -156,13 +172,20 @@ namespace Andl.Runtime {
       try {
         _connection.Open();
       } catch (Exception ex) {
-        ProgramError.Fatal("Source OleDb", ex.Message);
+        throw ProgramError.Fatal("Source OleDb", ex.Message);
       }
       return cmd.ExecuteReader();
     }
 
     protected override void Close() {
       _connection.Close();
+    }
+
+    protected override System.Data.DataTable GetSchema() {
+      _connection.Open();
+      var ret = _connection.GetSchema("tables");
+      _connection.Close();
+      return ret;
     }
   }
 
@@ -172,16 +195,20 @@ namespace Andl.Runtime {
   /// </summary>
   public abstract class DataSourceSqlBase : DataSourceStream {
     protected Dictionary<string, ConversionTypes> _convdict;
+    protected Dictionary<string, ConversionTypes> _schemadict;
     //protected Dictionary<string, DataType> _typedict;
 
     // open a table and return a reader
     abstract protected DbDataReader Open(string table);
     // close the table
     abstract protected void Close();
+    // get schema info
+    abstract protected System.Data.DataTable GetSchema();
 
     // Generic input
-    public override DataTable Input(string table, InputMode mode = InputMode.Import) {
-      Logger.WriteLine(2, "Table '{0}' mode:{1}", table, mode);
+    public override DataHeading Peek(string table) {
+      Logger.WriteLine(2, "Sql Peek '{0}'", table);
+      if (table == "*") return Peek();
       var reader = Open(table);
       var s = Enumerable.Range(0, reader.FieldCount)
         .Select(n => reader.GetName(n) + ":" + reader.GetDataTypeName(n)).ToArray();
@@ -190,10 +217,16 @@ namespace Andl.Runtime {
         .Where(x => _convdict.ContainsKey(reader.GetDataTypeName(x)))
         .Select(x => DataColumn.Create(reader.GetName(x), GetType(_convdict[reader.GetDataTypeName(x)])))
         .ToArray();
-      var heading = DataHeading.Create(cols, false); // preserve order
+      Close();
+      return DataHeading.Create(cols, false); // preserve order
+    }
+
+    public override DataTable Read(string table, DataHeading heading) {
+      Logger.WriteLine(2, "Sql Read '{0}'", table);
+      if (table == "*") return Read(heading);
       var tabnew = DataTableLocal.Create(heading);
-      while (reader.Read() && mode == InputMode.Import) {
-        var values = cols.Select(c => MakeValue(reader, c.Name, c.DataType)).ToArray();
+      for (var reader = Open(table); reader.Read(); ) {
+        var values = heading.Columns.Select(c => MakeValue(reader, c.Name, c.DataType)).ToArray();
         var row = DataRow.Create(heading, values);
         tabnew.AddRow(row);
       }
@@ -201,25 +234,37 @@ namespace Andl.Runtime {
       return tabnew;
     }
 
-    protected delegate TypedValue converter(object ValueType);
-
-    delegate TypedValue CreateValueDelegate(SqlDataReader rdr, int x);
-
-    // function to create typed value from column value of given type
-    Dictionary<DataType, CreateValueDelegate> _createdict = new Dictionary<DataType,CreateValueDelegate>() {
-      { DataTypes.Bool, (r, x) => TypedValue.Create(r.GetBoolean(x)) },
-      { DataTypes.Number, (r, x) => TypedValue.Create(r.GetDecimal(x)) },
-      { DataTypes.Time, (r, x) => TypedValue.Create(r.GetDateTime(x)) },
-      { DataTypes.Text, (r, x) => TypedValue.Create(r.GetString(x)) },
+    Dictionary<Type, DataType> _type2datatype = new Dictionary<Type, DataType> {
+      { typeof(string), DataTypes.Text },
+      { typeof(int), DataTypes.Number },
+      { typeof(decimal), DataTypes.Number },
+      { typeof(DateTime), DataTypes.Time },
     };
 
-    // values to use instead of SQL NULL
-    Dictionary<DataType, TypedValue> _nulldict = new Dictionary<DataType, TypedValue>() {
-      { DataTypes.Bool, BoolValue.Default },
-      { DataTypes.Number, NumberValue.Default },
-      { DataTypes.Time, TimeValue.Default },
-      { DataTypes.Text, TextValue.Default },
-    };
+    DataHeading Peek() {
+      var schema = GetSchema();
+      var scols = schema.Columns;
+      var cols = Enumerable.Range(0, scols.Count)
+        .Select(x => DataColumn.Create(scols[x].ColumnName,
+          _type2datatype.ContainsKey(scols[x].DataType) ? _type2datatype[scols[x].DataType] : DataTypes.Text))
+        .ToArray();
+      return DataHeading.Create(cols);
+    }
+
+    DataTableLocal Read(DataHeading heading) {
+      var schema = GetSchema();
+      var scols = schema.Columns;
+      var rows = schema.Rows;
+      var newtab = DataTableLocal.Create(heading);
+      foreach (System.Data.DataRow row in rows) {
+        var values = Enumerable.Range(0, scols.Count)
+          .Select(x => TypedValue.Convert(heading.Columns[x].DataType, row.IsNull(x) ? null : row[x]))
+          .ToArray();
+        var newrow = DataRow.Create(heading, values);
+        newtab.AddRow(newrow);
+      }
+      return newtab;
+    }
 
     private DataColumn MakeColumn(string name, string datatype) {
       if (_convdict.ContainsKey(datatype))
@@ -227,17 +272,18 @@ namespace Andl.Runtime {
       else return DataColumn.Create(name, DataTypes.Void);      
     }
 
+    // Make a value of the desired type
     TypedValue MakeValue(DbDataReader rdr, string fieldname, DataType datatype) {
       var field = rdr.GetOrdinal(fieldname);
       if (rdr.IsDBNull(field))
-        return _nulldict[datatype];
+        return datatype.DefaultValue();
       var typename = rdr.GetDataTypeName(field);
       var value = rdr.GetValue(field);
-      if (_convdict.ContainsKey(typename))
-        return Converter(_convdict[typename],value);
-      return TypedValue.Empty;
+      return (_convdict.ContainsKey(typename)) ? Converter(_convdict[typename], value) 
+        : TypedValue.Empty;
     }
 
+    // Converter driven by source type
     TypedValue Converter(ConversionTypes type, object value) {
       switch (type) {
       case ConversionTypes.Bool: return BoolValue.Create((bool)value);

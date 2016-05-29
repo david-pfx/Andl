@@ -14,8 +14,8 @@ MainRestart <AstStatement> =  Skip v:MainNext { v }
 
 // Parse just one blank line, directive, statement or block
 MainNext <AstStatement> =  v:MainStatement &{ SetState(state) } { v };
-MainStatement <AstStatement> = WSO EOFX { null }
-    / DirectiveOrBlank v:MainStatement { v }
+MainStatement <AstStatement> = WSO EOFX { AST(state).Eof() }
+    / DirectiveOrBlank { AST(state).Empty() }
     / WSO v:Statement WSO (EOFX / EOLchk EOLX) { v };
 
 // A do body is just {} or { statements }, EOF not allowed
@@ -37,13 +37,20 @@ Directive = "#" &{ PrintLine(state) } (CatalogDirective
     / SourceDirective 
     / PanicDirective 
     / BadDirective);
+
 CatalogDirective = "catalog" IDX v:CatalogOption* (&EOL / &{ Error(state, "option expected") } ) { CatalogDirective(state, v) };
 CatalogOption = v:("new" / "load" / "update" / "sql") IDX { v };
-IncludeDirective = "include" IDX v:(!CC .)* { IncludeDirective(state, String.Concat(v).Trim()) };
+
+IncludeDirective = "include" IDX v:TextString { IncludeDirective(state, v) };
+
 NoisyDirective = "noisy" IDX v:Integer { NoisyDirective(state, String.Concat(v)) };
-SourceDirective = "source" IDX v:(!CC .)* { SourceDirective(state, String.Concat(v).Trim()) };
+
+SourceDirective = "source" IDX v:TextString { SourceDirective(state, v) };
+
 StopDirective = "stop" IDX v:Integer? { StopDirective(state, String.Concat(v)) };
+
 PanicDirective = "panic" IDX #ERROR{ "panic" };
+
 BadDirective = &{ Error(state, "bad directive") };
 
 //--- statements
@@ -69,7 +76,10 @@ Subtype <AstDefine> = v:DefGlobalExp COLON w:TypeRef
 
 Import <AstBlock> = VAR v:ImportSource<0,,SEP> { AST(state).VarBlock(v) };
 
-ImportSource <AstStatement> = v:DefGlobalExp LP w:SourceName RPexp { AST(state).Source(v, AST(state).Text(w)) };
+ImportSource <AstStatement> = v:DefGlobalExp LP w:SourceName x:STAR? y:SourceFields RPexp 
+    { AST(state).Source(v,AST(state).Text(w),x.Count>0,y) };
+SourceFields <IList<AstField>> = SEP LCexp v:FieldList RCexp { v }
+    / &. { null }
 
 SourceName = v:Ident  &{ IsSourceName(v) } { v }
     / &RP { "" }
@@ -126,9 +136,13 @@ PostFixBody <AstCall> = v:Whiler { v }
 
 //--- Tuple generators
 
-Whiler <AstOpCall> = DOT v:Ident &{ IsWhile(v) } LPexp w:ExpressionExp RPexp { AST(state).While(v,w) };
+Whiler <AstOpCall> = DOT v:Ident &{ IsWhile(v) } 
+    &{ AST(state).Enter() } LPexp w:ExpressionExp &{ AST(state).Exit() } RPexp 
+    { AST(state).While(v,w) };
 
-Restrict <AstWhere> = DOT v:Ident &{ IsRestrict(v) } LPexp w:Expression RPexp { AST(state).Where(v,w) };
+Restrict <AstWhere> = DOT v:Ident &{ IsRestrict(v) } 
+    &{ AST(state).Enter() } LPexp w:Expression &{ AST(state).Exit() } RPexp 
+    { AST(state).Where(v,w) };
 
 DotFunc <AstOpCall> = DOT v:Funcop LP w:ExpressionList RPexp { AST(state).DotFunc(v, w.ToArray()) }
     / DOT v:Funcop !LP { AST(state).DotFunc(v) };
@@ -138,20 +152,20 @@ Orderer <AstOrderer> = DOT ORDER LPexp v:OrderTermList RPexp { AST(state).Ordere
 OrderTermList = OrderTerm<0,,SEP>;
 OrderTerm <AstOrderField> = w:PERCENT? v:MINUS? x:FieldIdent { AST(state).OrderField(x, v.Count > 0, w.Count > 0) };
 
-Transformer <AstTransformer> = DOT LC WSC v:STAR? WSC w:TransformList SEP? RCexp { AST(state).Transformer(v.Count > 0, w) }
-    / DOT SELECT LC WSC v:STAR? WSC w:TransformList SEP? RCexp { AST(state).Transformer(v.Count > 0, w) }
+Transformer <AstTransformer> = DOT SELECT? LC WSC v:STAR? WSC w:TransformList SEP? RCexp { AST(state).Transformer(v.Count > 0, w) }
     / DOT SELECT LPexp WSC v:STAR? WSC w:TransformList SEP? RPexp { AST(state).Transformer(v.Count > 0, w) };
 
 TransformList = Transform<0,,SEP>;
-Transform <AstField> = !RC v:FieldIdent &(SEP / RC / RP) { AST(state).Transfield(v) }        // project
-    / !RC v:Ident LA WSC w:FieldIdent &(SEP / RC / RP) { AST(state).Transfield(v, w) }       // rename
-    / !RC v:Ident LA WSC w:OpenAttrExprExp { AST(state).Transfield(v, null, w) }        // extend
-    / !RC v:OpenAttrExprExp { AST(state).Transfield(null, null, v) };                   // lift
+Transform <AstField> = !RC &{ AST(state).Enter() } v:TransformPrel &{ AST(state).Exit() } { v }
+TransformPrel <AstField> = v:FieldIdent &(SEP / RC / RP) { AST(state).Transfield(v) }        // project
+    / v:Ident LA WSC w:FieldIdent &(SEP / RC / RP) { AST(state).Transfield(v, w) }       // rename
+    / v:Ident LA WSC w:OpenAttrExprExp { AST(state).Transfield(v, null, w) }        // extend
+    / v:OpenAttrExprExp { AST(state).Transfield(null, null, v) };                   // lift
 
 OpenAttrExprExp = (Expression 
     / &{ Error(state, "invalid attribute expression") } { null });
 ExpressionExp = Expression
-    / &{ Error(state, "invalud expression") } { null };
+    / &{ Error(state, "invalid expression") } { null };
 
 //----- Primaries
 SimplePrimary = DoBlock 
@@ -175,15 +189,15 @@ Function <AstValue> = v:Funcop LP w:ExpressionList RPexp { AST(state).Function(v
 
 Table <AstValue> = &(LC WSL LC) &{ AST(state).Enter() } LC WSC v:TableBody RCexp &{ AST(state).Exit() } { v }
     / REL LP &{ AST(state).Enter() } v:TableBody RPexp &{ AST(state).Exit() } { v }
-    / REL COLON &{ AST(state).Enter() } v:TypeRef LP w:TableRowList SEP? RPexp &{ AST(state).Exit() } { AST(state).Table(v,w) }
+    / REL COLON &{ AST(state).Enter() } v:TypeRef LP w:TableExprList SEP? RPexp &{ AST(state).Exit() } { AST(state).Table(v,w) }
     / (REL / LC WSC LC) &{ Error(state, "invalid table body") } { null };
 
 TableBody <AstValue> = LC STAR RCexp  { AST(state).Table() }
-    / v:Heading WSC w:TableRowList SEP? { AST(state).Table(v,w) }
+    / v:Heading WSC w:TableExprList SEP? { AST(state).Table(v,w) }
     / v:RowList SEP? { AST(state).Table(v) };
 
-TableRowList = v:TableRowValue<0,,SEP>;
-TableRowValue <AstValue> = LP v:ExpressionList SEP? RPexp { AST(state).TableRowValues(v) };
+TableExprList = v:TableExprRow<0,,SEP>;
+TableExprRow <AstValue> = LP v:ExpressionList SEP? RPexp { AST(state).TableExprRow(v) };
 
 RowList = v:RowOrIdent<0,,SEP>;
 RowOrIdent <AstValue> = v:Row { v }
@@ -201,6 +215,8 @@ RowTrans <AstField> = v:FieldIdent &(SEP / RC) { AST(state).Transfield(v) }
 TypeRef <AstType> = v:Ident &{ IsTypename(v) } { AST(state).FindType(v) }
     / v:Heading { AST(state).TupType(v) }               // one LC
     / LC v:Heading RCexp { AST(state).RelType(v) }      // two LC
+    / TUP LPexp v:TypeRef RPexp { AST(state).TupType(v) }
+    / REL LPexp v:TypeRef RPexp { AST(state).RelType(v) }
     / v:SimplePrimary { AST(state).GetType(v) }
     / &{ Error(state, "type expected") } { null };
 
@@ -209,7 +225,7 @@ Heading <AstType> = LC COLON RC { AST(state).Heading(null) }
 
 FieldList = v:FieldTerm<0,,SEP>;
 FieldTerm <AstField> = v:DefLocal COLON w:TypeRef { AST(state).FieldTerm(v, w) }
-    / v:DefLocalExp { AST(state).FieldTerm(v, null) };
+    / v:DefLocalExp { AST(state).FieldTerm(v, null) };  // default type is 'text'
 
 //--- expecteds
 DefGlobalExp = DefGlobal 
@@ -272,8 +288,6 @@ LC = '{' WSO;
 RC = '}' WSO;   // note: gets its own handling
 LP = '(' WSC;
 RP = ')' WSO;
-//LB = '[' WSO;
-//RB = ']' WSO;
 STAR = '*' !OpChar WSO;
 PERCENT = '%' WSO;
 MINUS = '-' !OpChar WSO;

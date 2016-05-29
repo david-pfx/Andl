@@ -12,29 +12,36 @@ using System.IO;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
+using Andl.Common;
 
-namespace Andl.Runtime {
-  public class UtilAssertException : Exception {
+namespace Andl.Common {
+  public class UtilAssertException : AndlException {
     internal UtilAssertException(string msg) : base(msg) { }
   }
   /// <summary>
   /// Operates a glass teletype on a supplied file or console
+  /// 
+  /// First level added is the driver and controls what is logger. 
+  /// The rest are passive watchers: may see less, not more.
+  /// Lines starting with ">" are timed
+  /// Lines starting with "|" are not padded
   /// </summary>
   public static class Logger {
     static List<TextWriter> _tws = new List<TextWriter>();
     static List<int> _levels = new List<int>();
-    public static TextWriter Out { get { return _tws[0]; } }
+    public static TextWriter Out {
+      get { CheckInit(); return _tws[0]; }
+      set { CheckInit(); _tws[0] = value; }
+    }
     public static int Level { 
-      get {
-        CheckInit();
-        return _levels[0];
-      } 
-      set {
-        CheckInit();
-        _levels[0] = value;
-      } 
+      get { CheckInit(); return _levels[0]; } 
+      set { CheckInit(); _levels[0] = value; } 
     }
     public static bool _neednl;
+
+    static DateTime FirstTime = DateTime.Now;
+    static DateTime LastTime = DateTime.Now;
+    static DateTime TimeNow = DateTime.Now;
 
     public static void Open(int level) {
       Open(level, Console.Out);
@@ -46,6 +53,7 @@ namespace Andl.Runtime {
       _levels.Add(level);
       _tws.Add(tw);
     }
+    // special for writing to debugger trace output
     public static void OpenTrace(int level) {
       _levels.Add(level);
       _tws.Add(new TraceWriter());
@@ -55,43 +63,6 @@ namespace Andl.Runtime {
         tw.Close();
       _tws.Clear();
       _levels.Clear();
-    }
-    static void CheckInit() {
-      if (_levels.Count == 0)
-        Open(0);
-    }
-    public static void Write(int level, string msg, bool newline) {
-      CheckInit();
-      for (int i = 0; i < _levels.Count; ++i) {
-        if (level <= _levels[i]) {
-          if (newline) {
-            if (_neednl)
-              _tws[i].WriteLine();
-            _neednl = false;
-          }
-          if (!_neednl) _tws[i].Write(Pad(level, msg));
-          _tws[i].Write(msg);
-          if (newline) _tws[i].WriteLine();
-          else _tws[i].Write("; ");
-          _neednl = !newline;
-        }
-      }
-    }
-
-    static DateTime FirstTime = DateTime.Now;
-    static DateTime LastTime = DateTime.Now;
-
-    static string Pad(int level, string msg) {
-      bool timeit = msg.StartsWith(">>>");
-      bool nopad = msg.StartsWith(">");
-      string ret;
-      if (timeit) {
-        var now = DateTime.Now;
-        ret = String.Format(@"{0:mm\:ss\.fff} {1,3:N0}ms : ", now - FirstTime, (now - LastTime).TotalMilliseconds);
-        LastTime = now;
-      } else if (nopad) ret = "";
-      else ret = new string(' ', 2 * level);
-      return ret;
     }
 
     public static void Flush() {
@@ -133,8 +104,52 @@ namespace Andl.Runtime {
         throw new UtilAssertException(msg);
       }
     }
+    public static UtilAssertException Fatal(object thing = null) {
+      var msg = (thing == null ? "" : ("<" + thing.ToString() + ">"));
+      Flush();
+      return new UtilAssertException(msg);
+    }
+
+    //--- impl
+
+    static void CheckInit() {
+      if (_levels.Count == 0)
+        Open(0);
+    }
+
+    // common writer
+    public static void Write(int level, string msg, bool newline) {
+      if (level > Level) return;    // base level controls what is logged
+      TimeNow = DateTime.Now;
+      for (int i = 0; i < _levels.Count; ++i) {
+        if (level <= _levels[i]) {
+          if (newline) {
+            if (_neednl) _tws[i].WriteLine();
+            _tws[i].WriteLine(Pad(level, msg));
+          } else
+            _tws[i].Write((_neednl) ? msg + ";" : Pad(level, msg) + ";");
+        }
+      }
+      LastTime = TimeNow;
+      _neednl = !newline;
+    }
+
+    static string Pad(int level, string msg) {
+      bool timeit = msg.StartsWith(">");
+      bool nopad = msg.StartsWith("|");
+      string ret;
+      if (timeit) {
+        ret = String.Format(@"{0:mm\:ss\.fff} {1,3:N0}ms : ", TimeNow - FirstTime, (TimeNow - LastTime).TotalMilliseconds);
+      } else if (nopad) ret = "";
+      else ret = new string(' ', 2 * level);
+      return ret + msg;
+    }
+
   }
 
+  /// <summary>
+  /// Implement writer using debug output
+  /// </summary>
   class TraceWriter : TextWriter {
     public override Encoding Encoding {
       get { return Encoding.Default; }

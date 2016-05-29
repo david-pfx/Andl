@@ -11,9 +11,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Andl.Runtime;
+using Andl.Common;
 
 namespace Andl.Peg {
   /// <summary>
@@ -54,8 +53,8 @@ namespace Andl.Peg {
     void Decode(PersistReader preader) {
       while (preader.BaseStream.Position < preader.BaseStream.Length) {
         var opcode = preader.ReadOpcode();
-        var prefix = String.Format(">{0}{1,4}: {2,-9}", new String(' ', _indent * 4), preader.BaseStream.Position - 1, opcode);
-        //Logger.Write(3, ">{0}{1,4}: {2,-9}", new String(' ', _indent * 4), preader.BaseStream.Position - 1, opcode);
+        var prefix = String.Format("|{0}{1,4}: {2,-9}",     // nopad
+          new String(' ', _indent * 4), preader.BaseStream.Position - 1, opcode);
         switch (opcode) {
         // Known literal, do not translate into value
         case Opcodes.LDVALUE: //TODO: recurse

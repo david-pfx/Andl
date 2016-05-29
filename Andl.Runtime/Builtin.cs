@@ -9,13 +9,12 @@
 ///
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
+using Andl.Common;
 
 namespace Andl.Runtime {
   /// <summary>
@@ -225,6 +224,13 @@ namespace Andl.Runtime {
       return ret;
     }
 
+    // Create a row from a row
+    //public TupleValue RowR(TypedValue hdgarg, TupleValue rowarg) {
+    //  var newrow = rowarg.Value;
+    //  Logger.WriteLine(3, "[Row={0}]", newrow);
+    //  return TupleValue.Create(newrow);
+    //}
+
     // Create a row by evaluating named expressions against a heading
     public TupleValue Row(TypedValue hdgarg, params CodeValue[] exprargs) {
       var heading = hdgarg.AsHeading();
@@ -256,7 +262,7 @@ namespace Andl.Runtime {
         var rel = value.AsTable();
         newrow = rel.GetRows().FirstOrDefault();
         if (newrow == null)
-          ProgramError.Error("Builtin", "relation is empty");
+          throw ProgramError.Fatal("Builtin", "relation is empty");
       }
       Logger.Assert(newrow != null, "RowT");
       Logger.WriteLine(3, "[Row={0}]", newrow);
@@ -311,12 +317,12 @@ namespace Andl.Runtime {
     }
 
     // Import a linked or externally held relvar
-    public VoidValue Import(TextValue sourcearg, TextValue namearg, TextValue locatorarg) {
+    public VoidValue Import(TextValue sourcearg, TextValue namearg, TextValue whatarg, TextValue locatorarg) {
       if (sourcearg.Value == "") {
         if (!_catalog.Catalog.LinkRelvar(namearg.Value))
-          ProgramError.Error("Connect", "cannot link to '{0}'", namearg.Value);
-      } else if (!_catalog.Catalog.ImportRelvar(sourcearg.Value, namearg.Value, locatorarg.Value))
-        ProgramError.Error("Connect", "cannot import from '{0}'", namearg.Value);
+          throw ProgramError.Fatal("Connect", "cannot link to '{0}'", namearg.Value);
+      } else if (!_catalog.Catalog.ImportRelvar(sourcearg.Value, namearg.Value, whatarg.Value, locatorarg.Value))
+        throw ProgramError.Fatal("Connect", "cannot import from '{0}'", namearg.Value);
       return VoidValue.Default;
     }
 
@@ -426,7 +432,7 @@ namespace Andl.Runtime {
 
     // Create new table filtered by evaluating a predicate expressions
     public RelationValue Restrict(RelationValue relarg, params CodeValue[] exprargs) {
-      Logger.WriteLine(3, "Restrict {0} {1}", relarg, exprargs.Select(e => e.AsEval.Kind.ToString()).ToArray());
+      Logger.WriteLine(3, "Restrict {0} {1}", relarg, exprargs.Select(e => e.AsEval.Kind).Join(","));
       var relnew = relarg.Value.Restrict(exprargs[0].AsEval);
       Logger.WriteLine(3, "[Rs {0}]", relnew);
       return RelationValue.Create(relnew);
@@ -471,7 +477,7 @@ namespace Andl.Runtime {
       return RelationValue.Create(relnew);
     }
 
-    // Transform plus ordering
+    // Transform with ordering but no window funcs
     public RelationValue TransOrd(RelationValue relarg, params CodeValue[] exprargs) {
       Logger.WriteLine(3, "TransOrd {0} {1}", relarg, exprargs.Select(e => e.AsEval.Kind.ToString()).ToArray());
       var rel = relarg.Value;
@@ -480,6 +486,19 @@ namespace Andl.Runtime {
       var orderexps = exprs.Where(e => e.IsOrder).ToArray();
       var heading = DataHeading.Create(tranexprs);
       var relnew = rel.TransformOrdered(heading, tranexprs, orderexps);
+      Logger.WriteLine(3, "[TrO {0}]", relnew);
+      return RelationValue.Create(relnew);
+    }
+
+    // Transform plus window functions (which depend on ordering)
+    public RelationValue TransWin(RelationValue relarg, params CodeValue[] exprargs) {
+      Logger.WriteLine(3, "TransOrd {0} {1}", relarg, exprargs.Select(e => e.AsEval.Kind.ToString()).ToArray());
+      var rel = relarg.Value;
+      var exprs = exprargs.Select(e => (e as CodeValue).AsEval).ToArray();
+      var tranexprs = exprs.Where(e => !e.IsOrder).ToArray();
+      var orderexps = exprs.Where(e => e.IsOrder).ToArray();
+      var heading = DataHeading.Create(tranexprs);
+      var relnew = rel.TransformWindowed(heading, tranexprs, orderexps);
       Logger.WriteLine(3, "[TrO {0}]", relnew);
       return RelationValue.Create(relnew);
     }
@@ -821,16 +840,14 @@ namespace Andl.Runtime {
     public BoolValue Bool(TextValue value) {
       if (String.Equals(value.Value, "true", StringComparison.InvariantCultureIgnoreCase)) return BoolValue.True;
       if (String.Equals(value.Value, "false", StringComparison.InvariantCultureIgnoreCase)) return BoolValue.False;
-      ProgramError.Error("Convert", "not a valid boolean");
-      return BoolValue.Default;
+      throw ProgramError.Fatal("Convert", "not a valid boolean");
     }
 
     // Parse string as number
     public NumberValue Number(TextValue value) {
       decimal d;
       if (Decimal.TryParse(value.Value, out d)) return NumberValue.Create(d);
-      ProgramError.Error("Convert", "not a valid number");
-      return NumberValue.Default;
+      throw ProgramError.Fatal("Convert", "not a valid number");
     }
 
     // Convert time value to seconds
@@ -841,8 +858,7 @@ namespace Andl.Runtime {
     public TimeValue Time(TextValue value) {
       DateTime t;
       if (DateTime.TryParse(value.Value, out t)) return TimeValue.Create(t);
-      ProgramError.Error("Convert", "not a valid time/date");
-      return TimeValue.Default;
+      throw ProgramError.Fatal("Convert", "not a valid time/date");
     }
 
     ///=================================================================
@@ -857,8 +873,7 @@ namespace Andl.Runtime {
         var size = (int)((NumberValue)value).Value;
         return BinaryValue.Create(new byte[size]);
       }
-      ProgramError.Error("Binary", "invalid arg type");
-      return BinaryValue.Default;
+      throw ProgramError.Fatal("Binary", "invalid arg type");
     }
 
     public NumberValue BinaryLength(BinaryValue arg1) {
@@ -867,13 +882,13 @@ namespace Andl.Runtime {
     
     public NumberValue BinaryGet(BinaryValue value, NumberValue index) {
       if (index.Value < 0 || index.Value > value.Value.Length)
-        ProgramError.Fatal("Binary", "get index out of range");
+        throw ProgramError.Fatal("Binary", "get index out of range");
       return NumberValue.Create(value.Value[(int)index.Value]);
     }
 
     public BinaryValue BinarySet(BinaryValue value, NumberValue index, NumberValue newvalue) {
       if (index.Value < 0 || index.Value > value.Value.Length)
-        ProgramError.Fatal("Binary", "set index out of range");
+        throw ProgramError.Fatal("Binary", "set index out of range");
       var b = value.Value.Clone() as byte[];
       b[(int)index.Value] = (byte)newvalue.Value;
       return BinaryValue .Create(b);
@@ -964,7 +979,8 @@ namespace Andl.Runtime {
     // Obtain a text value by reading from the console/standard input output
     public TextValue Read() {
       var input = _evaluator.Input.ReadLine();
-      if (input == null) ProgramError.Fatal("Read", "input not available");
+      if (input == null)
+        throw ProgramError.Fatal("Read", "input not available");
       return TextValue.Create(input);
     }
 
@@ -980,13 +996,12 @@ namespace Andl.Runtime {
 
     // trigger an error
     public VoidValue Fail(TextValue source, TextValue message) {
-      ProgramError.Error(source.Value, message.Value);
-      return VoidValue.Default;
+      throw ProgramError.Fatal(source.Value, message.Value);
     }
 
     // maybe trigger a crash
     public VoidValue Assert(BoolValue condition, TextValue message) {
-      Logger.Assert(condition.Value, message.Value);
+      if (!condition.Value) throw ProgramError.Fatal("Assert", message.Value);
       return VoidValue.Default;
     }
 

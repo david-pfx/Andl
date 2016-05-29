@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using Andl.Runtime;
+using Andl.Common;
 
 namespace Andl.Peg {
   /// <summary>
@@ -42,7 +43,10 @@ namespace Andl.Peg {
   public class AstType : AstNode { }
   // A statement also can be a define or a value/expression
   public class AstStatement : AstNode { }
-  public class AstDefine : AstStatement { }
+  public class AstEmpty : AstStatement { }    // blank line or directive
+  public class AstEof : AstStatement { }      // end of file
+
+  public class AstDefine : AstStatement { }   // type definition
   public class AstUserType : AstDefine { }
   public class AstSubType : AstDefine { }
 
@@ -76,11 +80,14 @@ namespace Andl.Peg {
     public AstValue Value { get; set; }
     public DataHeading Lookup { get; set; }
     public int Accums { get; set; }
+    public bool HasWin { get; set; }
     public override string ToString() {
       return string.Format("{0}:={1}", Name, Value);
     }
     public override void Emit(Emitter e) {
-      var kind = (Accums > 0) ? ExpressionKinds.HasFold : ExpressionKinds.Open;
+      var kind = (HasWin) ? ExpressionKinds.HasWin
+        : (Accums > 0) ? ExpressionKinds.HasFold
+        : (Lookup == null) ? ExpressionKinds.Closed : ExpressionKinds.Open;
       e.OutSeg(ExpressionBlock.Create(Name, kind, Value.Compile(), Value.DataType, Accums, Lookup));
     }
   }
@@ -130,12 +137,12 @@ namespace Andl.Peg {
   public class AstBlock : AstValue {
     public AstStatement[] Statements { get; set; }
     public override string ToString() {
-      return string.Format("[{0}]", String.Join("; ", Statements.Select(s => s.ToString())));
+      return string.Format("[{0}]", Statements.Join("; "));
     }
     public override void Emit(Emitter e) {
       foreach (var s in Statements) {
         s.Emit(e);
-        e.Out(Opcodes.EOS);
+        if (!(s is AstDefine)) e.Out(Opcodes.EOS);
       }
     }
   }
@@ -162,6 +169,7 @@ namespace Andl.Peg {
   public class AstBodyStatement : AstValue {
     public AstStatement Statement { get; set; }
     public int AccumCount { get; set; }
+    public bool HasWin { get; set; }
   }
 
   public class AstCode : AstValue {
@@ -169,15 +177,17 @@ namespace Andl.Peg {
     public AstValue Value { get; set; }
     public DataHeading Lookup { get; set; }
     public int Accums { get; set; }
-    public bool Defer { get; set; }   // output as code value not seg
+    public bool HasWin { get; set; }
+    public bool AsCode { get; set; }   // output as code value not seg
     public override string ToString() {
       return string.Format("{0}({1})[{2}] => {3}", Name, Lookup, Value, Value.DataType);
     }
     public override void Emit(Emitter e) {
-      var kind = (Accums > 0) ? ExpressionKinds.HasFold
+      var kind = (HasWin) ? ExpressionKinds.HasWin
+        : (Accums > 0) ? ExpressionKinds.HasFold
         : (Lookup == null) ? ExpressionKinds.Closed : ExpressionKinds.Open;
       var eb = ExpressionBlock.Create(Name, kind, Value.Compile(), Value.DataType, Accums, Lookup);
-      if (Defer) e.OutLoad(CodeValue.Create(eb));
+      if (AsCode) e.OutLoad(CodeValue.Create(eb));
       else e.OutSeg(eb);
     }
   }
@@ -186,6 +196,7 @@ namespace Andl.Peg {
   public class AstCall : AstValue {
     public Symbol Func { get; set; }
     public CallInfo CallInfo { get; set; }
+    public bool IsWinFunc {  get { return Func.IsWin; } }
   }
 
   // A FunCall is a function with arguments
@@ -194,7 +205,7 @@ namespace Andl.Peg {
     public int NumVarArgs { get; set; }
 
     public override string ToString() {
-      return string.Format("{0}({1}) => {2}", Func.Name, String.Join(", ", Arguments.Select(a => a.ToString())), DataType);
+      return string.Format("{0}({1}) => {2}", Func.Name, Arguments.Join(", "), DataType);
     }
     public override void Emit(Emitter e) {
       Logger.Assert(DataType.IsVariable || DataType == DataTypes.Void, DataType);
@@ -273,7 +284,7 @@ namespace Andl.Peg {
   public class AstOrderer : AstCall {
     public AstOrderField[] Elements { get; set; }
     public override string ToString() {
-      return string.Format("$({0})", String.Join(",", Elements.Select(e => e.ToString())));
+      return string.Format("$({0})", Elements.Join(","));
     }
   }
 
@@ -281,7 +292,7 @@ namespace Andl.Peg {
     public bool Lift { get; set; }
     public AstField[] Elements { get; set; }
     public override string ToString() {
-      return string.Format("{0}({1})", Lift ? "lift" : "tran", String.Join(",", Elements.Select(e => e.ToString())));
+      return string.Format("{0}({1})", Lift ? "lift" : "tran", Elements.Join(","));
     }
   }
 

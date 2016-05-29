@@ -7,3 +7,10 @@ seq(16) .select{ *fib:=fib(N) } .order(N) .pp .write
 // Second implementation, using .while to create a relation. Fast
 fibonacci(nmax:0) => {{ N:=1, fib:=1, fibx:=0 }} .while( {{ N:=N+1, fib := fib+fibx, fibx:=fib }} .where(N<= nmax))
 fibonacci(100) .select{ N, fib } .where(N>85) .order(N) .pp .write
+
+// Third implementation is similar, different positioning of the exit test
+fibonacci2(nmax:0) => {{ N:=1, fib:=1, fibx:=0 }} 
+.while( if(N < nmax, {{ N:=N+1, fib := fib+fibx, fibx:=fib }}, {{*}}) )
+
+fibonacci2(99)
+

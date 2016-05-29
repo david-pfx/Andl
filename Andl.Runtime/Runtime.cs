@@ -8,7 +8,7 @@ using Andl.Runtime;
 
 namespace Andl {
   public interface IParser {
-    bool Process(TextReader input, TextWriter output, Evaluator evaluator, string filename);
+    bool RunScript(TextReader input, TextWriter output, Evaluator evaluator, string filename);
     int ErrorCount { get; }
     bool Aborted { get; }
   }

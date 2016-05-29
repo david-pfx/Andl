@@ -19,7 +19,7 @@ P := {{ P#:text,PNAME:text,COLOR:text,WEIGHT:number,CITY:text }
 }
 SP := {{ S#:text, P#:text, QTY:number }
     ( "S1","P1",300 ),
-    ( "S1","P2",300 ),
+    ( "S1","P2",200 ),
     ( "S1","P3",400 ),
     ( "S1","P4",200 ),
     ( "S1","P5",100 ),

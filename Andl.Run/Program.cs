@@ -11,7 +11,7 @@ namespace Andl.Run {
         //{ "DatabasePath", @"D:\MyDocs\Dev\vs13\Andl\Work\andltest.sandl" },
       };
 
-      var app = Andl.Gateway.GatewayFactory.Create("data", settings);
+      var app = Andl.Gateway.GatewayFactory.Create(GatewayBase.DefaultDatabaseName, settings);
 
       string[] names = { "S", "P", "SP" };
       foreach (var n in names) {

@@ -10,6 +10,7 @@
 using System;
 using System.IO;
 using Andl.Runtime;
+using Andl.Common;
 
 namespace Andl.Peg {
   /// 
@@ -67,8 +68,7 @@ namespace Andl.Peg {
         OutCall(Opcodes.CALL, ci.Name, ci.NumArgs, varargs);
         break;
       default:
-        Logger.Assert(false, symbol.CallKind);
-        break;
+        throw Logger.Fatal(symbol.CallKind);
       }
     }
 

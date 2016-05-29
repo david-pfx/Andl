@@ -3,92 +3,17 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Andl.Sql;
 
 namespace Andl.Runtime {
-  public class SqlTemplater : Templater {
-
-    static Dictionary<string, string> _templates = new Dictionary<string, string> {
-      { "Create",         "DROP TABLE IF EXISTS [<table>] \n" +
-                          "CREATE TABLE [<table>] ( <coldefs>, UNIQUE ( <colnames> ) ON CONFLICT IGNORE )" },
-      { "SelectAll",      "SELECT <namelist> FROM <select>" },
-      { "SelectAs",       "SELECT DISTINCT <namelist> FROM <select>" },
-      { "SelectAsGroup",  "SELECT DISTINCT <namelist> FROM <select> <groupby>" },
-      { "SelectJoin",     "SELECT DISTINCT <namelist> FROM <select1> JOIN <select2> <using>" },
-      { "SelectAntijoin", "SELECT DISTINCT <namelist> FROM <select1> [_a_] WHERE NOT EXISTS (SELECT 1 FROM <select2> [_b_] WHERE <nameeqlist>)" },
-      { "SelectSet",      "<select1> <setop> <select2>" },
-      { "SelectSetName",  "SELECT DISTINCT <namelist> FROM <select1> <setop> SELECT <namelist> FROM <select2>" },
-      { "SelectCount",    "SELECT COUNT(*) FROM <select>" },
-      { "SelectOneWhere", "SELECT 1 <whereexist>" },
-
-      { "InsertNamed",    "INSERT INTO [<table>] ( <namelist> ) <select>" },
-      { "InsertSelect",   "INSERT INTO [<table>] <select>" },
-      { "InsertValues",   "INSERT INTO [<table>] ( <namelist> ) VALUES ( <valuelist> )" },
-      { "InsertJoin",     "INSERT INTO [<table>] ( <namelist> ) <select>" },
-      { "Delete",         "DELETE FROM [<table>] WHERE <pred>" },
-      { "Update",         "UPDATE [<table>] SET <namesetlist> WHERE <pred>" },
-
-      { "WhereExist",     "WHERE <not> EXISTS ( <select1> <setop> <select2> )" },
-      { "WhereExist2",    "WHERE <not> EXISTS ( <select1> <setop> <select2> ) AND <not> EXISTS ( <select2> <setop> <select1> )" },
-      { "Where",          "WHERE <expr>" },
-      { "Having",         "HAVING <expr>" },
-      { "Using",          "USING ( <namelist> )" },
-
-      { "OrderBy",        "ORDER BY <ordcols>" },
-      { "GroupBy",        "GROUP BY <grpcols>" },
-      { "Limit",          "LIMIT <limit>" },
-      { "LimitOffset",    "LIMIT <limit> OFFSET <offset>" },
-      { "EvalFunc",       "<func>(<lookups>)" },
-      { "Coldef",         "[<colname>] <coltype>" },
-      { "Name",           "[<name>]" },
-      { "NameEq",         "[_a_].[<name>] = [_b_].[<name>]" },
-      { "NameAs",         "[<name1>] AS [<name2>]" },
-      { "NameSet",        "[<name1>] = [<name2>]" },
-      { "Value",          "<value>" },
-      { "Param",          "?<param>" },
-    };
-
-    public static SqlTemplater Create(string template) {
-      var t = new SqlTemplater { Template = _templates[template] };
-      return t;
-    }
-
-    public static string Process(string template, Dictionary<string, SubstituteDelegate> dict, int index = 0) {
-      return Create(template).Process(dict, index).ToString();
-    }
-    
-  }
   /// <summary>
   /// Implement Sql generation
   /// 
-  /// Uses Templater and SqlTarget
+  /// Uses specified Templater
   /// </summary>
   public class SqlGen {
-    // Types suitable for use in column definitions
-    // see https://www.sqlite.org/datatype3.html S2.2
-    // TODO: refactor
-    static Dictionary<DataType, string> _datatypetosql = new Dictionary<DataType, string> {
-      { DataTypes.Binary, "BLOB" },
-      { DataTypes.Bool, "BOOLEAN" },
-      { DataTypes.Number, "TEXT" },
-      { DataTypes.Text, "TEXT" },
-      { DataTypes.Time, "TEXT" },
-      { DataTypes.Table, "BLOB" },
-      { DataTypes.Row, "BLOB" },
-      { DataTypes.User, "BLOB" },
-    };
-
-    static Dictionary<JoinOps, string> _joinoptosql = new Dictionary<JoinOps, string> {
-      { JoinOps.UNION, "UNION" },
-      { JoinOps.INTERSECT, "INTERSECT" },
-      { JoinOps.MINUS, "EXCEPT" },
-    };
-
-    public const string Ascending = "ASC";
-    public const string Descending = "DESC";
-
     // functions to convert value into SQL literal format
-    public delegate string ValueToSqlDelegate(TypedValue value);
-    static Dictionary<DataType, ValueToSqlDelegate> _valuetosql = new Dictionary<DataType, ValueToSqlDelegate> {
+    static Dictionary<DataType, Func<TypedValue, string>> _valuetosql = new Dictionary<DataType, Func<TypedValue, string>> {
       { DataTypes.Binary, x => BinaryLiteral(((BinaryValue)x).Value) },
       { DataTypes.Bool, x => ((BoolValue)x).Value ? "1" : "0" },
       { DataTypes.Number, x => x.Format() },
@@ -99,7 +24,11 @@ namespace Andl.Runtime {
       { DataTypes.User, x => Quote(x.ToString()) },
     };
 
-    int AccBase { get; set; }
+    // Which templater determines syntax of SQL generates
+    public SqlTemplater Templater { get { return _templater; } set { _templater = value; } }
+    SqlTemplater _templater;
+    static int _tempid = 0;
+    static int _aliasid = 0;
 
     //----- sql generating fragments
 
@@ -115,36 +44,24 @@ namespace Andl.Runtime {
       return sb.ToString();
     }
 
-    // return the corresponding Sql type 
-    public string ColumnType(DataType datatype) {
-      Logger.Assert(_datatypetosql.ContainsKey(datatype.BaseType), datatype);
-      return _datatypetosql[datatype.BaseType];
-    }
-
-    // return the corresponding join op
-    public string JoinOp(JoinOps joinop) {
-      Logger.Assert(_joinoptosql.ContainsKey(joinop), joinop);
-      return _joinoptosql[joinop];
-    }
-
     // return a literal Sql value
-    public static string ColumnValue(TypedValue value) {
+    static string ColumnValue(TypedValue value) {
       return _valuetosql[value.DataType](value);
     }
 
     // Quote an Sql literal string
-    public static string Quote(string value) {
+    static string Quote(string value) {
       return "'" + value.Replace("'", "''") + "'";
     }
 
-    public static string BinaryLiteral(byte[] bytes) {
+    static string BinaryLiteral(byte[] bytes) {
       StringBuilder sb = new StringBuilder();
       foreach (var b in bytes)
         sb.Append(b.ToString("x2"));
       return "x'" + sb + "'";
     }
 
-    public static byte[] ToBinary(ExpressionBlock expr) {
+    static byte[] ToBinary(ExpressionBlock expr) {
       using (var writer = PersistWriter.Create()) {
         writer.Write(expr);
         return writer.ToArray();
@@ -161,129 +78,160 @@ namespace Andl.Runtime {
       return null;
     }
 
-    static int _tempid = 0;
-
     public string TempName() {
       //return "_temp_T_" + (++_tempid).ToString();
       return "temp.T_" + (++_tempid).ToString();
     }
 
-    // generate a plain delimited name list
-    public string NameList(string[] names) {
-      if (names.Length == 0) return "_dummy_";
-      var coldict = new Dictionary<string, SubstituteDelegate> {
-        { "name", (x) => names[x] },
-      };
-      return SqlTemplater.Create("Name").Process(coldict, names.Length, ", ").ToString();
+    string AliasName() {
+      return "A_" + (++_aliasid).ToString();
     }
 
-    public string NameList(DataHeading heading) {
+    // generate a plain delimited name list
+    string NameList(string[] names) {
+      if (names.Length == 0) return "_dummy_";
+      var coldict = new Dictionary<string, SubstituteDelegate> {
+        { "name1", (x) => names[x] },
+      };
+      return _templater.Create("Name").Process(coldict, names.Length, ", ").ToString();
+    }
+
+    string NameList(DataHeading heading) {
       return NameList(heading.Columns.Select(x => x.Name).ToArray());
     }
 
-    public string NameEqList(string[] names) {
+    string NameEqList(string[] names) {
       if (names.Length == 0) return "1=1";
       var coldict = new Dictionary<string, SubstituteDelegate> {
-        { "name", (x) => names[x] },
+        { "name1", (x) => names[x] },
       };
-      return SqlTemplater.Create("NameEq").Process(coldict, names.Length, " AND ").ToString();
+      return _templater.Create("NameEq").Process(coldict, names.Length, " AND ").ToString();
     }
 
-    public string NameEqList(DataHeading heading) {
+    string NameEqList(DataHeading heading) {
       return NameEqList(heading.Columns.Select(x => x.Name).ToArray());
     }
 
-    //public string NameSetList(ExpressionBlock[] exprs) {
-    //  var coldict = new Dictionary<string, SubstituteDelegate> {
-    //    { "name1", (x) => exprs[x].Name },
-    //    { "name2", (x) => EvalFunc(exprs[x]) },
-    //  };
-    //  return SqlTemplater.Create("NameSet").Process(coldict, exprs.Length, ", ").ToString();
-    //}
-
-    // Hand-crafted AS terms
-    public string NameSetList(ExpressionBlock[] exprs) {
-      var ss = new List<string>();
-      foreach (var expr in exprs) {
-        if (expr.IsProject) { } 
-        else if (expr.IsRename)
-          ss.Add(String.Format("[{0}] = [{1}]", expr.Name, expr.OldName));
-        else
-          ss.Add(String.Format("[{0}] = {1}", expr.Name, EvalFunc(expr)));
-      }
-      return string.Join(", ", ss);
+    // List of name assignments
+    string NameSetList(ExpressionBlock[] exprs) {
+      return NameList(exprs, "NameSet");
     }
 
-    // Hand-crafted AS terms
-    public string NameAsList(ExpressionBlock[] exprs) {
+    // List of name AS: exclude project
+    string NameAsList(ExpressionBlock[] exprs) {
       if (exprs.Length == 0) return "NULL as _dummy_";
-      var sb = new StringBuilder();
-      foreach (var expr in exprs) {
-        if (sb.Length > 0) sb.AppendFormat(", ");
-        if (expr.IsProject)
-          sb.AppendFormat("[{0}]", expr.Name);
-        else if (expr.IsRename)
-          sb.AppendFormat("[{0}] AS [{1}]", expr.OldName, expr.Name);
-        else
-          sb.AppendFormat("{0} AS [{1}]", EvalFunc(expr), expr.Name);
-      }
-      return sb.ToString();
+      return NameList(exprs, "NameAs");
     }
 
-    public string ColDefs(DataHeading heading) {
-      if (heading.Degree == 0) return "[_dummy_] TEXT";
+    // List of names with variable subtemplate
+    string NameList(ExpressionBlock[] exprs, string template) {
       var coldict = new Dictionary<string, SubstituteDelegate> {
-        { "colname", (x) => heading.Columns[x].Name },
-        { "coltype", (x) => ColumnType(heading.Columns[x].DataType) },
+        { "~", (x) => exprs[x].IsProject ? "0" : exprs[x].IsRename ? "1" : "2" }, // pick a subtemplate
+        { "name1", (x) => exprs[x].Name },
+        { "name2", (x) => exprs[x].OldName },
+        { "expr", (x) => EvalFunc(exprs[x]) },
       };
-      return SqlTemplater.Create("Coldef").Process(coldict, heading.Degree, ", ").ToString();
+      return _templater.Create(template).Process(coldict, exprs.Length, ", ").ToString();
     }
 
-    public string ColOrders(ExpressionBlock[] exprs) {
+    string NameEqValueList(string[] names) {
+      if (names.Length == 0) return "1=1";
+      var coldict = new Dictionary<string, SubstituteDelegate> {
+        { "name1", (x) => names[x] },
+        { "value", (x) => Param(x) },
+      };
+      return _templater.Create("NameEqValue").Process(coldict, names.Length, " AND ").ToString();
+    }
+
+    string ColDefs(DataColumn[] columns) {
+      //if (heading.Degree == 0) return "_dummy_ TEXT";
+      var coldict = new Dictionary<string, SubstituteDelegate> {
+        { "colname", (x) => columns[x].Name },
+        { "coltype", (x) => _templater.ColumnType(columns[x].DataType) },
+      };
+      return _templater.Create("Coldef").Process(coldict, columns.Length, ", ").ToString();
+    }
+
+    string ColOrders(ExpressionBlock[] exprs) {
       var coldict = new Dictionary<string, SubstituteDelegate> {
         { "colname", (x) => exprs[x].Name },
-        { "coltype", (x) => exprs[x].IsDesc ? Descending : Ascending },
+        { "coltype", (x) => _templater.SortOrder(exprs[x].IsDesc) },
+        //{ "coltype", (x) => exprs[x].IsDesc ? _templater.Descending : _templater.Ascending },
       };
-      return SqlTemplater.Create("Coldef").Process(coldict, exprs.Length, ", ").ToString();
+      return _templater.Create("Coldef").Process(coldict, exprs.Length, ", ").ToString();
     }
 
-    public string ValueList(int howmany, SubstituteDelegate subs) {
+    string ValueList(int howmany, SubstituteDelegate subs) {
       if (howmany == 0) return "NULL";
       var coldict = new Dictionary<string, SubstituteDelegate> {
         { "value", (x) => subs(x) },
       };
-      return SqlTemplater.Create("Value").Process(coldict, howmany, ", ").ToString();
+      return _templater.Create("Value").Process(coldict, howmany, ", ").ToString();
     }
 
-    public string ParamList(DataHeading heading) {
+    string Param(int paramno) {
+      var coldict = new Dictionary<string, SubstituteDelegate> {
+        { "param", (x) => (paramno+1).ToString() },
+      };
+      return _templater.Create("Param").Process(coldict).ToString();
+    }
+
+    string ParamList(DataHeading heading) {
       if (heading.Degree == 0) return "NULL";
       var coldict = new Dictionary<string, SubstituteDelegate> {
         { "param", (x) => (x+1).ToString() },
       };
-      return SqlTemplater.Create("Param").Process(coldict, heading.Degree, ", ").ToString();
+      return _templater.Create("Param").Process(coldict, heading.Degree, ", ").ToString();
     }
 
-    public string EvalFunc(ExpressionBlock expr) {
+    string EvalFunc(ExpressionBlock expr) {
       var lookups = (expr.NumArgs == 0) ? "" : NameList(expr.Lookup.Columns.Select(c => c.Name).ToArray());
       var dict = new Dictionary<string, SubstituteDelegate> {
         { "func", (x) => FuncName(expr) },
         { "lookups", (x) => lookups },
       };
-      return SqlTemplater.Process("EvalFunc", dict);
+      return _templater.Process("EvalFunc", dict);
     }
 
     public string Where(ExpressionBlock expr) {
       var dict = new Dictionary<string, SubstituteDelegate> {
         { "expr", (x) => EvalFunc(expr) },  // FIX: predicate
       };
-      return SqlTemplater.Process("Where", dict);
+      return _templater.Process("Where", dict);
+    }
+
+    string WhereExist(string query1, string query2, JoinOps joinop, bool not, bool twice) {
+      var dict = new Dictionary<string, SubstituteDelegate> {
+        { "not", (x) => not ? "NOT" : "" },
+        { "query1", (x) => query1 },
+        { "query2", (x) => query2 },
+        { "setop", (x) => _templater.JoinOp(joinop) },
+      };
+      return _templater.Process(twice ? "WhereExistAnd" : "WhereExist", dict);
+    }
+
+    public string CreateTable(string tablename, DataTable other) {
+      var heading = (other.Heading.Degree == 0) ? DataHeading.Create("_dummy") : other.Heading;
+      var dict = new Dictionary<string, SubstituteDelegate> {
+        { "table", (x) => tablename },
+        { "coldefs", (x) => ColDefs(heading.Columns) },
+        { "colnames", (x) => NameList(heading) },
+      };
+      return _templater.Process("Create", dict);
+    }
+
+    public string DropTable(string tablename) {
+      var dict = new Dictionary<string, SubstituteDelegate> {
+        { "table", (x) => tablename },
+      };
+      return _templater.Process("Drop", dict);
     }
 
     public string Having(ExpressionBlock expr) {
       var dict = new Dictionary<string, SubstituteDelegate> {
         { "expr", (x) => EvalFunc(expr) },  // FIX: predicate
       };
-      return SqlTemplater.Process("Having", dict);
+      return _templater.Process("Having", dict);
     }
 
     public string OrderBy(ExpressionBlock[] exprs) {
@@ -291,30 +239,24 @@ namespace Andl.Runtime {
       var dict = new Dictionary<string, SubstituteDelegate> {
         { "ordcols", (x) => ColOrders(exprs) },
       };
-      return SqlTemplater.Process("OrderBy", dict);
+      return _templater.Process("OrderBy", dict);
     }
 
-    public string GroupBy(ExpressionBlock[] exprs) {
-      if (exprs.Length == 0) return "";
+    public string GroupBy(DataColumn[] cols) {
+      if (cols.Length == 0) return "";
       var dict = new Dictionary<string, SubstituteDelegate> {
-        { "grpcols", (x) => NameList(DataHeading.Create(exprs)) },
+        { "grpcols", (x) => NameList(DataHeading.Create(cols)) },
       };
-      return SqlTemplater.Process("GroupBy", dict);
+      return _templater.Process("GroupBy", dict);
     }
 
-    public string Limit(int limit) {
+    public string LimitOffset(int? limit, int? offset) {
       var dict = new Dictionary<string, SubstituteDelegate> {
-        { "limit", (x) => limit.ToString() },
-      };
-      return SqlTemplater.Process("Limit", dict);
-    }
-
-    public string Limit(int limit, int offset) {
-      var dict = new Dictionary<string, SubstituteDelegate> {
+        { "~", (x) => (offset == null) ? "0" : (limit == null) ? "1" : "2" }, // pick a subtemplate
         { "limit", (x) => limit.ToString() },
         { "offset", (x) => offset.ToString() },
       };
-      return SqlTemplater.Process("LimitOffset", dict);
+      return _templater.Process("LimitOffset", dict);
     }
 
     public string SelectAs(string tableorquery, ExpressionBlock[] exprs) {
@@ -322,17 +264,16 @@ namespace Andl.Runtime {
         { "select", (x) => tableorquery },
         { "namelist", (x) => NameAsList(exprs) },
       };
-      return SqlTemplater.Process("SelectAs", dict);
+      return _templater.Process("SelectAs", dict);
     }
 
-    public string SelectAsGroup(string tableorquery, ExpressionBlock[] exprs) {
-      var groups = exprs.Where(e => !e.HasFold).ToArray();
+    public string SelectAsGroup(string tableorquery, ExpressionBlock[] exprs, DataColumn[] groups) {
       var dict = new Dictionary<string, SubstituteDelegate> {
         { "select", (x) => tableorquery },
         { "namelist", (x) => NameAsList(exprs) },
         { "groupby", (x) => GroupBy(groups) },
       };
-      return SqlTemplater.Process("SelectAsGroup", dict);
+      return _templater.Process("SelectAsGroup", dict);
     }
 
     // Sql to insert multiple rows of data into named table with binding
@@ -344,63 +285,7 @@ namespace Andl.Runtime {
           { "namelist", (x) => namelist },
           { "valuelist", (x) => paramlist },
         };
-      return SqlTemplater.Process("InsertValues", dict);
-    }
-
-    // Sql to insert rows of data into named table as literals
-    public string InsertValues(string tablename, DataTable other) {
-      var namelist = NameList(other.Heading);
-      var tmpl = SqlTemplater.Create("InsertValues");
-      var rowno = 0;
-      foreach (var row in other.GetRows()) {
-        var values = row.Values;
-        var valuelist = ValueList(other.Heading.Degree, x => ColumnValue(values[x]));
-        var dict = new Dictionary<string, SubstituteDelegate> {
-          { "table", (x) => tablename },
-          { "namelist", (x) => namelist },
-          { "valuelist", (x) => valuelist },
-        };
-        if (rowno > 0) tmpl.Append("\n");
-        tmpl.Process(dict);
-      }
-      return tmpl.ToString();
-    }
-
-    // Sql to delete according to predicate
-    public string Delete(string tablename, ExpressionBlock pred) {
-      var dict = new Dictionary<string, SubstituteDelegate> {
-          { "table", (x) => tablename },
-          { "pred", (x) => EvalFunc(pred) },
-        };
-      return SqlTemplater.Process("Delete", dict);
-    }
-
-    // Sql to udpate according to predicate and expressions
-    public string Update(string tablename, ExpressionBlock pred, ExpressionBlock[] exprs) {
-      var dict = new Dictionary<string, SubstituteDelegate> {
-          { "table", (x) => tablename },
-          { "pred", (x) => EvalFunc(pred) },
-          { "namesetlist", (x) => NameSetList(exprs) },
-        };
-      return SqlTemplater.Process("Update", dict);
-    }
-
-    // Generate Sql to create this table using name and columns provided
-    public string CreateTable(string name, DataTable other) {
-      var dict = new Dictionary<string, SubstituteDelegate> {
-        { "table", (x) => name },
-        { "coldefs", (x) => ColDefs(other.Heading) },
-        { "colnames", (x) => NameList(other.Heading) },
-      };
-      return SqlTemplater.Process("Create", dict);
-    }
-
-    public string SelectAll(string tablename, DataTableSql other) {
-      var dict = new Dictionary<string, SubstituteDelegate> {
-        { "select", (x) => tablename },
-        { "namelist", (x) => NameList(other.Heading) },
-      };
-      return SqlTemplater.Process("SelectAll", dict);
+      return _templater.Process("InsertValues", dict);
     }
 
     // Actually insert query results into this table
@@ -409,7 +294,7 @@ namespace Andl.Runtime {
         { "table", (x) => tablename },
         { "select", (x) => query },
       };
-      return SqlTemplater.Process("InsertSelect", dict);
+      return _templater.Process("InsertSelect", dict);
     }
 
     // Actually insert query results into this table
@@ -417,9 +302,9 @@ namespace Andl.Runtime {
       var dict = new Dictionary<string, SubstituteDelegate> {
         { "table", (x) => tablename },
         { "namelist", (x) => NameList(heading) },
-        { "select", (x) => query },
+        { "query", (x) => query },
       };
-      return SqlTemplater.Process("InsertNamed", dict);
+      return _templater.Process("InsertNamed", dict);
     }
 
     // Generate Sql to insert query results into this table
@@ -428,73 +313,181 @@ namespace Andl.Runtime {
       var dict = new Dictionary<string, SubstituteDelegate> {
         { "namelist", (x) => NameList(heading) },
         { "table", (x) => name },
-        { "select", (x) => query },
+        { "query", (x) => query },
       };
-      return SqlTemplater.Process("InsertJoin", dict);
+      return _templater.Process("InsertJoin", dict);
+    }
+
+    // Sql to insert rows of data into named table as literals (not currently used)
+    //public string InsertValues(string tablename, DataTable other) {
+    //  var namelist = NameList(other.Heading);
+    //  var tmpl = _templater.Create("InsertValues");
+    //  var rowno = 0;
+    //  foreach (var row in other.GetRows()) {
+    //    var values = row.Values;
+    //    var valuelist = ValueList(other.Heading.Degree, x => ColumnValue(values[x]));
+    //    var dict = new Dictionary<string, SubstituteDelegate> {
+    //      { "table", (x) => tablename },
+    //      { "namelist", (x) => namelist },
+    //      { "valuelist", (x) => valuelist },
+    //    };
+    //    if (rowno > 0) tmpl.Append("\n");
+    //    tmpl.Process(dict);
+    //  }
+    //  return tmpl.ToString();
+    //}
+
+    // Sql to delete according to predicate
+    public string Delete(string tablename, ExpressionBlock pred) {
+      var dict = new Dictionary<string, SubstituteDelegate> {
+          { "table", (x) => tablename },
+          { "pred", (x) => EvalFunc(pred) },
+        };
+      return _templater.Process("Delete", dict);
+    }
+
+    // Sql to delete multiple rows of data from named table with binding
+    public string DeleteValues(string tablename, DataHeading other) {
+      var names = other.Columns.Select(c => c.Name).ToArray();
+      var dict = new Dictionary<string, SubstituteDelegate> {
+          { "table", (x) => tablename },
+          { "nameeqvaluelist", (x) => NameEqValueList(names) },
+        };
+      return _templater.Process("DeleteValues", dict);
+    }
+
+    // Sql to delete multiple rows of data using other table
+    public string DeleteNamed(string tablename, DataHeading other, string query) {
+      var namelist = NameList(other);
+      var paramlist = ParamList(other);
+      var dict = new Dictionary<string, SubstituteDelegate> {
+          { "table", (x) => tablename },
+          { "namelist", (x) => namelist },
+          { "valuelist", (x) => paramlist },
+        };
+      return _templater.Process("DeleteValues", dict);
+    }
+
+    // Sql to udpate according to predicate and expressions
+    public string Update(string tablename, ExpressionBlock pred, ExpressionBlock[] exprs) {
+      var exps = exprs.Where(e => e.IsOpen).ToArray();
+      var dict = new Dictionary<string, SubstituteDelegate> {
+          { "table", (x) => tablename },
+          { "pred", (x) => EvalFunc(pred) },
+          { "namesetlist", (x) => NameSetList(exps) },
+        };
+      return _templater.Process("Update", dict);
+    }
+
+    public string SelectAll(string tableorquery, DataTableSql other) {
+      var dict = new Dictionary<string, SubstituteDelegate> {
+        { "select", (x) => tableorquery },
+        { "namelist", (x) => NameList(other.Heading) },
+      };
+      return _templater.Process("SelectAll", dict);
     }
 
     // Using namelist, but nothing for empty heading
-    public string Using(DataHeading heading) {
+    string Using(DataHeading heading) {
       if (heading.Degree == 0) return "";
       var dict = new Dictionary<string, SubstituteDelegate> {
         { "namelist", (x) => NameList(heading) },
       };
-      return SqlTemplater.Process("Using", dict);
+      return _templater.Process("Using", dict);
     }
 
     // Note: using <nameeqlist> triggers ambiguous column name
-    public string SelectJoin(string leftsql, string rightsql, DataHeading newheading, DataHeading joinheading) {
+    public string SelectJoin(string tableorquery1, string tableorquery2, DataHeading newheading, DataHeading joinheading) {
       var dict = new Dictionary<string, SubstituteDelegate> {
-        { "select1", (x) => leftsql },
-        { "select2", (x) => rightsql },
+        { "select1", (x) => tableorquery1 },
+        { "select2", (x) => tableorquery2 },
         { "namelist", (x) => NameList(newheading) },
+        { "join", (x) => joinheading.Degree == 0 ? "CROSS JOIN" : "INNER JOIN" },
         { "using", (x) => Using(joinheading) },
       };
-      return SqlTemplater.Process("SelectJoin", dict);
+      return _templater.Process("SelectJoin", dict);
     }
 
-    public string SelectAntijoin(string leftsql, string rightsql, DataHeading newheading, DataHeading joinheading) {
+    public string SelectAntijoin(string tableorquery1, string tableorquery2, DataHeading newheading, DataHeading joinheading) {
       var dict = new Dictionary<string, SubstituteDelegate> {
-        { "select1", (x) => leftsql },
-        { "select2", (x) => rightsql },
+        { "select1", (x) => tableorquery1 },
+        { "select2", (x) => tableorquery2 },
         { "namelist", (x) => NameList(newheading) },
         { "nameeqlist", (x) => NameEqList(joinheading) },
       };
-      return SqlTemplater.Process("SelectAntijoin", dict);
+      return _templater.Process("SelectAntijoin", dict);
     }
 
-    public string SelectSet(string leftsql, string rightsql, DataHeading newheading, JoinOps joinop) {
+    public string SelectSet(string tableorquery1, string tableorquery2, DataHeading newheading, JoinOps joinop) {
       var dict = new Dictionary<string, SubstituteDelegate> {
-        { "select1", (x) => leftsql },
-        { "select2", (x) => rightsql },
+        { "select1", (x) => tableorquery1 },
+        { "select2", (x) => tableorquery2 },
         { "namelist", (x) => NameList(newheading) },
-        { "setop", (x) => JoinOp(joinop) },
+        { "setop", (x) => _templater.JoinOp(joinop) },
       };
-      return SqlTemplater.Process("SelectSetName", dict);
+      return _templater.Process("SelectSetName", dict);
     }
 
-    public string SelectOneWhere(string leftsql, string rightsql, JoinOps joinop, bool equal) {
+    public string SelectOneWhere(string query1, string query2, JoinOps joinop, bool equal) {
       var dict = new Dictionary<string, SubstituteDelegate> {
-        { "whereexist", (x) => WhereExist(leftsql, rightsql, joinop, true, equal) },
+        { "whereexist", (x) => WhereExist(query1, query2, joinop, true, equal) },
       };
-      return SqlTemplater.Process("SelectOneWhere", dict);
+      return _templater.Process("SelectOneWhere", dict);
     }
 
-    public string WhereExist(string leftsql, string rightsql, JoinOps joinop, bool not, bool twice) {
+    public string FullSelect(string select, string where, string order, string limit) {
       var dict = new Dictionary<string, SubstituteDelegate> {
-        { "not", (x) => not ? "NOT" : "" },
-        { "select1", (x) => leftsql },
-        { "select2", (x) => rightsql },
-        { "setop", (x) => JoinOp(joinop) },
+        { "select", (x) => select },
+        { "where", (x) => where },
+        { "order", (x) => order },
+        { "limit", (x) => limit },
       };
-      return SqlTemplater.Process(twice ? "WhereExist2" : "WhereExist", dict);
+      return _templater.Process("FullSelect", dict);
     }
 
-    public string SelectCount(string sql) {
+    public string SubSelect(string select) {
       var dict = new Dictionary<string, SubstituteDelegate> {
-        { "select", (x) => sql },
+        { "select", (x) => select },
+        { "alias", (x) => AliasName() },
       };
-      return SqlTemplater.Process("SelectCount", dict);
+      return _templater.Process("SubSelect", dict);
+    }
+
+    public string SelectCount(string tableorquery) {
+      var dict = new Dictionary<string, SubstituteDelegate> {
+        { "select", (x) => tableorquery },
+      };
+      return _templater.Process("SelectCount", dict);
+    }
+
+    public string CreateFunction(string name, DataColumn[] args, DataType retn) {
+      var dict = new Dictionary<string, SubstituteDelegate> {
+        {  "name", (x) => name },
+        {  "arglist", (x) => ColDefs(args) },
+        {  "return", (x) => _templater.ColumnType(retn) },
+        {  "body", (x) => name },
+        {  "language", (x) => "plandl" },
+      };
+      return _templater.Process("Function", dict);
+    }
+
+    public string CreateAggregate(string name, DataColumn[] args, DataType statetype, TypedValue init, string sname, string fname) {
+      var dict = new Dictionary<string, SubstituteDelegate> {
+        {  "name", (x) => name },
+        {  "arglist", (x) => ColDefs(args) },
+        {  "sfunc", (x) => sname },
+        {  "stype", (x) => _templater.ColumnType(statetype) },
+        {  "init", (x) => ColumnValue(init) },
+        {  "ffunc", (x) => fname },
+      };
+      return _templater.Process("Aggregate", dict);
+    }
+
+    public string GetColumns(string name) {
+      var dict = new Dictionary<string, SubstituteDelegate> {
+        {  "tname", (x) => Quote(name) },
+      };
+      return _templater.Process("GetColumns", dict);
     }
 
   }

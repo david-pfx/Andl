@@ -16,6 +16,8 @@ test_true(lineno:0, condition:bool) => do {
 }
 start(filename:'') => do {
     write( now() & " Test suite for '" & filename & "'")
+    test_count := 0
+    error_count := 0
 }
 finish(filename:'') => do { 
     write( now() & " Test suite for '" & filename & "' complete. Tests = " & test_count & " errors = " & error_count)
@@ -34,11 +36,11 @@ vti := '2015-31-12 23:59:59.9999'
 
 def ust1(C1:0, C2:'')
 usv1 := ust1(23, 'pqrst')
-tup1 := tup(A1 := 'abc', A2 := 17, A3 := 0)
-rel3 := rel:{A1:'', A2:0, A3:0}(
+tup1 := { A1 := 'abc', A2 := 17, A3 := 0 }
+rel3 := {{ A1:'', A2:0, A3:0 }
          ('abc', 17, 0), 
          ('def', 35, 0), 
-         ('ghij', 199, 0) )
+         ('ghij', 199, 0) }
 
 andl_catalog
 // data now loaded as needed
