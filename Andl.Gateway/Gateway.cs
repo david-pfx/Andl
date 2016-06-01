@@ -351,7 +351,7 @@ namespace Andl.Gateway {
   internal class RequestSession {
     GatewayBase _runtime;
     Catalog _catalog;
-    CatalogPrivate _catalogpriv;
+    ICatalogVariables _catvars;
     Evaluator _evaluator;
     StringWriter _output = new StringWriter();
     StringReader _input = new StringReader("");
@@ -363,11 +363,11 @@ namespace Andl.Gateway {
       var ret = new RequestSession() {
         _runtime = runtime,
         _catalog = catalog,
-        _catalogpriv = CatalogPrivate.Create(catalog),
+        _catvars = catalog.GlobalVars.PushScope(),
         _savelog = Logger.Out,
       };
       Logger.Out = ret._output;
-      ret._evaluator = Evaluator.Create(ret._catalogpriv, ret._output, ret._input);
+      ret._evaluator = Evaluator.Create(ret._catvars, ret._output, ret._input);
       ret._catalog.BeginSession(state);
       return ret;
     }
@@ -380,33 +380,33 @@ namespace Andl.Gateway {
 
     // Get a native value from a variable or parameterless function
     public Result GetValue(string name) {
-      var kind = _catalogpriv.GetKind(name);
+      var kind = _catvars.GetKind(name);
       if (kind == EntryKinds.Code)
         return Evaluate(name);
       if (kind != EntryKinds.Value) return Result.Failure("unknown or invalid name");
 
-      var nvalue = TypeMaker.ToNativeValue(_catalogpriv.GetValue(name));
+      var nvalue = TypeMaker.ToNativeValue(_catvars.GetValue(name));
       return Result.Success(nvalue);
     }
 
     // Set a native value to a variable or call a single parameter void function
     public Result SetValue(string name, object nvalue) {
-      var kind = _catalogpriv.GetKind(name);
+      var kind = _catvars.GetKind(name);
       if (kind == EntryKinds.Code)
         return Evaluate(name, nvalue);
       if (kind != EntryKinds.Value) return Result.Failure("unknown or invalid name");
 
-      var datatype = _catalogpriv.GetDataType(name);
+      var datatype = _catvars.GetDataType(name);
       var value = TypeMaker.FromNativeValue(nvalue, datatype);
       return Result.Success(null);
     }
 
     // Call a function with native arguments, get a return value or null if void
     public Result Evaluate(string name, params object[] arguments) {
-      var kind = _catalogpriv.GetKind(name);
+      var kind = _catvars.GetKind(name);
       if (kind != EntryKinds.Code) return Result.Failure("unknown or invalid name");
 
-      var expr = (_catalogpriv.GetValue(name) as CodeValue).Value;
+      var expr = (_catvars.GetValue(name) as CodeValue).Value;
       if (arguments.Length != expr.Lookup.Degree) return Result.Failure("wrong no of args");
 
       var argvalues = arguments.Select((a, x) => TypeMaker.FromNativeValue(a, expr.Lookup.Columns[x].DataType)).ToArray();
@@ -423,9 +423,9 @@ namespace Andl.Gateway {
 
     // call a function with args passed in json, return Result in json
     public Result JsonCall(string name, params string[] jsonargs) {
-      var kind = _catalogpriv.GetKind(name);
+      var kind = _catvars.GetKind(name);
       if (kind != EntryKinds.Code) return Result.Failure("unknown or invalid name");
-      var expr = (_catalogpriv.GetValue(name) as CodeValue).Value;
+      var expr = (_catvars.GetValue(name) as CodeValue).Value;
       if (expr.Lookup.Degree != jsonargs.Length) return Result.Failure("wrong no of args");
 
       DataRow argvalue;
@@ -459,9 +459,9 @@ namespace Andl.Gateway {
     // call a function with args passed as id, query and json, return Result with message or json
     // NOTE: empty query array here is NOT the same as a null
     public Result JsonCall(string name, string id, KeyValuePair<string, string>[] query, string json) {
-      var kind = _catalogpriv.GetKind(name);
+      var kind = _catvars.GetKind(name);
       if (kind != EntryKinds.Code) return Result.Failure("unknown or invalid name: " + name);
-      var expr = (_catalogpriv.GetValue(name) as CodeValue).Value;
+      var expr = (_catvars.GetValue(name) as CodeValue).Value;
 
       var argcount = (id != null ? 1 : 0) + (query != null ? 1 : 0) + (json != null ? 1 : 0);
       if (expr.Lookup.Degree != argcount) return Result.Failure("wrong no of args, expected " + expr.Lookup.Degree.ToString());
@@ -506,9 +506,9 @@ namespace Andl.Gateway {
 
     // call using serialised native arguments, return serialised native result
     internal bool NativeCall(string name, byte[] arguments, out byte[] result) {
-      var kind = _catalogpriv.GetKind(name);
+      var kind = _catvars.GetKind(name);
       if (kind != EntryKinds.Code) return NativeFail("unknown or invalid name: " + name, out result);
-      var expr = (_catalogpriv.GetValue(name) as CodeValue).Value;
+      var expr = (_catvars.GetValue(name) as CodeValue).Value;
 
       TypedValue[] argvalues = new TypedValue[expr.NumArgs];
       using (var pr = PersistReader.Create(arguments)) {
@@ -550,9 +550,9 @@ namespace Andl.Gateway {
 
     // call supporting Thrift interface
     internal Result BuilderCall(string name, TypedValueBuilder arguments) {
-      var kind = _catalogpriv.GetKind(name);
+      var kind = _catvars.GetKind(name);
       Logger.Assert(kind == EntryKinds.Code);
-      var expr = (_catalogpriv.GetValue(name) as CodeValue).Value;
+      var expr = (_catvars.GetValue(name) as CodeValue).Value;
       TypedValue retvalue;
       try {
         var argvalue = DataRow.CreateNonTuple(expr.Lookup, arguments.FilledValues());

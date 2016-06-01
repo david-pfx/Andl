@@ -131,13 +131,18 @@ namespace Andl.Runtime {
   /// </summary>
   //public static class Builtin {
   public class Builtin {
-    CatalogPrivate _catalog;
-    Evaluator _evaluator;
+    // This is the authoritative catalog for both eval and builtins
+    public ICatalogVariables CatVars { get { return _catvars; } }
+    ICatalogVariables _catvars;
+    // input and output to use if required
+    TextWriter _output;
+    TextReader _input;
 
-    public static Builtin Create(CatalogPrivate catalog, Evaluator evaluator) {
+    public static Builtin Create(ICatalogVariables catvars, Evaluator evaluator) {
       return new Builtin {
-        _catalog = catalog,
-        _evaluator = evaluator,
+        _catvars = catvars,
+        _output = evaluator.Output,
+        _input = evaluator.Input,
       };
     }
 
@@ -160,7 +165,7 @@ namespace Andl.Runtime {
       Logger.WriteLine(3, "Assign {0}", exprarg);
       var name = exprarg.Value.Name;
       var value = exprarg.AsEval.Evaluate();
-      _catalog.SetValue(name, value);
+      _catvars.SetValue(name, value);
       Logger.WriteLine(3, "[Ass]");
       return VoidValue.Default;
     }
@@ -169,7 +174,7 @@ namespace Andl.Runtime {
     // The variable is identified by name, a value is stored
     public VoidValue Assign2(TextValue name, TypedValue value) {
       Logger.WriteLine(3, "Assign {0}:={1}", name, value);
-      _catalog.SetValue(name.Value, value);
+      _catvars.SetValue(name.Value, value);
       Logger.WriteLine(3, "[Ass]");
       return VoidValue.Default;
     }
@@ -180,7 +185,7 @@ namespace Andl.Runtime {
       Logger.WriteLine(3, "Defer {0}", exprarg);
       Logger.Assert(exprarg.AsEval == null);
       var name = exprarg.Value.Name;
-      _catalog.SetValue(name, exprarg);
+      _catvars.SetValue(name, exprarg);
       Logger.WriteLine(3, "[Def]");
       return VoidValue.Default;
     }
@@ -188,10 +193,16 @@ namespace Andl.Runtime {
     // Invoke a do block with its own scope level
     public TypedValue DoBlock(CodeValue exprarg, PointerValue accblkarg) {
       Logger.WriteLine(3, "DoBlock {0}", exprarg);
-      _catalog.PushScope();
+      _catvars = _catvars.PushScope();
       var accblk = accblkarg.Value as AccumulatorBlock;
-      var ret = _evaluator.Exec(exprarg.Value.Code, null, null, accblk);
-      _catalog.PopScope();
+      var expr = exprarg.Value as ExpressionEval;
+      var ret = expr.Evaluator.Exec(exprarg.Value.Code, null, null, accblk);
+
+      // If the return value is an unresolved sql table then resolve it now 
+      // before exiting the local variable scope (which it may need)
+      if (ret is RelationValue && !(ret.AsTable() is DataTableLocal))
+        ret = RelationValue.Create(DataTableLocal.Convert(ret.AsTable()));
+      _catvars = _catvars.PopScope();
       Logger.WriteLine(3, "[Do {0}]", ret);
       return ret;
     }
@@ -210,7 +221,7 @@ namespace Andl.Runtime {
       Logger.WriteLine(3, "Invoke {0} accbase={1} ({2})", funcarg, accbasarg, String.Join(",", valargs.Select(a => a.ToString()).ToArray()));
 
       // wrap raw value with evaluator
-      var expr = ExpressionEval.Create(_evaluator, funcarg.Value);
+      var expr = funcarg.Value as ExpressionEval;
       var args = DataRow.CreateNonTuple(expr.Lookup, valargs);
       TypedValue ret;
       if (expr.HasFold) {
@@ -218,8 +229,11 @@ namespace Andl.Runtime {
         var accbase = (int)accbasarg.Value;
         ret = expr.EvalHasFold(args, accblk, accbase);
       } else ret = expr.EvalOpen(args);
+
+      // If the return value is an unresolved sql table then resolve it now 
+      // before exiting the lookup scope (which it may need)
       if (ret is RelationValue && !(ret.AsTable() is DataTableLocal))
-        ret = RelationValue.Create(DataTableLocal.Convert(ret.AsTable(), args));
+        ret = RelationValue.Create(DataTableLocal.Convert(ret.AsTable(), args, expr.Evaluator));
       Logger.WriteLine(3, "[Inv {0}]", ret);
       return ret;
     }
@@ -319,9 +333,9 @@ namespace Andl.Runtime {
     // Import a linked or externally held relvar
     public VoidValue Import(TextValue sourcearg, TextValue namearg, TextValue whatarg, TextValue locatorarg) {
       if (sourcearg.Value == "") {
-        if (!_catalog.Catalog.LinkRelvar(namearg.Value))
+        if (!_catvars.Catalog.LinkRelvar(namearg.Value))
           throw ProgramError.Fatal("Connect", "cannot link to '{0}'", namearg.Value);
-      } else if (!_catalog.Catalog.ImportRelvar(sourcearg.Value, namearg.Value, whatarg.Value, locatorarg.Value))
+      } else if (!_catvars.Catalog.ImportRelvar(sourcearg.Value, namearg.Value, whatarg.Value, locatorarg.Value))
         throw ProgramError.Fatal("Connect", "cannot import from '{0}'", namearg.Value);
       return VoidValue.Default;
     }
@@ -818,19 +832,19 @@ namespace Andl.Runtime {
 
     // variables
     public RelationValue All() {
-      return _catalog.Catalog.GetCatalogTableValue(Catalog.CatalogTables.Catalog);
+      return _catvars.Catalog.GetCatalogTableValue(Catalog.CatalogTables.Catalog);
     }
 
     public RelationValue Variables() {
-      return _catalog.Catalog.GetCatalogTableValue(Catalog.CatalogTables.Variable);
+      return _catvars.Catalog.GetCatalogTableValue(Catalog.CatalogTables.Variable);
     }
 
     public RelationValue Operators() {
-      return _catalog.Catalog.GetCatalogTableValue(Catalog.CatalogTables.Operator);
+      return _catvars.Catalog.GetCatalogTableValue(Catalog.CatalogTables.Operator);
     }
 
     public RelationValue Members() {
-      return _catalog.Catalog.GetCatalogTableValue(Catalog.CatalogTables.Member);
+      return _catvars.Catalog.GetCatalogTableValue(Catalog.CatalogTables.Member);
     }
 
     ///=================================================================
@@ -972,13 +986,13 @@ namespace Andl.Runtime {
 
     // Write a text value to the console/output
     public VoidValue Write(TextValue line) {
-      _evaluator.Output.WriteLine(line.Value);
+      _output.WriteLine(line.Value);
       return VoidValue.Default;
     }
 
     // Obtain a text value by reading from the console/standard input output
     public TextValue Read() {
-      var input = _evaluator.Input.ReadLine();
+      var input = _input.ReadLine();
       if (input == null)
         throw ProgramError.Fatal("Read", "input not available");
       return TextValue.Create(input);
@@ -986,10 +1000,10 @@ namespace Andl.Runtime {
 
     // optional pause (only when interactive)
     public VoidValue Pause(TextValue value) {
-      if (_catalog.Catalog.InteractiveFlag) {
+      if (_catvars.Catalog.InteractiveFlag) {
         if (value.Value.Length > 0)
-          _evaluator.Output.WriteLine(value.Value);
-        _evaluator.Input.ReadLine();
+          _output.WriteLine(value.Value);
+        _input.ReadLine();
       }
       return VoidValue.Default;
     }

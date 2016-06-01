@@ -61,8 +61,16 @@
     <None Include="packages.config" />
     <None Include="run-thrift.bat" />
     <None Include="ThriftTest.andl" />
+    <None Include="ThriftTest.thrift" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="NewFolder1\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PreBuildEvent>cd $(ProjectDir)
+$(SolutionDir)\thrift-0.9.3.exe --gen csharp $(ProjectName).thrift</PreBuildEvent>
+  </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">

@@ -124,10 +124,7 @@ namespace Andl.Main {
       _catalog.Start();
 
       // Create private catalog with access to global level, for evaluator
-      var catalogp = CatalogPrivate.Create(_catalog, true);
-      // Create evaluator (may not get used)
-      _evaluator = Evaluator.Create(catalogp, Console.Out, Console.In);
-
+      _evaluator = Evaluator.Create(_catalog.GlobalVars, Console.Out, Console.In);
       return true;
     }
 

@@ -93,12 +93,10 @@ namespace Andl.Runtime {
   ///   builtin for method calls
   /// </summary>
   public class Evaluator {
-    //BUG: obsolete, used by DataTableLocal!!!
-    public static Evaluator Current { get; private set; }
     public TextWriter Output { get; private set; }
     public TextReader Input { get; private set; }
 
-    CatalogPrivate _catalog;
+    ICatalogVariables CatVars { get { return _builtin.CatVars; } }
     Builtin _builtin;
 
     // runtime
@@ -107,10 +105,9 @@ namespace Andl.Runtime {
     Stack<TypedValue> _stack = new Stack<TypedValue>();
 
     // Create with catalog 
-    public static Evaluator Create(CatalogPrivate catalog, TextWriter output, TextReader input) {
+    public static Evaluator Create(ICatalogVariables catalog, TextWriter output, TextReader input) {
       DataTypes.Init();
       var ev = new Evaluator() {
-        _catalog = catalog,
         Output = output,
         Input = input,
       };
@@ -123,7 +120,7 @@ namespace Andl.Runtime {
       Logger.WriteLine(5, "Exec {0} {1} {2} {3}", code.Length, lookup, aggregate, accblock);
       if (code.Length == 0) return VoidValue.Void;
       if (lookup != null) PushLookup(lookup);
-      Current = this;
+      //Current = this;
       TypedValue retval = null;
       try {
         retval = Run(code, aggregate, accblock);
@@ -193,80 +190,86 @@ namespace Andl.Runtime {
           break;
         // Known catalog variable, look up value
         case Opcodes.LDCAT:
-          var val = _catalog.GetValue(reader.ReadString());
-          if (val.DataType == DataTypes.Code)
-            val = this.Exec((val as CodeValue).Value.Code);
-          _stack.Push(val);
+          var catnam = reader.ReadString();
+          var catval = CatVars.GetValue(catnam);
+          Logger.Assert(catval != null, $"{opcode}:{catnam}");
+          if (catval.DataType == DataTypes.Code)
+            catval = this.Exec((catval as CodeValue).Value.Code);
+          _stack.Push(catval);
           break;
         case Opcodes.LDCATR:
-          PushStack(_catalog.GetValue(reader.ReadString()));
+          var ctrnam = reader.ReadString();
+          var ctrval = CatVars.GetValue(ctrnam) as CodeValue;
+          Logger.Assert(ctrval != null, $"{opcode}:{ctrnam}");
+          PushStack(CodeValue.Create(ExpressionEval.Create(this, ctrval.Value)));
           break;
         // Load value obtained using lookup by name
         case Opcodes.LDFIELD:
-          var value = TypedValue.Empty;
-          var ok = LookupValue(reader.ReadString(), ref value);
-          Logger.Assert(ok, opcode);
-          PushStack(value);
+          var fldval = TypedValue.Empty;
+          var fldnam = reader.ReadString();
+          var fldok = LookupValue(fldnam, ref fldval);
+          Logger.Assert(fldok, $"{opcode}:{fldnam}");
+          PushStack(fldval);
           break;
         // Load aggregate value or use specified start value if not available
         case Opcodes.LDAGG:
-          var agvalue = reader.ReadValue();
-          PushStack(aggregate ?? agvalue);
+          var aggval = reader.ReadValue();
+          PushStack(aggregate ?? aggval);
           break;
         // load accumulator by index, or fixed value if not available
         case Opcodes.LDACC:
           var accnum = reader.ReadInteger();
-          var defval = reader.ReadValue();
-          PushStack(accblock == null ? defval : accblock[accnum]);
+          var accval = reader.ReadValue();
+          PushStack(accblock == null ? accval : accblock[accnum]);
           break;
         // Load a segment of code for later call, with this evaluator packaged in
         case Opcodes.LDSEG:
-          var expr = reader.ReadExpr();
-          var cvalue = CodeValue.Create(ExpressionEval.Create(this, expr));
-          PushStack(cvalue);
+          var segexp = reader.ReadExpr();
+          var segval = CodeValue.Create(ExpressionEval.Create(this, segexp));
+          PushStack(segval);
           break;
         case Opcodes.LDLOOKUP:
-          var bv = TypedValue.Create(_lookups.Peek() as object);
-          PushStack(bv);
+          var lkpobj = TypedValue.Create(_lookups.Peek() as object);
+          PushStack(lkpobj);
           break;
         case Opcodes.LDACCBLK:
-          var acb = TypedValue.Create(accblock as object);
-          PushStack(acb);
+          var acbobj = TypedValue.Create(accblock as object);
+          PushStack(acbobj);
           break;
         case Opcodes.LDCOMP:
-          var udtval = _stack.Pop() as UserValue;
-          var compval = udtval.GetComponentValue(reader.ReadString());
-          PushStack(compval);
+          var cmpudt = _stack.Pop() as UserValue;
+          var cmpval = cmpudt.GetComponentValue(reader.ReadString());
+          PushStack(cmpval);
           break;
         case Opcodes.LDFIELDT:
-          var tupval = _stack.Pop() as TupleValue;
-          var fldval = tupval.GetFieldValue(reader.ReadString());
-          PushStack(fldval);
+          var fdttup = _stack.Pop() as TupleValue;
+          var fdtval = fdttup.GetFieldValue(reader.ReadString());
+          PushStack(fdtval);
           break;
         // Call a function, fixed or variable arg count
         case Opcodes.CALL:
         case Opcodes.CALLV:
         case Opcodes.CALLVT:
-          var name = reader.ReadString();
-          var meth = typeof(Builtin).GetMethod(name);
-          var nargs = reader.ReadByte();
-          var nvargs = reader.ReadByte();
-          var args = new object[nargs];
-          var argx = args.Length - 1;
+          var calname = reader.ReadString();
+          var calmeth = typeof(Builtin).GetMethod(calname);
+          var calnargs = reader.ReadByte();
+          var calnvargs = reader.ReadByte();
+          var calargs = new object[calnargs];
+          var calargx = calargs.Length - 1;
           if (opcode == Opcodes.CALLV) {
-            var vargs = new CodeValue[nvargs];
+            var vargs = new CodeValue[calnvargs];
             for (var j = vargs.Length - 1; j >= 0; --j)
               vargs[j] = _stack.Pop() as CodeValue;
-            args[argx--] = vargs;
+            calargs[calargx--] = vargs;
           } else if (opcode == Opcodes.CALLVT) {
-            var vargs = new TypedValue[nvargs];
+            var vargs = new TypedValue[calnvargs];
             for (var j = vargs.Length - 1; j >= 0; --j)
               vargs[j] = _stack.Pop() as TypedValue;
-            args[argx--] = vargs;
+            calargs[calargx--] = vargs;
           }
-          for (; argx >= 0; --argx)
-            args[argx] = _stack.Pop();
-          var ret = meth.Invoke(_builtin, args) as TypedValue;
+          for (; calargx >= 0; --calargx)
+            calargs[calargx] = _stack.Pop();
+          var ret = calmeth.Invoke(_builtin, calargs) as TypedValue;
           _stack.Push(ret);
           //if (ret.DataType != DataTypes.Void)
           //  _stack.Push(ret);

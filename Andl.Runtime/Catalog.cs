@@ -54,6 +54,25 @@ namespace Andl.Runtime {
 
   enum CatalogStatus { None, Started, Connected, Cataloguing, Finished };
 
+  /// <summary>
+  /// Permit controlled access to catalog variables and scopes
+  /// </summary>
+  public interface ICatalogVariables {
+    Catalog Catalog { get; }
+    // create new scope level
+    ICatalogVariables PushScope();
+    // return to previous scope level
+    ICatalogVariables PopScope();
+    // Set a value for a variable in the current scope ie assignment
+    void SetValue(string name, TypedValue value);
+    // Return type of entry
+    EntryKinds GetKind(string name);
+    // Return raw value of variable 
+    TypedValue GetValue(string name);
+    // Return raw type of variable 
+    DataType GetDataType(string name);
+  }
+
   ///===========================================================================
   /// <summary>
   /// Implement the catalog as a whole, including multiple scope levels
@@ -343,14 +362,14 @@ namespace Andl.Runtime {
         if (heading.Degree != sqlheading.Degree)
           throw ProgramError.Fatal("Catalog", "sql table schema mismatch: '{0}'", name);
         var table = DataTableSql.Create(name, heading);
-        entry.Value = RelationValue.Create(table);
+        GlobalVars.SetValue(entry, RelationValue.Create(table));
       } else {
         var tablev = Persist.Create(DatabasePath, false).Load(name);
         if (tablev == null)
           throw ProgramError.Fatal("Catalog", "local table not found: '{0}'", name);
         if (!heading.Equals(tablev.Heading))
           throw ProgramError.Fatal("Catalog", "local table schema mismatch: '{0}'", name);
-        entry.Value = RelationValue.Create(tablev.AsTable());
+        GlobalVars.SetValue(entry, RelationValue.Create(tablev.AsTable()));
       }
       return true;
     }
@@ -365,7 +384,7 @@ namespace Andl.Runtime {
       var table = stream.Read(what, heading);
       if (table == null || !heading.Equals(table.Heading))
         throw ProgramError.Fatal("Catalog", "{0} table not found: '{1}'", source, stream.GetPath(what));
-      GlobalVars.SetValue(name, RelationValue.Create(table));
+      GlobalVars.SetValue(entry, RelationValue.Create(table));
       return true;
     }
 
@@ -395,7 +414,8 @@ namespace Andl.Runtime {
 
     public void LoadFromTable() {
       Logger.WriteLine(2, "Load catalog for '{0}'", DatabaseName);
-      var table = GlobalVars.FindEntry(CatalogTableName).Value.AsTable();
+      var centry = GlobalVars.FindEntry(CatalogTableName);
+      var table = GlobalVars.GetValue(centry).AsTable();
       foreach (var row in table.GetRows()) {
         var blob = (row.Values[3] as BinaryValue).Value;
         var entry = CatalogEntry.FromBinary(blob);
@@ -428,22 +448,22 @@ namespace Andl.Runtime {
   /// <summary>
   /// Implement a single catalog scope level containing variables
   /// </summary>
-  public class CatalogScope {
-    internal Catalog Cat { get; private set; }
-    internal CatalogScope Parent { get; private set; }
-    internal ScopeLevels Level { get; private set; }
-
-    internal Dictionary<string, CatalogEntry> _entries = new Dictionary<string, CatalogEntry>();
+  public class CatalogScope : ICatalogVariables {
+    public Catalog Catalog { get { return _catalog; } }
+    Catalog _catalog;
+    CatalogScope _parent;
+    ScopeLevels _level;
+    Dictionary<string, CatalogEntry> _entries = new Dictionary<string, CatalogEntry>();
 
     public override string ToString() {
-      return String.Format("{0} entries:{1}", Level, _entries.Count);
+      return String.Format("{0} entries:{1}", _level, _entries.Count);
     }
 
     public static CatalogScope Create(Catalog catalog, ScopeLevels level, CatalogScope parent = null) {
       return new CatalogScope {
-        Cat = catalog,
-        Level = level,
-        Parent = parent,
+        _catalog = catalog,
+        _level = level,
+        _parent = parent,
       };
     }
 
@@ -451,11 +471,31 @@ namespace Andl.Runtime {
       return _entries.Values;
     }
 
+    #region ICatalogPrivate
+    public ICatalogVariables PushScope() {
+      return Create(_catalog, ScopeLevels.Local, this);
+    }
+
+    public ICatalogVariables PopScope() {
+      return _parent;
+    }
+
+    public EntryKinds GetKind(string name) {
+      var entry = FindEntry(name);
+      return (entry == null) ? EntryKinds.None : entry.Kind;
+    }
+
+    public DataType GetDataType(string name) {
+      return GetEntryType(name);
+    }
+    #endregion
+
+
     // Add a new entry to the catalog.
     // Do kind, flags and other stuff here
     public void AddNewEntry(string name, DataType datatype, EntryKinds kind, EntryFlags flags) {
-      if (Cat.IsPersist(name)) flags |= EntryFlags.Persistent;
-      if (kind == EntryKinds.Value && datatype is DataTypeRelation && Cat.IsDatabase(name))
+      if (_catalog.IsPersist(name)) flags |= EntryFlags.Persistent;
+      if (kind == EntryKinds.Value && datatype is DataTypeRelation && _catalog.IsDatabase(name))
         flags |= EntryFlags.Database;
       AddEntry(name, datatype, kind, flags, null);   // preliminary entry, value can only be set by code
       //AddEntry(name, datatype, kind, flags, datatype.DefaultValue());   // make sure it has something, to avoid later errrors
@@ -488,6 +528,54 @@ namespace Andl.Runtime {
       return expr.Value.Lookup.Columns.Select(c => c.DataType).ToArray();
     }
 
+    // Return raw value from variable
+    // special handling of system catalog names
+    public TypedValue GetValue(string name) {
+      if (_catalog.IsSystem(name)) {
+        if (Catalog._catalogtables.ContainsKey(name))
+          return _catalog.GetCatalogTableValue(Catalog._catalogtables[name]);
+        return null;
+      }
+      var entry = FindEntry(name);
+      return (entry == null) ? null : GetValue(entry);
+    }
+
+    // Get a catalog value by entry from database or catalog
+    public TypedValue GetValue(CatalogEntry entry) {
+      if (entry.IsDatabase) {
+        if (_catalog.SqlFlag) {
+
+          // Database sql comes from external table
+          var table = DataTableSql.Create(entry.Name, entry.DataType.Heading);
+          return RelationValue.Create(table);
+        } else if (!entry.IsLoaded) { // lazy load
+
+          // Database non-sql lazy loaded from store on path, then in catalog
+          var value = Persist.Create(_catalog.DatabasePath, true).Load(entry.Name);
+          if (entry.DataType != value.DataType)
+            throw ProgramError.Fatal("Catalog", "Type mismatch for variable {0}", entry.Name);
+          entry.IsLoaded = true;
+          return Persist.Create(_catalog.DatabasePath, true).Load(entry.Name);
+        }
+      }
+      // Non-database exists only in the catalog
+      return entry.Value;
+    }
+
+    // Value replaces existing, type should be compatible
+    // Supports assignment. Handles linked tables.
+    public void SetValue(string name, TypedValue value) {
+      if (_catalog.IsSystem(name))
+        throw ProgramError.Fatal("Catalog", "cannot set '{0}'", name);
+      var entry = FindEntry(name);
+      if (entry == null && _level == ScopeLevels.Local) {
+        AddEntry(name, value.DataType, EntryKinds.Value);
+        entry = FindEntry(name);
+      }
+      Logger.Assert(entry != null);
+      SetValue(entry, value);
+    }
+
     //-------------------------------------------------------------------------
     // implementation
 
@@ -495,58 +583,56 @@ namespace Andl.Runtime {
     internal CatalogEntry FindEntry(string name) {
       CatalogEntry entry;
       return (_entries.TryGetValue(name, out entry)) ? entry
-        : Parent != null ? Parent.FindEntry(name)
+        : _parent != null ? _parent.FindEntry(name)
         : null;
     }
 
-    // Return raw value from variable
-    // special handling of system catalog names
-    internal TypedValue GetValue(string name) {
-      if (Cat.IsSystem(name)) {
-        if (Catalog._catalogtables.ContainsKey(name))
-          return Cat.GetCatalogTableValue(Catalog._catalogtables[name]);
-        return null;
-      }
+    // Return type from variable as evaluated if needed
+    DataType GetEntryType(string name) {
       var entry = FindEntry(name);
-      if (entry == null) return null;
-
-      // Choose whether to get value from database or catalog
-      if (entry.IsDatabase) {
-        if (Cat.SqlFlag) {
-          var table = DataTableSql.Create(name, entry.DataType.Heading);
-          return RelationValue.Create(table);
-        } else if (!entry.IsLoaded) { // lazy load
-          var value = Persist.Create(Cat.DatabasePath, true).Load(name);
-          if (entry.DataType != value.DataType)
-            throw ProgramError.Fatal("Catalog", "Type mismatch for variable {0}", name);
-          entry.IsLoaded = true;
-          return Persist.Create(Cat.DatabasePath, true).Load(name);
-        }
-      }
-      return entry.Value;
+      return entry == null ? null : entry.DataType;
     }
 
-    // Value replaces existing, type should be compatible
-    // Supports assignment. Handles linked tables.
-    internal void SetValue(string name, TypedValue value) {
-      if (Cat.IsSystem(name))
-        throw ProgramError.Fatal("Catalog", "cannot set '{0}'", name);
-      var entry = FindEntry(name);
-      if (entry == null && Level == ScopeLevels.Local) {
-        AddEntry(name, value.DataType, EntryKinds.Value);
-        entry = FindEntry(name);
-      }
-      Logger.Assert(entry != null);
+    // Add a named entry
+    internal void Add(CatalogEntry entry) {
+      _entries[entry.Name] = entry;
+    }
 
+    // Add new catalog entry to proper scope
+    // Risky: caller may not know where it went; maybe merge Global & Persistent?
+    internal void AddEntry(string name, DataType datatype, EntryKinds kind, EntryFlags flags = EntryFlags.None, TypedValue value = null) {
+      var scope = (flags.HasFlag(EntryFlags.Persistent)) ? _catalog.PersistentVars : this;
+      var entry = new CatalogEntry {
+        Name = name,
+        DataType = datatype,
+        Kind = kind,
+        Flags = flags,
+        Scope = scope,
+        Value = value,
+      };
+      scope.Add(entry);
+      // update catalog
+      if (flags.HasFlag(EntryFlags.Persistent) && _catalog.SaveFlag) {
+        Logger.Assert(entry.Kind == EntryKinds.Type || entry.Value == null, entry);
+        if (entry.Kind == EntryKinds.Type)
+          _catalog.StoreEntry(entry);
+      }
+    }
+
+    // set entry to value, update as needed
+    internal void SetValue(CatalogEntry entry, TypedValue value) {
       // Choose where to store and whether to convert
       TypedValue finalvalue;
 
-      if (entry.IsDatabase && Cat.SqlFlag) {
-        // Database plus sql => hand it to sql (could be a query)
-        // catalog requires a default value to carry the type
-        DataTableSql.Create(name, value.AsTable());
+      if (entry.IsDatabase && _catalog.SqlFlag) {
+
+        // Database + sql => hand it to sql, to create table if needed
+        // set a default value to carry the type
+        DataTableSql.Create(entry.Name, value.AsTable());
         finalvalue = value.DataType.DefaultValue();
       } else {
+
+        // everything else stored in catalog
         if (value.DataType is DataTypeRelation)
           finalvalue = RelationValue.Create(DataTableLocal.Convert(value.AsTable()));
         else finalvalue = value;
@@ -561,40 +647,8 @@ namespace Andl.Runtime {
       if (finalvalue != entry.Value) {
         var oldvalue = (entry.Value == null) ? null : entry;
         entry.Set(finalvalue);
-        if (entry.IsPersistent && Cat.SaveFlag)
-          Cat.StoreEntry(entry, oldvalue);
-      }
-    }
-
-    // Return type from variable as evaluated if needed
-    internal DataType GetEntryType(string name) {
-      var entry = FindEntry(name);
-      return entry == null ? null : entry.DataType;
-    }
-
-    // Add a named entry
-    internal void Add(CatalogEntry entry) {
-      _entries[entry.Name] = entry;
-    }
-
-    // Add new catalog entry to proper scope
-    // Risky: caller may not know where it went; maybe merge Global & Persistent?
-    internal void AddEntry(string name, DataType datatype, EntryKinds kind, EntryFlags flags = EntryFlags.None, TypedValue value = null) {
-      var scope = (flags.HasFlag(EntryFlags.Persistent)) ? Cat.PersistentVars : this;
-      var entry = new CatalogEntry {
-        Name = name,
-        DataType = datatype,
-        Kind = kind,
-        Flags = flags,
-        Scope = scope,
-        Value = value,
-      };
-      scope.Add(entry);
-      // update catalog
-      if (flags.HasFlag(EntryFlags.Persistent) && Cat.SaveFlag) {
-        Logger.Assert(entry.Kind == EntryKinds.Type || entry.Value == null, entry);
-        if (entry.Kind == EntryKinds.Type)
-          Cat.StoreEntry(entry);
+        if (entry.IsPersistent && _catalog.SaveFlag)
+          _catalog.StoreEntry(entry, oldvalue);
       }
     }
 
@@ -646,58 +700,8 @@ namespace Andl.Runtime {
     Dictionary<string, string> GetSubEntryValuesDict(DataHeading heading) {
       return heading.Columns.ToDictionary(c => c.Name, c => c.DataType.BaseName);
     }
-
   }
 
-
-  ///===========================================================================
-  /// <summary>
-  /// Implement a private catalog to support nested scopes
-  /// 
-  /// Note: initially created at global scope. Must Push to get new scope for local variables.
-  /// </summary>
-  public class CatalogPrivate {
-    internal Catalog Catalog { get; private set; }
-    internal CatalogScope Current { get; private set; }
-
-    public static CatalogPrivate Create(Catalog catalog, bool global = false) {
-      return new CatalogPrivate {
-        Catalog = catalog,
-        Current = (global) ? catalog.GlobalVars
-                           : CatalogScope.Create(catalog, ScopeLevels.Local, catalog.GlobalVars),
-      };
-    }
-
-    public void PopScope() {
-      Current = Current.Parent;
-    }
-
-    public void PushScope() {
-      Current = CatalogScope.Create(Catalog, ScopeLevels.Local, Current);
-    }
-
-    // Set a value for a variable in the current scope ie assignment
-    public void SetValue(string name, TypedValue value) {
-      Current.SetValue(name, value);
-    }
-
-    // Return type of entry
-    public EntryKinds GetKind(string name) {
-      var entry = Current.FindEntry(name);
-      return (entry == null) ? EntryKinds.None : entry.Kind;
-    }
-
-    // Return raw value of variable 
-    public TypedValue GetValue(string name) {
-      return Current.GetValue(name);
-    }
-
-    // Return raw type of variable 
-    public DataType GetDataType(string name) {
-      return Current.GetEntryType(name);
-    }
-
-  }
 
   ///===========================================================================
   /// <summary>

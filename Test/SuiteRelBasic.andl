@@ -234,4 +234,32 @@ test_true($lineno$, r1 = R .select{ bo := fn1bo(bo), bi := fn1bi(bi), nu := fn1n
 test_true($lineno$, r2 = R .select{ bo := fn2bo(bo), bi := fn2bi(bi), nu := fn2nu(nu), te := fn2te(te), ti := fn2ti(ti) })
 test_true($lineno$, r3 = R .select{ bo := fn3bo(bo), bi := fn3bi(bi), nu := fn3nu(nu), te := fn3te(te), ti := fn3ti(ti) })
 
+//-- scopes (particularly SQL)
+// scope is param only
+fsc1(a:0,b:0) => do {
+  a > b  
+}
+// scope is param and local var
+fsc1a(a:0,b:0) => do {
+  c:=b
+  a > c
+}
+// scope is attribute and param
+fsc2(a:0) => do {
+  rel3 .where(A2 > a)
+}
+// scope is attribute and local
+fsc3(a:0) => do {
+  b := a
+  rel3 .where(A2 > b)
+}
+// scope is param, no block
+fsc4(a:0) => rel3 .where(A2 > a)
+
+test_true($lineno$, 2 = rel3 .where(fsc1(A2, 17)) .count)
+test_true($lineno$, 2 = rel3 .where(fsc1a(A2, 17)) .count)
+test_true($lineno$, 2 = fsc2(17) .count)
+test_true($lineno$, 2 = fsc3(17) .count)
+test_true($lineno$, 2 = fsc4(17) .count)
+
 finish($filename$)

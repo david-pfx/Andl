@@ -116,14 +116,13 @@ namespace Andl.Runtime {
     }
 
     // Convert using lookup as context. Used by Invoke.
-    // BUG: depends on static
-    public static DataTableLocal Convert(DataTable other, ILookupValue lookup) {
+    public static DataTableLocal Convert(DataTable other, ILookupValue lookup, Evaluator evaluator) {
       if (other is DataTableLocal)
         return other as DataTableLocal;
       else {
-        Evaluator.Current.PushLookup(lookup);
+        evaluator.PushLookup(lookup);
         var ret = Create(other.Heading, other.GetRows());
-        Evaluator.Current.PopLookup();
+        evaluator.PopLookup();
         return ret;
       }
     }

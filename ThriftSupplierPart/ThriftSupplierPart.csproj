@@ -7,8 +7,8 @@
     <ProjectGuid>{E1AAE15F-D756-4407-B60C-E9941386DAA2}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>ThriftPartSupplier</RootNamespace>
-    <AssemblyName>ThriftPartSupplier</AssemblyName>
+    <RootNamespace>ThriftSupplierPart</RootNamespace>
+    <AssemblyName>ThriftSupplierPart</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
@@ -50,15 +50,26 @@
     <Compile Include="gen-csharp\ThriftSupplierPart\Supplies.cs" />
     <Compile Include="gen-csharp\ThriftSupplierPart\ThriftSupplierPartService.cs" />
     <Compile Include="gen-csharp\ThriftSupplierPart\Tquery.cs" />
-    <Compile Include="Program.cs" />
+    <Compile Include="Client.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="App.config" />
-    <None Include="packages.config" />
-    <None Include="setupd-sp.bat" />
+    <None Include="App.config">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="packages.config">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="run-thriftsp.bat" />
+    <None Include="setup.bat" />
+    <None Include="thriftsupplierpart.andl" />
+    <None Include="ThriftSupplierPart.thrift" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PreBuildEvent>cd $(ProjectDir)
+$(SolutionDir)\thrift-0.9.3.exe --gen csharp $(ProjectName).thrift</PreBuildEvent>
+  </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">

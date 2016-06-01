@@ -24,7 +24,8 @@ namespace Andl.Workbench {
 
     // Create a selector for a specified folder (use test data if null)
     static public DatabaseSelector Create(string databasepath = null) {
-      Logger.OpenTrace(0);
+      Logger.Open(0);
+      Logger.OpenTrace(5);
       return new DatabaseSelector() { DatabaseSearchPath = databasepath ?? TestDatabaseSearchPath };
     }
 
@@ -46,6 +47,7 @@ namespace Andl.Workbench {
       try {
         _settings["Load"] = load.ToString();
         var gateway = GatewayFactory.Create(name, _settings);
+        gateway.OpenSession();
         return new DatabaseConnector { Selector = this, Name = name, Gateway = gateway };
       } catch (ProgramException e) {
         var msg = string.Format("Error: {0}", e.Message);
@@ -54,8 +56,13 @@ namespace Andl.Workbench {
       }
     }
 
-    // generate test data 
-    DatabaseInfo[] GetTestDatabaseInfo() {
+    public void CloseDatabase(DatabaseConnector connector) {
+      if (connector == null) return;
+      connector.Gateway.CloseSession();
+    }
+
+      // generate test data 
+      DatabaseInfo[] GetTestDatabaseInfo() {
       return new DatabaseInfo[] {
         new DatabaseInfo {
           Name = "first",

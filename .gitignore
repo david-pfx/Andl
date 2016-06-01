@@ -158,36 +158,11 @@ $RECYCLE.BIN/
 
 # Local additions go here
 
+/packages
 *.sandl/
 gen-*/
 out*.txt
 z
-
-#/Test/andltest.store
-#/Sample/andltest.store
-#/Work/andltest.store
-#/andl-v1.15f18/Sample/andltest.store
-#/Test/andl.sandl
-
-#/Test/out.txt
-#/Test/outbase.txt
-#/Test/outsql.txt
-/Test/test.txt
-#/Test/z
-#/Thrift/andl.sandl
-#/Thrift/gen-csharp
-#/Thrift/gen-java/thriftsupplierpart
-#/Thrift/gen-py
-#/andl-v1.15f18
-/packages
 *.vandl
 *.zip
 *.btm
-*.sqlite
-*.thrift
-#/Borg/gen-java/borg
-#/Borg/gen-json
-#/Borg/gen-xsd
-#/Thrift/gen-java/ThriftTest
-#/Thrift/gen-java-nb
-#/Thrift/gen-javabean/ThriftTest

@@ -165,7 +165,7 @@ namespace Andl.Runtime {
   /// </summary>
   public class ExpressionEval : ExpressionBlock {
     // This is the evaluator
-    public Evaluator Evaluator { get; private set; }
+    public Evaluator Evaluator { get; set; }
 
     public static ExpressionEval Create(Evaluator evaluator, ExpressionBlock expr) {
       return new ExpressionEval {

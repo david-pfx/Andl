@@ -1,0 +1,44 @@
+﻿// Test Catalog -- create some global variables and test them
+
+// Requires update, then test again in next script
+
+#catalog 
+
+start($filename$)
+
+// See Basic -- same code but now updating catalog
+
+//^devbi := b'05040301'
+//^devbo := true
+//^devnu := 123456789.123456798
+//^devte := 'abc dfe' d'33'
+//^devti := t'2015-12-31 23:59:59.989'
+//^devtu := { A1 := 'abd def', A2 := 89 }
+//^devre  := {{ A1 := 'abd def', A2 := 89}, { A2 := 98, A1 := 'Pqr'}}
+//def ^detus(C1:0, C2:'')
+//^devus := ^detus(45, 'x-y?z')
+
+test_true($lineno$, ^devbi = b'05040301')
+test_true($lineno$, ^devbo = true)
+test_true($lineno$, ^devnu = 123456789.123456798)
+test_true($lineno$, ^devte = 'abc dfe' d'33')
+test_true($lineno$, ^devti = t'2015-12-31 23:59:59.989')
+test_true($lineno$, ^devtu = { A1 := 'abd def', A2 := 89 })
+test_true($lineno$, ^devre = {{ A1 := 'abd def', A2 := 89}, { A2 := 98, A1 := 'Pqr'}})
+test_true($lineno$, ^devus = ^detus(45, 'x-y?z'))
+
+//def1 => 42
+//def2() => 43
+//def3(p1:0) => 44*p1
+//def4(p1:binary,p2:bool,p3:number,p4:time,p5:text) => p1 & p2 & p3 & p4 & p5
+//def5(p1:^devbi,p2:^devbo,p3:^devnu,p4:^devti,p5:^devte) => p1 & p2 & p3 & p4 & p5
+//def6(p1:b'',p2:true,p3:0,p4:t'2016-12-31',p5:'') => p1 & p2 & p3 & p4 & p5
+
+test_true($lineno$, def1     = 42)
+test_true($lineno$, def2     = 43)
+test_true($lineno$, def3(17) = 44*17)
+test_true($lineno$, def4(^devbi,^devbo,^devnu,^devti,^devte) = ^devbi & ^devbo & ^devnu & ^devti & ^devte)
+test_true($lineno$, def5(^devbi,^devbo,^devnu,^devti,^devte) = ^devbi & ^devbo & ^devnu & ^devti & ^devte)
+test_true($lineno$, def4(^devbi,^devbo,^devnu,^devti,^devte) = ^devbi & ^devbo & ^devnu & ^devti & ^devte)
+
+finish($filename$)

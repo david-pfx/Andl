@@ -60,10 +60,6 @@
       <Project>{c7d6d0e8-dc93-4d12-b580-34d09e284873}</Project>
       <Name>Andl.Runtime</Name>
     </ProjectReference>
-    <ProjectReference Include="..\Andl.Sqlite\Andl.Sqlite.csproj">
-      <Project>{e4992699-b0dc-4c46-b4b2-39d06c1bc5e3}</Project>
-      <Name>Andl.Sqlite</Name>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

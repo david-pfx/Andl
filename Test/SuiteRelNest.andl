@@ -1,0 +1,32 @@
+// Test Suite -- testing of nesting
+
+#catalog
+
+start($filename$)
+
+#source 'd:\mydocs\dev\vs14\andl\test'
+var S(csv,{S#,SNAME,STATUS:number,CITY})
+var P(csv,{P#,PNAME,COLOR,WEIGHT:number,CITY})
+var SP(csv,{S#,P#,QTY:number})
+
+// embed an RVA
+
+@s := S
+^s := S
+test_true($lineno$, S = @s)
+test_true($lineno$, @s = S)
+test_true($lineno$, S = ^s)
+test_true($lineno$, ^s = S)
+
+RNVAR1 := rel({ A1:='xyz', A2 := S})
+RNVAR2 := rel({ A1:='xyz', A2 := @s})
+RNVAR3 := rel({ A1:='xyz', A2 := ^s})
+test_true($lineno$, RNVAR1 = RNVAR2)
+test_true($lineno$, RNVAR1 = RNVAR2)
+test_true($lineno$, RNVAR1 = RNVAR3)
+test_true($lineno$, RNVAR1 .{ (A1) } = 'xyz')
+test_true($lineno$, RNVAR1 .{ (A2) } = S)
+test_true($lineno$, RNVAR1 .{ (A2) } = ^s)
+test_true($lineno$, RNVAR1 .{ (A2) } = @s)
+
+finish($filename$)

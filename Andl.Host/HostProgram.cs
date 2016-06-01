@@ -33,13 +33,16 @@ namespace Andl.Host {
       + "\t\tDefault database is 'db', path is 'db.sandl' or 'db.sqandl' for sqlite.\n"
       + "\t/s\tSql database\n"
       + "\t/n\tNo tests, just run as server\n"
+      + "\t/x\tExtended tests\n"
       + "\t/n\tn=1 to 4, set tracing level";
     static readonly Dictionary<string, Action<string>> _options = new Dictionary<string, Action<string>> {
       { "s", (a) => _settings["Sql"] = "true" },
       { "n", (a) => NoTests = true },
+      { "x", (a) => ExtraTests = true },
     };
     static Dictionary<string, string> _settings = new Dictionary<string, string>();
     static bool NoTests { get; set; }
+    static bool ExtraTests { get; set; }
 
     static GatewayBase _gateway;
     // return gateway for this catalog, used by server request handler
@@ -65,7 +68,7 @@ namespace Andl.Host {
         host.Open();
         Logger.WriteLine(1, "Host opened.");
         if (!NoTests) SendTests(address);
-        Console.WriteLine("Press Enter to close.");
+        Console.WriteLine("Server is waiting for requests. Press Enter to close.");
         Console.ReadLine();
         host.Close();
         _gateway.CloseSession();
@@ -119,6 +122,7 @@ namespace Andl.Host {
     // Note: some will trigger error response and raise an exception
 
     static void SendTests(string baseaddress) {
+      Console.WriteLine("Begin tests...");
       SendRequest(baseaddress + "/db/supplier", "GET");
       SendRequest(baseaddress + "/db/repl", "POST", "text", "S join SP");
       SendRequest(baseaddress + "/db/repl", "POST", "json", "'S join SP'");
@@ -127,25 +131,26 @@ namespace Andl.Host {
       SendRequest(baseaddress + "/db/supplier/S2", "GET");
       var newsupp = "[{'Sid':'S9','SNAME':'Adolph','STATUS':99,'CITY':'Melbourne'}]".Replace('\'', '"');
       SendRequest(baseaddress + "/db/supplier/x", "POST", "json", newsupp);
-//#if tests
-      SendRequest(baseaddress + "/db/supplier/", "POST", "json", newsupp);
-      SendRequest(baseaddress + "/db/supplier", "POST", "json", newsupp);
-      SendRequest(baseaddress + "/db/supplier", "DELETE");
-      SendRequest(baseaddress + "/db/supplier/S9", "DELETE");
-      SendRequest(baseaddress + "/db/supplier/S9", "GET");
-      SendRequest(baseaddress + "/db/supplier", "PUT", "json", newsupp);
-      SendRequest(baseaddress + "/db/supplier/S9", "PUT", "json", newsupp);
-      SendRequest(baseaddress + "/db/supplier/S9", "GET");
-      SendRequest(baseaddress + "/db/part", "GET");
-      SendRequest(baseaddress + "/db/part?PNAME=S.*", "GET");
-      SendRequest(baseaddress + "/db/xsupplier", "DELETE");
-      SendRequest(baseaddress + "/db/badsupplier", "GET");
-      SendRequest(baseaddress + "/db/badsupplier", "POST", "json", "post 1");
-//#endif
+      if (ExtraTests) {
+        SendRequest(baseaddress + "/db/supplier/", "POST", "json", newsupp);
+        SendRequest(baseaddress + "/db/supplier", "POST", "json", newsupp);
+        SendRequest(baseaddress + "/db/supplier", "DELETE");
+        SendRequest(baseaddress + "/db/supplier/S9", "DELETE");
+        SendRequest(baseaddress + "/db/supplier/S9", "GET");
+        SendRequest(baseaddress + "/db/supplier", "PUT", "json", newsupp);
+        SendRequest(baseaddress + "/db/supplier/S9", "PUT", "json", newsupp);
+        SendRequest(baseaddress + "/db/supplier/S9", "GET");
+        SendRequest(baseaddress + "/db/part", "GET");
+        SendRequest(baseaddress + "/db/part?PNAME=S.*", "GET");
+        SendRequest(baseaddress + "/db/xsupplier", "DELETE");
+        SendRequest(baseaddress + "/db/badsupplier", "GET");
+        SendRequest(baseaddress + "/db/badsupplier", "POST", "json", "post 1");
+      }
+      Console.WriteLine("Tests completed.");
     }
 
     static void SendRequest(string address, string verb, string kind = null, string content = null) {
-      Logger.WriteLine(1, "Client: Send {0} {1} {2}", address, verb, kind);
+      Logger.WriteLine(1, "Send:    {0} {1} {2}", address, verb, kind);
       HttpWebRequest req = (HttpWebRequest)HttpWebRequest.Create(address);
       req.Method = verb;
 
@@ -164,11 +169,11 @@ namespace Andl.Host {
         resp = e.Response as HttpWebResponse;
       }
 
-      Logger.WriteLine(1, "Client: Receive Response HTTP/{0} {1} {2} type {3} length {4}",
+      Logger.WriteLine(1, "Receive: Response HTTP/{0} {1} {2} type {3} length {4}",
         resp.ProtocolVersion, (int)resp.StatusCode, resp.StatusDescription, resp.ContentType, resp.ContentLength);
       var sr = new StreamReader(resp.GetResponseStream(), Encoding.UTF8);
       var body = sr.ReadToEnd();
-      Logger.WriteLine(1, "Body: <{0}>\n", body);
+      Logger.WriteLine(1, "         Body: <{0}>\n", body);
       resp.Close();
     }
   }

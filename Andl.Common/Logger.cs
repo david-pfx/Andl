@@ -151,14 +151,15 @@ namespace Andl.Common {
   /// Implement writer using debug output
   /// </summary>
   class TraceWriter : TextWriter {
+    StringBuilder _sb = new StringBuilder();
     public override Encoding Encoding {
       get { return Encoding.Default; }
     }
-    public override void Write(string text) {
-      Trace.Write(text);
-    }
-    public override void WriteLine() {
-      Trace.WriteLine("");
+    public override void Write(char c) {
+      if (c == '\n') {
+        Trace.WriteLine("|" + _sb.ToString());
+        _sb.Clear();
+      } else if (c!='\r') _sb.Append(c);
     }
   }
 }

@@ -27,9 +27,10 @@ namespace ThriftTest {
         transport.Open();
         try {
           RunTests(client);
-          Console.WriteLine("Done.");
+          Console.WriteLine("Tests completed.");
         } finally {
           transport.Close();
+          Console.WriteLine("Transport closed.");
         }
       } catch (Exception x) {
         //} catch (TApplicationException x) {
@@ -39,6 +40,7 @@ namespace ThriftTest {
     }
     static void RunTests(ThriftTestService.Client client) {
       ///
+      Console.WriteLine("Testing get variable value");
       RunTest("GetVB", client.GetVB());
       RunTest("GetVD", client.GetVD().ToTime());
       RunTest("GetVI", client.GetVI());
@@ -51,6 +53,7 @@ namespace ThriftTest {
       RunTest("GetVR5", client.GetVR5());
       RunTest("GetVConcat", client.GetVConcat());
 
+      Console.WriteLine("Testing function return");
       RunTest("GetFB", client.GetFB(true));
       RunTest("GetFD", client.GetFD(DateTime.Today.Ticks).ToTime());
       RunTest("GetFI", client.GetFI(12345));
@@ -70,6 +73,7 @@ namespace ThriftTest {
       RunTest("GetFConcat", client.GetFConcat(true, DateTime.Today.Ticks, 12357, 12345.6789, "A concat string"));
 
       // updates
+      Console.WriteLine("Testing relvar update");
       RunTest("GetVR4", client.GetVR4());
       RunTest("AddVR4");
       client.AddVR4(new List<VR4> {
@@ -85,30 +89,32 @@ namespace ThriftTest {
       RunTest("GetVR4", client.GetVR4());
 
       // errors
+      Console.WriteLine("Testing exceptions and errors");
       try {
         client.DoErrorA();
       } catch (Exception ex) {
-        Console.WriteLine("Test {0} exception {1}", "DoErrorA", ex.Message);
+        Console.WriteLine("  Test {0} exception {1}", "DoErrorA", ex.Message);
       }
       try {
         client.DoErrorB();
       } catch (Exception ex) {
-        Console.WriteLine("Test {0} exception {1}", "DoErrorB", ex.Message);
+        Console.WriteLine("  Test {0} exception {1}", "DoErrorB", ex.Message);
       }
+
     }
 
     static void RunTest(string name) {
-      Console.WriteLine("Test {0}", name);
+      Console.WriteLine("  Test {0}", name);
     }
 
     static void RunTest(string name, object value) {
-      Console.WriteLine("Test {0} value {1}", name, value);
+      Console.WriteLine("  Test {0} value {1}", name, value);
     }
 
     static void RunTest(string name, IEnumerable<object> values) {
-      Console.WriteLine("Test {0}", name);
+      Console.WriteLine("  Test {0}", name);
       foreach (var value in values)
-        Console.WriteLine("  {0}", value);
+        Console.WriteLine("    {0}", value);
     }
 
   }

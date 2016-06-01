@@ -1,5 +1,19 @@
 ﻿// thriftsupplierpart.andl -- set up for access by Thrift API
 // 
+
+// Run setup.bat to do some cleanup and these two steps.
+// 1. Compile this with -t and output to <sp> database
+//      >Andl.exe ThriftSupplierPart.andl sp -t
+// 2. Compile generated interface with Thrift and csharp output
+//      >Thrift --gen csharp ThriftSupplierPart.thrift
+
+// Then do this.
+// 3. Build the ThriftSupplierPart client: ThriftSupplierPart (compiles and links to generated code)
+// 4. Run the Thrift server (Ctrl+C to shut down): 
+//      >Andl.Thrift.exe sp
+// 5. From another session, run the ThriftSupplierPart client
+//      >ThriftSupplierPart.exe
+
 #catalog new update
 
 'thriftsupplierpart.andl -- set up for access by Thrift API'

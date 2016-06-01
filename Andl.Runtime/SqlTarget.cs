@@ -231,15 +231,18 @@ namespace Andl.Runtime {
     // Can only be Rename, Project, Open, Aggregate: only last two needed
     public bool RegisterExpression(ExpressionEval expr, int naccum) {
       if (!(expr.IsOpen || expr.HasFold)) return true;
-      if (ExprDict.ContainsKey(expr.Serial)) return true;
 
+      // Check whether new registration or update (to new evaluator)
+      // TODO: check it's the same expr
+      var updating = ExprDict.ContainsKey(expr.Serial);
       var name = SqlGen.FuncName(expr);
       ExprDict[expr.Serial] = expr;
-      Logger.WriteLine(3, "Register {0} naccum={1} expr='{2}'", name, naccum, expr);
+      Logger.WriteLine(3, $"Register {name} upd={updating} nacc={naccum} expr={expr}");
+      if (updating) return true;
 
-      // FIX: would be better in PostgresDatabase, but does not have access to sql gen (and data types).
       // notify database, set up callbacks
       // may require sql to register (PG)
+      // FIX: would be better in PostgresDatabase, but does not have access to sql gen (and data types).
       var args = expr.Lookup.Columns.Select(c => ToSqlCommon[c.DataType.BaseType]).ToArray();
       var retn = ToSqlCommon[expr.DataType.BaseType];
       if (expr.HasFold) {
@@ -252,7 +255,7 @@ namespace Andl.Runtime {
         OptionalExpressionSql(_sqlgen.CreateAggregate(name, expr.Lookup.Columns, stype, init, name, name + "F"));
         return FunctionCreator.CreateAggFunction(name, expr.Serial, naccum, args, retn);
       }
-      //if (expr.IsOpen)
+      // expr.IsOpen
       OptionalExpressionSql(_sqlgen.CreateFunction(name, expr.Lookup.Columns, expr.DataType));
       return FunctionCreator.CreateFunction(name, FuncTypes.Open, expr.Serial, args, retn);
     }
@@ -376,6 +379,9 @@ namespace Andl.Runtime {
   //////////////////////////////////////////////////////////////////////
   /// <summary>
   /// Implement an evaluator that can be called from Sql
+  /// 
+  /// Look up serial in dict, call expression but get current evaluator
+  /// or scope may be wrong.
   /// </summary>
   public class SqlEvaluator : ISqlEvaluateSerial {
     const int _accumnul = -1;

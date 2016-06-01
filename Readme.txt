@@ -21,6 +21,10 @@ mobile, desktop, web or cloud. The user interface can be written in
 any popular language or technology, such as Java, Dot Net, JavaScript 
 and using any available communications method.
 
+Andl has its own in-memory database and a persistence mechanism for simple
+tasks and experimentation. It can also use a relational database backend,
+with Sqlite and Postgres currently implemented.
+
 Sample programs are included to demonstrate these capabilities.
 
 FIRST DO THIS
@@ -84,13 +88,18 @@ Also take a look at:
     fibonacci.andl          -- 100 fibonacci numbers - fast!
     mandelbrot.andl         -- mandelbrot set using while
     sudoku-orig.andl        -- sudoku solver using while
-    chinook.andl            -- sqlite database
+    chinook.andl            -- popular relational database of songs (SQL only)
+
+You can run all the samples like this.
+    run-samples
+    run-samples sql         -- uses Sqlite
+    run-samples pg          -- requires a default installation of Postgres
 
 SQLITE
 ======
 
 You can run the same scripts again like this to trigger Sql mode, based on Sqlite. 
-Don't try sample5, it won't work in Sql mode.
+Don't try sample5 or 6, they won't work in Sql mode.
 
     C>run setup.andl /s
     C>run sample1.andl /s
@@ -113,7 +122,7 @@ More details at http://thrift.apache.org/.
 Andl has a built-in capability to generate Thrift interfaces, and the Andl.Thrift
 project is a Thrift server.
 
-The Thrift folder contains samples for the Thrift implementation. 
+The ThriftTest folder contains samples for the Thrift implementation. 
 
 BUILDING ANDL
 =============

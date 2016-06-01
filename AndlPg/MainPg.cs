@@ -16,14 +16,19 @@ namespace Andl.PgClient {
     const string Help = "AndlPg <script.ext> [<database name>] [/options]\n"
       + "\t\tScript extension must be andl, sql, pgsql or pgs.\n"
       + "\t\tDefault script is test.andl, database is 'db'.\n"
+      + "\t/d\tAdd #source directive for current directory"
+      + "\t/p[o]\tAdd Postgres preamble and postamble (o for preamble only)"
+      + "\t/s\tSql (ignored)"
       + "\t/n\tn=1 to 4, set tracing level";
     static readonly Dictionary<string, Action<string>> _options = new Dictionary<string, Action<string>> {
-      { "s", (a) => _settings["Sql"] = "true" },   // for compatibility
       { "p", (a) => { _usepreamble = true; _usepostamble = (a != "o"); } },
+      { "d", (a) => { AddSource = true; } },
+      { "s", (a) => _settings["Sql"] = "true" },   // for compatibility
     };
     static Dictionary<string, string> _settings = new Dictionary<string, string>();
     static bool _usepreamble = false;
     static bool _usepostamble = false;
+    internal static bool AddSource = false;
 
     static TextWriter Out { get { return _output; } }
     static TextWriter _output;
@@ -211,6 +216,10 @@ CREATE OR REPLACE FUNCTION plandl_compile(program text, source text) returns tex
       Logger.WriteLine(1, $"Compile {source}");
       var compilecmd = "SELECT plandl_compile($1, $2)";
       var switches = $"#noisy {Logger.Level}\n";
+      if (Program.AddSource) {
+        var cwd = Directory.GetCurrentDirectory();
+        switches += $"#source '{cwd}'\n";
+      }
       ExecSql("BEGIN", new string[] { });
       ExecSql(compilecmd, new string[] { switches + program, source });
       ExecSql("COMMIT", new string[] { });

@@ -1,21 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Thrift;
 using Thrift.Protocol;
 using Thrift.Transport;
-using ThriftSupplierPart;
 
-namespace ThriftPartSupplier {
+namespace ThriftSupplierPart {
   class SupplierPartClient {
     static void Main(string[] args) {
       try {
         TTransport transport = new TSocket("localhost", 9095);
         TProtocol protocol = new TBinaryProtocol(transport);
         ThriftSupplierPartService.Client client = new ThriftSupplierPartService.Client(protocol);
+        Console.WriteLine("Open transport.");
         transport.Open();
+        Console.WriteLine("Begin tests.");
         try {
           Console.WriteLine("find_all");
           var ss = client.findall_supplier();
@@ -74,11 +71,12 @@ namespace ThriftPartSupplier {
           foreach (var u in uu)
             Console.WriteLine(" {0}", u);
 
+          Console.WriteLine("Tests completed.");
         } finally {
           transport.Close();
+          Console.WriteLine("Transport closed.");
         }
       } catch (Exception x) {
-        //} catch (TApplicationException x) {
         Console.WriteLine(x.ToString());
       }
 
