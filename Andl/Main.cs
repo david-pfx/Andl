@@ -22,7 +22,7 @@ namespace Andl.Main {
   /// Handles command line arguments.
   /// </summary>
   class Program {
-    const string AndlVersion = "Andl 1.0b2";
+    const string AndlVersion = "Andl 1.0b1606";
     static bool _csw = false; // compile only
     static bool _isw = false; // interactive: min level 1, can accept input
     static bool _nsw = false;  // new catalog
