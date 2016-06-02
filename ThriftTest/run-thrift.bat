@@ -1,21 +1,20 @@
 @echo Run Thrift Test sample
-: usage: sql, pg
+: usage: sql
 
 @setlocal
 @call ..\setvars.bat
-set andl=%binpath%\Andl /1 %*
-if (%1)==(sql) set andl=%binpath%\Andl /1 /s %2$
-set thrift=%binpath%\Andl.Thrift /1 /o %2$
-if (%1)==(sql) set thrift=%binpath%\Andl.Thrift /1 /s /o %2$
-if (%1)==(pg) set andl=%binpath%\AndlPg /1 /p %2$
+set andl=%binpath%\Andl /1 /t %*
+set thrift=%binpath%\Andl.Thrift /1 /o 
+if (%1)==(sql) set andl=%binpath%\Andl /1 /t /s %2 %3 %4 %5
+if (%1)==(sql) set thrift=%binpath%\Andl.Thrift /1 /s /o 
 
 @rm *.sqandl
 @for /d %%f in (*.sandl) do rd %%f /s /q
 @del *.thrift
-@for /d %f in (gen-*) do rd %f /s /q
+@for /d %%f in (gen-*) do rd %%f /s /q
 
-%andl% ThriftTest.andl test -t %*
+%andl% ThriftTest.andl test
 %thriftexe% --gen csharp ThriftTest.thrift
 
-start %thrift% test %*
-%binpath%\ThriftTest.exe %*
+start %thrift% test 
+%binpath%\ThriftTest.exe 

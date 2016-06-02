@@ -6,7 +6,7 @@ call ..\setvars.bat
 set andl=%binpath%\Andl
 if (%1)==(sql) set andl=%binpath%\Andl /s
 set host=%binpath%\Andl.Host /1 %*
-if (%1)==(sql) set host=%binpath%\Andl.Host /1 /s %2$
+if (%1)==(sql) set host=%binpath%\Andl.Host /1 /s %2 %3 %4 %5
 
 @if exist out.txt rm out.txt
 @rm *.sqandl

@@ -61,7 +61,6 @@
       <SubType>Designer</SubType>
     </None>
     <None Include="run-thriftsp.bat" />
-    <None Include="setup.bat" />
     <None Include="thriftsupplierpart.andl" />
     <None Include="ThriftSupplierPart.thrift" />
   </ItemGroup>
