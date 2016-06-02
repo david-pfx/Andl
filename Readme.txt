@@ -23,7 +23,7 @@ and using any available communications method.
 
 Andl has its own in-memory database and a persistence mechanism for simple
 tasks and experimentation. It can also use a relational database backend,
-with Sqlite and Postgres currently implemented.
+with Sqlite and now Postgres in the latest release.
 
 Sample programs are included to demonstrate these capabilities.
 
@@ -33,8 +33,8 @@ FIRST DO THIS
 Grab the binary release and unzip it somewhere.
 
 Go to the Sample folder in a command prompt and run the following commands.
-    C>setup.bat         -- set up the sample databases
-    C>runwb.bat     -- run the workbench (next section)
+    C>runsamples.bat    -- set up the sample databases, compile and run programs
+    C>runwb.bat         -- run the workbench (next section)
 
 If you like to use the command line, then try these:
     C>run /?            -- view the command line arguments
@@ -46,29 +46,11 @@ If you like to use the command line, then try these:
     C>run sample5.andl
     C>run sample6.andl
 
-The default program is 'test.andl' and the default catalog is 'data'.
-
-WORKBENCH
-=========
-
-The Workbench is an interactive program to view a database amd its catalog, and 
-to execute queries.  
+The default program is 'test.andl' and the default catalog is 'db'.
 
 Andl reads program source code, compiles and executes the program and then stores 
 compiled operators, types and global variables in a catalog, where they can be used by 
 other programs. In the Workbench you can see the contents of the catalog.
-
-1. Choose a database and see the relations and contents of its catalog. Choose Workbench.
-2. The Andl program 'workbench.andl' is loaded by default. Press F5 to run it.
-3. Press F7 to reload the catalog and F5 to run it again.
-4. Or try Ctrt+N for a new program and Ctrl+F7 for a new catalog.
-
-Function keys
--------------
-    F5 to run the current program in its entirety.
-    Select text and F5 to run part of a program as a query.
-    F7 to reload the catalog (you get errors if you try to define something twice).
-    Ctrl+F7 to load a new empty catalog.
 
 Here are the sample programs.
     sample1.andl            -- scalar expressions
@@ -95,23 +77,36 @@ You can run all the samples like this.
     run-samples sql         -- uses Sqlite
     run-samples pg          -- requires a default installation of Postgres
 
+
+WORKBENCH
+=========
+
+The Workbench is an interactive program to view a database amd its catalog, and 
+to execute queries.  
+
+1. Choose a database and see the relations and contents of its catalog. Choose Workbench.
+2. The Andl program 'workbench.andl' is loaded by default. Press F5 to run it.
+3. Press F7 to reload the catalog and F5 to run it again.
+4. Or try Ctrt+N for a new program and Ctrl+F7 for a new catalog.
+
+Function keys
+-------------
+    F5 to run the current program in its entirety.
+    Select text and F5 to run part of a program as a query.
+    F7 to reload the catalog (you get errors if you try to define something twice).
+    Ctrl+F7 to load a new empty catalog.
+
+
 SQLITE
 ======
 
-You can run the same scripts again like this to trigger Sql mode, based on Sqlite. 
-Don't try sample5 or 6, they won't work in Sql mode.
+Each of the samples can be run using Sqlite, as shown. All relations are stored in 
+Sqlite as native tables. Apart from performance and two unimplemented features, 
+the behaviour is identical. If you like, you can use the sqlite3.exe program 
+to verify that this is so.
 
-    C>run setup.andl /s
-    C>run sample1.andl /s
-    C>run sample2.andl /s
-    C>run sample3.andl /s
-    C>run sample4.andl /s
+    C>sqlite3.exe <name>.sqandl ".dump"
 
-This time all relations are stored in Sqlite. Apart from performance and one 
-unimplemented feature, the behaviour is identical. If you like, you can use 
-the sqlite3.exe program to verify that this is so.
-
-    C>sqlite3.exe sample_sqlite.sqandl ".dump"
 
 THRIFT
 ======
@@ -120,27 +115,40 @@ Thrift is a platform-agnostic interface and remote procedure call technology.
 More details at http://thrift.apache.org/.
 
 Andl has a built-in capability to generate Thrift interfaces, and the Andl.Thrift
-project is a Thrift server.
+project is a Thrift server. The ThriftTest folder contains samples for the 
+Thrift implementation. 
 
-The ThriftTest folder contains samples for the Thrift implementation. 
+ThriftTest contains a client-server sample based on Apache Thrift. Run it like this:
+    cd ThriftTest
+    run-thrift.bat
+    run-thrift.bat sql      -- Sqlite
 
-BUILDING ANDL
-=============
+ThriftSupplierPart contains another client-server sample based on Apache Thrift. Run it like this:
+    cd ThriftSupplierPart
+    run-thriftsp.bat
+    run-thriftsp.bat sql    -- Sqlite
 
-The source code can be downloaded from https://github.com/davidandl/Andl.
 
-The project should build 'out of the box' in Visual Studio 2015 with the .NET 
-Framework 4.5, and possibly earlier versions. It builds an executable program 
-that compiles and runs Andl programs, and several other components. 
+TEST SUITE
+==========
 
-These additional samples require the source release.
+Test contains the test suite. Run them like this:
+    cd Test
+    runsuite.bat
+    runsuite.bat sql        -- Sqlite
+    runsuite.bat pg         -- requires a default installation of Postgres
+
 
 HOST
 ====
 
 Andl.Host is a server for a native Web API and a REPL interface based on WCF. When 
 run it is self-testing. It also contains a mini-website that is a REPL client,
-which should be launced in a local browser.
+which should be launced in a local browser. Run it like this:
+    cd Host
+    run-host.bat
+    run-host.bat sql    -- Sqlite
+
 
 SERVER
 ======
@@ -153,6 +161,19 @@ Single Page Application. The amount of code to produce a working application
 is small.
     
 The REPL page is not yet working.
+
+
+BUILDING ANDL
+=============
+
+The source code can be downloaded from https://github.com/davidandl/Andl.
+
+The project should build 'out of the box' in Visual Studio 2015 with the .NET 
+Framework 4.5, and possibly earlier versions. It builds an executable program 
+that compiles and runs Andl programs, and several other components. 
+
+The batch file build-rls.bat clones the repository and builds using MSBUILD.
+
 
 LICENCE
 =======
@@ -167,4 +188,3 @@ Pegasus, Avalon Edit, Thrift, Jquery, Knockout. The reader is referred to those
 products for relevant licence terms.
 
 Please contact me with any questions or suggestions at david@andl.org.
-
