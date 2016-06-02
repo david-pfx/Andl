@@ -1,12 +1,12 @@
 : build Andl release
 
-@if "%1"="" echo"Usage: build-rls <dirpath>
-@if "%1"="" exit /b
+@if "%1"=="" echo"Usage: build-rls <dirpath>
+@if "%1"=="" exit /b
 
 @setlocal
 @set rlsdir=%1
 
-if not exist %rlsdir% git clone Andl %rlsdir% -b master
+if not exist %rlsdir% git clone Andl-master %rlsdir% -b master
 @cd %rlsdir%
 
 c:\sw\nuget restore Andl-master.sln

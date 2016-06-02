@@ -4,9 +4,9 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Web.Http;
-using Andl.Gateway;
 using Newtonsoft.Json;
 using System.Threading.Tasks;
+using Andl.Common;
 
 namespace Andl.Server.Controllers {
   public class KeyValue {
@@ -51,7 +51,7 @@ namespace Andl.Server.Controllers {
     IHttpActionResult Common(string method, string database, string name, string id, KeyValuePair<string, string>[] query = null, string jsonbody = null) {
 
       var gateway = WebApiApplication.GetGateway(database);
-      var ret = (gateway == null) ? Gateway.Result.Failure("database not found: " + database)
+      var ret = (gateway == null) ? Result.Failure("database not found: " + database)
         : gateway.JsonCall(method, name, id, query, jsonbody);
       if (ret.Ok) return Ok(ret.Value);
       return BadRequest(ret.Message);

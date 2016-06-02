@@ -7,7 +7,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Andl", "Andl\Andl.csproj", 
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{B8BDB516-8721-4448-AA66-FEA391AF9ABF}"
 	ProjectSection(SolutionItems) = preProject
+		build-rls.bat = build-rls.bat
 		Readme.txt = Readme.txt
+		setvars.bat = setvars.bat
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Andl.Runtime", "Andl.Runtime\Andl.Runtime.csproj", "{C7D6D0E8-DC93-4D12-B580-34D09E284873}"
@@ -24,23 +26,76 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Andl.Client", "Andl.Client\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Andl.Thrift", "Andl.Thrift\Andl.Thrift.csproj", "{360CD9B1-360A-4735-80E6-2A6F3F6B1D2C}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Test", "Test", "{4C7FFE8E-722C-4667-8EA1-C6B3FC937106}"
+	ProjectSection(SolutionItems) = preProject
+		Test\runsuite.bat = Test\runsuite.bat
+		Test\SetupSuite.andl = Test\SetupSuite.andl
+		Test\SuiteBasic.andl = Test\SuiteBasic.andl
+		Test\SuiteDefer.andl = Test\SuiteDefer.andl
+		Test\SuiteRelBasic.andl = Test\SuiteRelBasic.andl
+		Test\SuiteRelDyadic.andl = Test\SuiteRelDyadic.andl
+		Test\SuiteRelFold.andl = Test\SuiteRelFold.andl
+		Test\SuiteRelNest.andl = Test\SuiteRelNest.andl
+		Test\SuiteRelOrder.andl = Test\SuiteRelOrder.andl
+		Test\SuiteRelWhile.andl = Test\SuiteRelWhile.andl
+		Test\SuiteUpdateCat1.andl = Test\SuiteUpdateCat1.andl
+		Test\SuiteUpdateCat2.andl = Test\SuiteUpdateCat2.andl
+		Test\SupplierData.andl = Test\SupplierData.andl
+	EndProjectSection
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Andl.Peg", "Andl.Peg\Andl.Peg.csproj", "{29813458-2C61-4D97-BD9C-857E35985A6C}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Andl.Gateway", "Andl.Gateway\Andl.Gateway.csproj", "{1201FEFF-69FC-4720-8B03-059697B41ED3}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Andl.Workbench", "Andl.Workbench\Andl.Workbench.csproj", "{7CAA8FA0-A35A-4036-878A-A42C9FD2C334}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThriftTest", "ThriftTest\ThriftTest.csproj", "{5F392292-ABC4-4C27-919E-D3C6DD327A54}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Andl.Postgres", "Andl.Postgres\Andl.Postgres.csproj", "{7F850100-999D-4D43-9448-FEBF628FB9FB}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "plandl", "plandl\plandl.vcxproj", "{26E5719B-4B67-4C5B-912C-58E5E12F6AF6}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Andl.Common", "Andl.Common\Andl.Common.csproj", "{300417D4-DCFA-4F93-BAFB-B9E9E73FBCD6}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AndlPg", "AndlPg\AndlPg.csproj", "{FBF7D81B-F99F-42EC-B73A-6E78AF87FAB1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThriftTest", "ThriftTest\ThriftTest.csproj", "{5F392292-ABC4-4C27-919E-D3C6DD327A54}"
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "plandl", "plandl\plandl.vcxproj", "{26E5719B-4B67-4C5B-912C-58E5E12F6AF6}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Sample", "Sample", "{ADA91939-C083-4796-B07B-401B717440CE}"
+	ProjectSection(SolutionItems) = preProject
+		Sample\100doors.andl = Sample\100doors.andl
+		Sample\99bottles.andl = Sample\99bottles.andl
+		Sample\chinook.andl = Sample\chinook.andl
+		Sample\DbixCdSample.andl = Sample\DbixCdSample.andl
+		Sample\family_tree.andl = Sample\family_tree.andl
+		Sample\fibonacci.andl = Sample\fibonacci.andl
+		Sample\mandelbrot.andl = Sample\mandelbrot.andl
+		Sample\recursive.andl = Sample\recursive.andl
+		Sample\runsamples.bat = Sample\runsamples.bat
+		Sample\sample1.andl = Sample\sample1.andl
+		Sample\sample2.andl = Sample\sample2.andl
+		Sample\sample3.andl = Sample\sample3.andl
+		Sample\sample4.andl = Sample\sample4.andl
+		Sample\sample5.andl = Sample\sample5.andl
+		Sample\sample6.andl = Sample\sample6.andl
+		Sample\setup-chinook.andl = Sample\setup-chinook.andl
+		Sample\setup-workbench.andl = Sample\setup-workbench.andl
+		Sample\setup.andl = Sample\setup.andl
+		Sample\SPPsample1.andl = Sample\SPPsample1.andl
+		Sample\sudoku.andl = Sample\sudoku.andl
+		Sample\SupplierData.andl = Sample\SupplierData.andl
+		Sample\workbench.andl = Sample\workbench.andl
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThriftSupplierPart", "ThriftSupplierPart\ThriftSupplierPart.csproj", "{E1AAE15F-D756-4407-B60C-E9941386DAA2}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Host", "Host", "{42D4655C-A718-4577-9589-577B335E02B8}"
+	ProjectSection(SolutionItems) = preProject
+		Host\App.config = Host\App.config
+		Host\hostsetup.andl = Host\hostsetup.andl
+		Host\Readme.txt = Host\Readme.txt
+		Host\run-host.bat = Host\run-host.bat
+	EndProjectSection
+EndProject
+
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

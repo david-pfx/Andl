@@ -113,35 +113,31 @@ namespace Andl.Gateway {
       { "DatabasePath", SettingOptions.Common },
       { "Sql", SettingOptions.Common },
       { "DatabaseName", SettingOptions.Common },
-      //{ "^Database.*$", SettingOptions.Split },
     };
 
     static Dictionary<string, GatewayBase> _gatewaydict = new Dictionary<string, GatewayBase>();
 
-    //public static GatewayBase AddGateway(Dictionary<string, string> settings) {
-    //  var common = settings
-    //    .Where(s => _settingsdict.ContainsKey(s.Key) && _settingsdict[s.Key] == SettingOptions.Common)
-    //    .ToDictionary(k => k, v => v);
-    //  var gateway = GatewayImpl.Create(settings);
-    //  if (settings.ContainsKey("DatabaseName"))
-    //    _gatewaydict[settings["DatabaseName"]] = gateway;
-    //  return gateway;
-    //}
-
     // Add one gateway for each DatabaseN key, plus common settings
     public static void AddGateways(Dictionary<string, string> settings) {
+      //Logger.Open(3);
+      //Logger.OpenTrace(5);
+      var cd = Directory.GetCurrentDirectory();
       var common = settings
         .Where(s => _settingsdict.ContainsKey(s.Key) && _settingsdict[s.Key] == SettingOptions.Common)
-        .ToDictionary(k => k, v => v);
+        .ToDictionary(k => k.Key, v => v.Value);
+      // root folder is set from Server object during app startup
+      var root = (settings.ContainsKey("RootFolder")) ? settings["RootFolder"] : ".";
       foreach (var key in settings.Keys) {
         if (Regex.IsMatch(key, "^Database.*$")) {
           var values = settings[key].Split(',');
-          var settingsx = new Dictionary<string, string>(settings);
-          _gatewaydict[values[0]] = GatewayFactory.Create(values[2], settingsx);
-          //settingsx.Add("DatabaseName", values[0]);
-          //if (values.Length >= 2) settingsx.Add("Sql", values[1]);
-          //if (values.Length >= 3) settingsx.Add("DatabasePath", values[2]);
-          //_gatewaydict[values[0]] = GatewayImpl.Create(settingsx);
+          var path = values[2].Replace("$RootFolder$", root);
+          var gateway = GatewayFactory.Create(path, common);
+
+          // This is an attempt to avoid later multi-threaded problems loading the catalog.
+          // The type system is single-instance and is shared across database instances,
+          // which may not be a good thing.
+          gateway.OpenSession();
+          _gatewaydict[values[0]] = gateway;
         }
       }
     }
@@ -161,6 +157,10 @@ namespace Andl.Gateway {
     IParser _parser;
     string _database;
     Dictionary<string, string> _settings;
+
+    public override string ToString() {
+      return $"Gateway {_catalog.DatabaseName} {_catalog.DatabaseKind}";
+    }
 
     public static GatewayImpl Create(string database, Dictionary<string, string> settings) {
       var ret = new GatewayImpl() {

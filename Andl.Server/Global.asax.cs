@@ -19,7 +19,6 @@ namespace Andl.Server {
       RouteConfig.RegisterRoutes(RouteTable.Routes);
       BundleConfig.RegisterBundles(BundleTable.Bundles);
 
-      //Andl.API.Runtime.StartUp();
       AppStartup();
     }
 
@@ -27,6 +26,7 @@ namespace Andl.Server {
       var appsettings = ConfigurationManager.AppSettings;
       var settings = appsettings.AllKeys
         .ToDictionary(k => k, v => appsettings[v]);
+      settings["RootFolder"] = Server.MapPath(null);
       GatewayManager.AddGateways(settings);
     }
 
@@ -35,34 +35,5 @@ namespace Andl.Server {
       return GatewayManager.GetGateway(database);
     }
 
-    //enum SettingOptions { Ignore, Andl, Other }
-
-    //Dictionary<string, SettingOptions> _settingsdict = new Dictionary<string,SettingOptions> {
-    //  { "Noisy", SettingOptions.Andl },
-    //};
-
-    //// Access the required database
-    //public static Gateway GetGateway(string database = null) {
-    //  return _gateway[database];
-    //}
-    //static Dictionary<string, Gateway> _gateway = new Dictionary<string,Gateway>();
-
-    //void AppStartup() {
-    //  var appsettings = ConfigurationManager.AppSettings;
-    //  var settings = appsettings.AllKeys
-    //    .Where(k => _settingsdict.ContainsKey(k) && _settingsdict[k] == SettingOptions.Andl)
-    //    .ToDictionary(k => k, v => appsettings[v]);
-    //  foreach (var key in appsettings.AllKeys) {
-    //    if (Regex.IsMatch(key, "^Database.*$")) {
-    //      var values = appsettings[key].Split(',');
-    //      var settingsx = new Dictionary<string, string>(settings);
-    //      settingsx.Add("DatabaseName", values[0]);
-    //      if (values.Length >= 2) settingsx.Add("DatabaseSqlFlag", values[1]);
-    //      if (values.Length >= 3) settingsx.Add("DatabasePath", values[2]);
-    //      _gateway[values[0]] = Andl.API.Gateway.StartUp(settingsx);
-    //    }
-    //  }
-    //  //_gateway = Andl.API.Gateway.StartUp(settings);
-    //}
   }
 }
