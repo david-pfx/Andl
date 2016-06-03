@@ -1,7 +1,7 @@
 : set variables for running programs (relative from project folder)
 
-: debug version
-set binpath=..\debug
+set binpath=..\bin
+if exist ..\debug set binpath=..\debug
 set andlexe=%binpath%\andl.exe
 set thriftexe=..\thrift-0.9.3.exe
 
