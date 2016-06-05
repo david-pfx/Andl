@@ -16,10 +16,11 @@ namespace Andl.PgClient {
     const string Help = "AndlPg <script.ext> [<database name>] [/options]\n"
       + "\t\tScript extension must be andl, sql, pgsql or pgs.\n"
       + "\t\tDefault script is test.andl, database is 'db'.\n"
-      + "\t/d\tAdd #source directive for current directory"
-      + "\t/p[o]\tAdd Postgres preamble and postamble (o for preamble only)"
-      + "\t/s\tSql (ignored)"
-      + "\t/n\tn=1 to 4, set tracing level";
+      + "\t\tHardwired for user postgres, password from pgpass.\n"
+      + "\t/d\tAdd #source directive for current directory\n"
+      + "\t/p[o]\tAdd Postgres preamble and postamble (o for preamble only)\n"
+      + "\t/s\tSql (ignored)\n"
+      + "\t/n\tn=1 to 4, set tracing level (and add #noisy directive)";
     static readonly Dictionary<string, Action<string>> _options = new Dictionary<string, Action<string>> {
       { "p", (a) => { _usepreamble = true; _usepostamble = (a != "o"); } },
       { "d", (a) => { AddSource = true; } },
@@ -47,13 +48,14 @@ namespace Andl.PgClient {
         if (!File.Exists(path)) throw ProgramError.Fatal($"file does not exist: {path}");
         var input = new StreamReader(path).ReadToEnd();
 
-        var conn = ConnectionInfo.Create("localhost", "postgres", "zzxx", database);
+        var conn = ConnectionInfo.Create("localhost", "postgres", database);
         var pgw = WrapLibpq.Create(conn, _output);
         // use npgsql instead
         //var conn = ConnectionInfo.Create("localhost", "admin", "zzxx", "Try1");
         //var pgw = WrapNpgsql.Create(conn);
 
-        if (_usepreamble) pgw.RunSql(Boilerplate.Preamble, "preamble");
+        var bp = new Boilerplate();
+        if (_usepreamble) pgw.RunSql(bp.Preamble(), "preamble");
 
         switch (Path.GetExtension(path)) {
         case ".andl":
@@ -68,7 +70,7 @@ namespace Andl.PgClient {
           throw ProgramError.Fatal($"no action defined for {path}");
         }
 
-        if (_usepostamble) pgw.RunSql(Boilerplate.Postamble, "postamble");
+        if (_usepostamble) pgw.RunSql(bp.Postamble(), "postamble");
 
         pgw.Close();
       } catch (ProgramException ex) {
@@ -91,17 +93,16 @@ namespace Andl.PgClient {
     public string Password { get; set; }
     public string Database { get; set; }
     public string AdoConnectionString {
-      get { return $"Host={Host};Username={Username};password={Password};Database={Database}"; }
+      get { return $"Host={Host};Username={Username};Database={Database}"; }
     }
     public string PgConnectionString {
-      get { return $"host={Host} user={Username} password={Password} dbname={Database}"; }
+      get { return $"host={Host} user={Username} dbname={Database}"; }
     }
 
-    public static ConnectionInfo Create(string host, string username, string password, string database) {
+    public static ConnectionInfo Create(string host, string username, string database) {
       return new ConnectionInfo {
         Host = host,
         Username = username,
-        Password = password,
         Database = database,
       };
     }
@@ -151,21 +152,45 @@ namespace Andl.PgClient {
   /// </summary>
   public class Boilerplate {
     // preamble for loading plandl. note lines end in ';'
-    static string plandl_path = @"D:/MyDocs/dev/vs14/Andl/x64/Debug/plandl";
-    static string gateway_path = @"D:\MyDocs\dev\vs14\Andl\Debug\Andl.Gateway.dll";
-    static int _noisy { get { return Logger.Level; } }
+    const string _plandl_filename = @"x64\plandl.dll";
+    static string _gateway_filename= @"Andl.Gateway.dll";
+    string _base_path;
+    //static string plandl_path = @"D:/MyDocs/dev/vs14/Andl/x64/Debug/plandl";
+    //static string gateway_path = @"D:\MyDocs\dev\vs14\Andl\Debug\Andl.Gateway.dll";
+    int _noisy { get { return Logger.Level; } }
 
-    public static string Preamble {
-      get { return $@"
+    public string Preamble() {
+      return $@"
 DROP FUNCTION IF EXISTS plandl_call_handler() CASCADE;
-CREATE OR REPLACE FUNCTION plandl_call_handler() RETURNS language_handler AS '{plandl_path}' LANGUAGE C;
-    CREATE OR REPLACE LANGUAGE plandl HANDLER plandl_call_handler;
+CREATE OR REPLACE FUNCTION plandl_call_handler() RETURNS language_handler 
+  AS '{PlandlPath()}' LANGUAGE C;
+CREATE OR REPLACE LANGUAGE plandl HANDLER plandl_call_handler;
 CREATE OR REPLACE FUNCTION plandl_compile(program text, source text) returns text
-    AS '{gateway_path}|Noisy={_noisy}' LANGUAGE plandl;"; }    // '|Debug,Noisy=2' 
+  AS '{GatewayPath()}|Noisy={_noisy}' LANGUAGE plandl;";     // '|Debug,Noisy=2' 
     }
 
-    public static string Postamble {
-      get { return @"DROP FUNCTION plandl_call_handler() CASCADE;"; }
+    public string Postamble() { 
+      return @"DROP FUNCTION plandl_call_handler() CASCADE;";
+    }
+
+    string PlandlPath() {
+      var path = Path.Combine(_base_path, _plandl_filename);
+      if (!File.Exists(path))
+        throw ProgramError.Fatal($"File not found: {path}.");
+      return path;
+    }
+
+    string GatewayPath() {
+      var path = Path.Combine(_base_path, _gateway_filename);
+      if (!File.Exists(path))
+        throw ProgramError.Fatal($"File not found: {path}.");
+      return path;
+    }
+
+    public Boilerplate() {
+      var fn = AppDomain.CurrentDomain.BaseDirectory;
+      _base_path = Path.GetDirectoryName(fn);
+      //_base_path = Path.GetDirectoryName(Environment.GetCommandLineArgs()[0]);
     }
   }
 

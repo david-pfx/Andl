@@ -1,7 +1,7 @@
 : Quick run through of available samples
 : usage: all, sql, pg
 
-:@echo off
+@echo off
 setlocal
 call ..\setvars.bat
 set andl=%binpath%\Andl /1 %*
@@ -16,8 +16,9 @@ rm *.sqandl
 for /d %%f in (*.sandl) do rd %%f /s /q
 copy chinook.sqlite chinook_sqlite.sqandl
 
-@date /t >out.txt
+date /t >out.txt
 
+@echo on
 : create catalog
 %andl% >> out.txt setup.andl 
 %andl% >> out.txt sample1.andl
