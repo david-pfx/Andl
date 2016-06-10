@@ -14,7 +14,6 @@ if (%1)==(pg) set ord=no
 if exist out.txt rm out.txt
 rm *.sqandl
 for /d %%f in (*.sandl) do rd %%f /s /q
-copy chinook.sqlite chinook_sqlite.sqandl
 
 date /t >out.txt
 
@@ -38,6 +37,7 @@ if not (%ord%)==(no) %andl% >> out.txt sudoku.andl
 if (%1)==(all) %andl% >> out.txt mandelbrot.andl
 : these for workbench
 %andl% >> out.txt setup-workbench.andl
+if (%1)==(sql) copy chinook.sqlite chinook_sqlite.sqandl
 if (%1)==(sql) %andl% >> out.txt setup-chinook.andl chinook_sqlite.sqandl
 if (%1)==(sql) %andl% >> out.txt chinook.andl chinook_sqlite.sqandl
 

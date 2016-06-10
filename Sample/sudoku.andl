@@ -15,15 +15,15 @@ poss := units .select{ index } join digits .select{ ndigit }
 possu := units join digits .select{ ndigit }
 
 // useful functions
-showb(t:text) => do {
+def showb(t:text) => do {
     seq(11) .select{ N, line:= 
         if(N mod 4 = 3, 
            fill('-', 9), 
-           right(left(t, 9 + (N - N div 4) * 9), 9))}
+           right(left(t, 9 + (N - N div 4) * 9), 9)) }
 }
 
 // Show a set of knowns. First fill out all index values, then convert to text
-showunk(k:poss) => do {
+def showunk(k:poss) => do {
     t := (k union (units ajoin k)
       .select{ index, ndigit := 0}) join digitsx 
       .select{ ndigit, sdigit }

@@ -17,10 +17,10 @@ S .order(CITY) .select{ CITY, SS := fold(+,STATUS) }
 S .order(%CITY) .select{ SS := fold(+,STATUS) }
 S .order(%CITY) .select{ CITY, SS := fold(+,STATUS) }
 
-sum(n:0) => fold(+,n)
-hi(n:0) => fold(max,n)
-lo(n:0) => fold(min,n)
-ave(n:0) => fold(+,n)/fold(+,1)
+def sum(n:0) => fold(+,n)
+def hi(n:0) => fold(max,n)
+def lo(n:0) => fold(min,n)
+def ave(n:0) => fold(+,n)/fold(+,1)
 
 // --- ordered extension - means extension with access to other rows
 

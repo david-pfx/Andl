@@ -2,9 +2,9 @@
 
 #catalog new update
 
-test_count := 0
-error_count := 0
-test_true(lineno:0, condition:bool) => do { 
+var test_count := 0
+var error_count := 0
+def test_true(lineno:0, condition:bool) => do { 
     test_count := test_count + 1
     if(condition, 
         do{}, 
@@ -14,18 +14,18 @@ test_true(lineno:0, condition:bool) => do {
         }
     ) 
 }
-start(filename:'') => do {
+def start(filename:'') => do {
     write( now() & " Test suite for '" & filename & "'")
     test_count := 0
     error_count := 0
 }
-finish(filename:'') => do { 
+def finish(filename:'') => do { 
     write( now() & " Test suite for '" & filename & "' complete. Tests = " & test_count & " errors = " & error_count)
 }
 
 // These functions are here to check they save properly in the catalog
-fold_sum(n:0) => fold(+,n)
-fold_ave(n:0) => fold(+,n)/fold(+,1)
+def fold_sum(n:0) => fold(+,n)
+def fold_ave(n:0) => fold(+,n)/fold(+,1)
 
 // additional catalog entries
 vbi := b'0102030405'
@@ -34,7 +34,7 @@ vnu := 123456789.123456789
 vte := 'abcdef'
 vti := '2015-31-12 23:59:59.9999'
 
-def ust1(C1:0, C2:'')
+type ust1(C1:0, C2:'')
 usv1 := ust1(23, 'pqrst')
 tup1 := { A1 := 'abc', A2 := 17, A3 := 0 }
 rel3 := {{ A1:'', A2:0, A3:0 }

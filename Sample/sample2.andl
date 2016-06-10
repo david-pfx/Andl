@@ -100,10 +100,10 @@ S .select{ CITY,
 } 
 
 // Note: fold() is only allowed in projection, but looks nicer in a function
-sum(n:0) => fold(+,n)
-hi(n:0) => fold(max,n)
-lo(n:0) => fold(min,n)
-ave(n:0) => fold(+,n)/fold(+,1)
+def sum(n:0) => fold(+,n)
+def hi(n:0) => fold(max,n)
+def lo(n:0) => fold(min,n)
+def ave(n:0) => fold(+,n)/fold(+,1)
 S .select{ CITY, total := sum(STATUS), max := hi(STATUS), min := lo(STATUS), average := ave(STATUS) } 
 
 // It can get more complicated

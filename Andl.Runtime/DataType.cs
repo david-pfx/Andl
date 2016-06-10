@@ -47,7 +47,6 @@ namespace Andl.Runtime {
     // fake types, compiler only
     public static readonly DataType Unknown;
     public static readonly DataType Any;
-    public static readonly DataType Default;  // default for import
     public static readonly DataType Infer;    // infer function return from first arg
     // runtime argument types, not user visible
     public static readonly DataType Code;
@@ -68,6 +67,8 @@ namespace Andl.Runtime {
     public static readonly DataType Table;
     public static readonly DataType Row;
     public static readonly DataType User;
+    // provide a default for imported data
+    public static DataType Default { get { return Text; } }
 
     public static Dictionary<string, DataType> Dict { get; private set; }
     public static Dictionary<Type, DataType> TypeDict { get; private set; }
@@ -78,7 +79,9 @@ namespace Andl.Runtime {
     static DataTypes() {
       Dict = new Dictionary<string, DataType>();
       TypeDict = new Dictionary<Type, DataType>();
+      //Default = Text;
 
+      // specials for the compiler
       Unknown = DataType.Create("unknown", null);
       Infer = DataType.Create("infer", null);
       Any = DataType.Create("any", typeof(TypedValue));
@@ -90,12 +93,14 @@ namespace Andl.Runtime {
         null, () => VoidValue.Default);
       Code = DataType.Create("code", typeof(CodeValue), null, 
         v => CodeValue.Create((ExpressionBlock)v), () => CodeValue.Default);
+      Pointer = DataType.Create("reference", typeof(PointerValue), typeof(IntPtr),
+        v => null, () => PointerValue.Default, TypeFlags.Variable);
+
+      // types allowed for declarations
       Bool = DataType.Create("bool", typeof(BoolValue), typeof(bool),
         v => BoolValue.Create((bool)v), () => BoolValue.Default, TypeFlags.Variable);
       Binary = DataType.Create("binary", typeof(BinaryValue), typeof(byte[]),
         v => null, () => BinaryValue.Default, TypeFlags.Variable);
-      Pointer = DataType.Create("reference", typeof(PointerValue), typeof(IntPtr),
-        v => null, () => PointerValue.Default, TypeFlags.Variable);
       Number = DataType.Create("number", typeof(NumberValue), typeof(decimal),
         v => NumberValue.Create((decimal)v), () => NumberValue.Default, TypeFlags.Ordered | TypeFlags.Ordinal | TypeFlags.Variable);
       Time = DataType.Create("time", typeof(TimeValue), typeof(DateTime),
@@ -104,6 +109,7 @@ namespace Andl.Runtime {
         v => TextValue.Create((string)v), () => TextValue.Default, TypeFlags.Ordered | TypeFlags.Variable);
       Heading = DataType.Create("heading", typeof(HeadingValue), null,
         v => HeadingValue.Create((DataHeading)v), () => HeadingValue.Default, TypeFlags.HasHeading);
+
       // specials -- actually subtypes, one created here, more by user code
       // defaults will be overwritten for generated types
       Row = DataType.Create("tuple", typeof(TupleValue), null,
@@ -112,7 +118,6 @@ namespace Andl.Runtime {
         v => RelationValue.Create((DataTable)v), () => RelationValue.Default, TypeFlags.HasHeading | TypeFlags.Variable);
       User = DataType.Create("user", typeof(UserValue), null,
         v => UserValue.Create((TypedValue)v), () => UserValue.Default, TypeFlags.HasHeading | TypeFlags.HasName | TypeFlags.Variable);
-      Default = Text;
     }
 
     // dummy to force class construction
@@ -195,6 +200,7 @@ namespace Andl.Runtime {
         NativeType = nativetype,
         Flags = flags,
       };
+      if (flags.HasFlag(TypeFlags.HasHeading)) dt.Heading = DataHeading.Empty;
       DataTypes.Dict[name] = dt;
       if (valuetype != null) DataTypes.TypeDict[valuetype] = dt;
       return dt;

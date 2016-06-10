@@ -9,7 +9,7 @@ numset := seq(ndoors)  .select{ N:=N+1 }
 // a function to work out the final state of each door
 // a true value means this door was flipped on pass N
 // the values are folded using xor aggregation to produce a final result
-isopen(x:0) => numset .select{ fold(xor, mod(x,N) = 0) }
+def isopen(x:0) => numset .select{ fold(xor, mod(x,N) = 0) }
 
 // an outer loop that applies the function to all doors
 doors := numset .select{ *open := isopen(N) }

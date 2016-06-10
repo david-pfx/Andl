@@ -27,10 +27,10 @@ namespace Andl.Peg {
       return e.GetCode();
     }
 
-    // create code segment wrapped for fold and deffunc
+    // create code segment wrapped for fold and deffunc, called via Invoke
     public ByteCode Compile(Symbol invop, Symbol op, TypedValue seed) {
       var e = new Emitter();
-      e.OutName(Opcodes.LDCATR, op);
+      e.OutName(Opcodes.LDCATR, op.Name);  // FIX: overloads?
       e.Out(Opcodes.LDACCBLK);
       e.OutLoad(NumberValue.Create(-1));
       e.Out(Opcodes.LDAGG, seed);
@@ -46,9 +46,9 @@ namespace Andl.Peg {
   public class AstEmpty : AstStatement { }    // blank line or directive
   public class AstEof : AstStatement { }      // end of file
 
-  public class AstDefine : AstStatement { }   // type definition
-  public class AstUserType : AstDefine { }
-  public class AstSubType : AstDefine { }
+  public class AstTypedef : AstStatement { }   // type definition
+  public class AstUserType : AstTypedef { }
+  public class AstSubType : AstTypedef { }
 
   /// <summary>
   /// Base class for AST fields used in transform
@@ -142,11 +142,12 @@ namespace Andl.Peg {
     public override void Emit(Emitter e) {
       foreach (var s in Statements) {
         s.Emit(e);
-        if (!(s is AstDefine)) e.Out(Opcodes.EOS);
+        if (!(s is AstTypedef)) e.Out(Opcodes.EOS);
       }
     }
   }
 
+  // Emit code for a VAR declaration block
   public class AstVarBlock : AstBlock {
     public override void Emit(Emitter e) {
       foreach (var s in Statements) {
@@ -217,12 +218,13 @@ namespace Andl.Peg {
   // An OpCall is a FunCall missing its first argument
   public class AstOpCall : AstFunCall { }
 
+  // Emit code to call a user defined function via Invoke
   public class AstDefCall : AstFunCall {
-    public Symbol DefFunc { get; set; }
+    public CallInfo Callinfo { get; set; }
     public int AccumBase { get; set; }
     public override void Emit(Emitter e) {
       Logger.Assert(DataType.IsVariable || DataType == DataTypes.Void, DataType);
-      e.OutName(Opcodes.LDCATR, DefFunc);
+      e.OutName(Opcodes.LDCATR, Callinfo.Name);
       e.Out(Opcodes.LDACCBLK);
       e.OutLoad(NumberValue.Create(AccumBase));
       foreach (var a in Arguments) a.Emit(e);
@@ -288,6 +290,7 @@ namespace Andl.Peg {
     }
   }
 
+  // Node with list of fields
   public class AstTransformer : AstOpCall {
     public bool Lift { get; set; }
     public AstField[] Elements { get; set; }
@@ -296,21 +299,23 @@ namespace Andl.Peg {
     }
   }
 
+  // Emit code to get the value of a component by name
   public class AstComponent : AstFunCall {
     public override void Emit(Emitter e) {
       Logger.Assert(DataType.IsVariable || DataType == DataTypes.Void, DataType);
       Logger.Assert(Arguments.Length == 1 && Arguments[0].DataType is DataTypeUser);
       Arguments[0].Emit(e);
-      e.OutName(Opcodes.LDCOMP, Func);
+      e.OutName(Opcodes.LDCOMP, Func.Name);
     }
   }
 
+  // Emit code to get the value of a tuple field by name
   public class AstFieldOf : AstFunCall {
     public override void Emit(Emitter e) {
       Logger.Assert(DataType.IsVariable || DataType == DataTypes.Void, DataType);
       Logger.Assert(Arguments.Length == 1 && Arguments[0].DataType is DataTypeTuple);
       Arguments[0].Emit(e);
-      e.OutName(Opcodes.LDFIELDT, Func);
+      e.OutName(Opcodes.LDFIELDT, Func.Name);
     }
   }
 

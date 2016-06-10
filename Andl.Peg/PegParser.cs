@@ -208,10 +208,12 @@ namespace Andl.Peg {
       Logger.Level = int.Parse(level);
       return "";
     }
+    // capture #source
+    // expand to absolute path if starts with "." (may need to be more clever?)
     string SourceDirective(Cursor state, string path) {
       State = state;
       try {
-        Cat.SourcePath = Path.GetFullPath(path);
+        Cat.SourcePath = (path.StartsWith(".")) ? Path.GetFullPath(path) : path;
       } catch {
         ParseError("invalid path '{0}'", path);
       }

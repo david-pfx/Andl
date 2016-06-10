@@ -119,7 +119,7 @@ v3
 
 // Deferred evaluation with do block and arguments defines a function
 // Note that local variables names can be reused
-v4(a:'') => do {
+def v4(a:'') => do {
   vx := a
   vx
 }
@@ -127,27 +127,27 @@ v4(v1)
 
 // Arguments can be specified with literal types or with other objects
 tt := t'01/01/2001'
-v5(a:'',b:0,c:false,d:tt) => do {
+def v5(a:'',b:0,c:false,d:tt) => do {
   a & b & c & d
 }
 v5(v1,42,true,t'31/12/2015')
 
 // Arguments can be specified with named types
-v6(a:text,b:number,c:bool,d:time) => do {
+def v6(a:text,b:number,c:bool,d:time) => do {
   a & b & c & d
 }
 v6(v1,42,true,t'2015/01/01')
 
 // Usually the function type is determined by type inference. However for 
 // recursion, the function name must be typed explicitly
-fact:0(n:0) => if(n<=1,1,n*fact(n-1))
+def fact:0(n:0) => if(n<=1,1,n*fact(n-1))
 fact(20)
 
 wait
 // ===== Types =====
 
 // create a user-defined type, with components of any type
-def ut0(t:text)
+type ut0(t:text)
 u0 := ut0('abc')
 // show the value
 u0
@@ -157,7 +157,7 @@ u0.t
 'The value ' & u0 & ' and its component ' & u0.t
 
 // multiple components
-def ut1(n:number, t:text, d:time)
+type ut1(n:number, t:text, d:time)
 uv2 := 'Hello World!'
 t2 := t'2015/01/31'
 u1 := ut1(42, uv2, t2)
@@ -169,7 +169,7 @@ u2 := ut1(41, "!"&uv2, t'2000/01/01')
 u1 > u2
 
 // Deferred function
-f7(u:ut1) => do {
+def f7(u:ut1) => do {
     "n:" & u.n & " t:" & u.t & " d:" & u.d
 }
 f7(u1)

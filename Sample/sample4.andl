@@ -13,7 +13,7 @@ xyt := {{x:='',y:=''}}
 
 // define a recursive function that takes a relation of that type as an argument
 // Note: relvar needs to be local to function, not in database
-tranclo:xyt(xy:xyt) => do {
+def tranclo:xyt(xy:xyt) => do {
     $ttt := xy .select{ *z := y } compose xy .select{ *z := x } union xy
     if($ttt = xy, $ttt, tranclo($ttt))
 }
@@ -39,7 +39,7 @@ wait
 
 typedemo => do {
     types := {{ name:'', text:'', format:'', pp:'' }}
-    addval(a:'',b:'',c:'',d:'') => do {
+    def addval(a:'',b:'',c:'',d:'') => do {
         update types union {{ name:= a, text := b, format:=c, pp := d }}
     }
     bo5 := true
@@ -56,7 +56,7 @@ typedemo => do {
     addval(tu5.type, tu5.text, tu5.format, tu5.pp)
     re5 := {{ n:='Smith', a := 99},{ n:='Jones', a := 98}}
     addval(re5.type, re5.text, re5.format, '<omitted>')
-    def ut5(name:'', age:0)
+    type ut5(name:'', age:0)
     uv5 := ut5('Brown', 97)
     addval(uv5.type, uv5.text, uv5.format, uv5.pp)
     types
@@ -66,7 +66,7 @@ typedemo
 wait
 // User-defined types are intended to be used easily for relation attributes, for example:
 
-def sid(text:text), pid(text:text), scity(text:text), pcity(text:text)
+type sid(text:text), pid(text:text), scity(text:text), pcity(text:text)
 userdemo => do {
     Supp := S .select{ Sid := sid(S#), Sname := SNAME, Status := STATUS, Scity := scity(CITY) }
     Part := P .select{ Pid := pid(P#), Pname := PNAME, Pcolor := COLOR, Pweight := WEIGHT, Pcity := pcity(CITY) }

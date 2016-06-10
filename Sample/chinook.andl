@@ -3,8 +3,7 @@
 // C>Andl.exe Chinook.andl Chinook_sqlite.sqandl
 
 // these lines were used to import these tables, which are now in the catalog
-//var Album(), Employee(), InvoiceLine(), PlaylistTrack(), Artist(), Genre(), MediaType()
-//var Track(), Customer(), Invoice(), Playlist()
+//var Track(db), Customer(db), Invoice(db), Playlist(db)
 #catalog sql
 
 // Display selected schemas

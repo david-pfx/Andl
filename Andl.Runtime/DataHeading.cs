@@ -136,7 +136,11 @@ namespace Andl.Runtime {
     // Safety check that the values provided match this heading
     public void CheckValues(TypedValue[] values) {
       Logger.Assert(values.Length == Degree, "values length");
-      Logger.Assert(values.Select((v, x) => v.DataType == Columns[x].DataType).All(b => b), "values type");
+      Func<DataType, DataType, bool> match = (act, exp) => act == exp 
+        || act is DataTypeRelation && exp.Heading.Degree == 0 
+        || act is DataTypeTuple && exp.Heading.Degree == 0;
+      Logger.Assert(values.Select((v, x) => match(v.DataType, Columns[x].DataType)).All(b => b), "values type");
+      //Logger.Assert(values.Select((v, x) => v.DataType == Columns[x].DataType).All(b => b), "values type"); // HACK:
     }
 
     // --- create ------------------------------------------------------

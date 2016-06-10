@@ -99,13 +99,13 @@ namespace Andl.Peg {
       Logger.Assert(opcode != Opcodes.NOP, symbol);
       if (opcode == Opcodes.LDVALUE)
         OutLoad(symbol.Value);
-      else OutName(opcode, symbol);
+      else OutName(opcode, symbol.Name);
     }
 
-    // Output a symbol as its name
-    public void OutName(Opcodes opcode, Symbol symbol) {
+    // Output an opcode to load by name
+    public void OutName(Opcodes opcode, string name) {
       Out(opcode);
-      _out.Write(symbol.Name);
+      _out.Write(name);
     }
 
     void OutCall(Opcodes opcode, string name, int fixargs, int varargs) {

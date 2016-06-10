@@ -89,6 +89,7 @@ namespace Andl.Runtime {
     public static readonly string DefaultDatabaseExtension = ".sandl";
     public static readonly string DefaultSqlDatabaseExtension = ".sqandl";
     public static readonly string DefaultDatabaseName = "db";
+    public static readonly string DefaultDatabaseSource = "db";
     public static readonly string CatalogTableName = "andl_catalog";
     public static readonly DatabaseKinds DefaultDatabaseKind = DatabaseKinds.Memory;
     public static readonly DatabaseKinds DefaultDatabaseSqlServer = DatabaseKinds.Sqlite;
@@ -330,7 +331,7 @@ namespace Andl.Runtime {
     // Used during compilation or startup -- if successful, variable will be created with flags
     // Then use AddRelvar to import the value
     public DataType GetRelvarType(string source, string what) {
-      var islinked = (source == "");
+      var islinked = (source == DefaultDatabaseSource);
       if (islinked) {
         if (SqlFlag) {
           var heading = SqlTarget.Current.GetTableHeading(what);
@@ -562,13 +563,13 @@ namespace Andl.Runtime {
       return entry.Value;
     }
 
-    // Value replaces existing, type should be compatible
-    // Supports assignment. Handles linked tables.
+    // Value replaces existing. Supports assignment. 
+    // Compiler is responsible for checking type and mutability state
     public void SetValue(string name, TypedValue value) {
       if (_catalog.IsSystem(name))
         throw ProgramError.Fatal("Catalog", "cannot set '{0}'", name);
       var entry = FindEntry(name);
-      if (entry == null && _level == ScopeLevels.Local) {
+      if (entry == null) {
         AddEntry(name, value.DataType, EntryKinds.Value);
         entry = FindEntry(name);
       }
@@ -715,6 +716,7 @@ namespace Andl.Runtime {
     public TypedValue Value { get; set; }
     public object NativeValue { get; set; }
     public CatalogScope Scope { get; set; }
+
     public bool IsUnsaved { get; set; }
     public bool IsLoaded { get; set; }
 

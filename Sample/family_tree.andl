@@ -1,7 +1,6 @@
 ﻿// some test queries based on a family tree
 
-#source 'D:\MyDocs\dev\vs14\Andl\Sample'
-var family_tree(csv, {id:number,firstname,lastname,year_of_birth:number,year_of_death:number,father_id:number,mother_id:number})
+var family_tree:{id:number,firstname,lastname,year_of_birth:number,year_of_death:number,father_id:number,mother_id:number}(csv)
 
 family_tree.schema
 
@@ -12,7 +11,7 @@ $xyt := {{x:=0,y:=0}}
 
 // define a recursive function that takes a relation of that type as an argument
 // Note: relvar needs to be local to function, not in database
-tranclo:$xyt(xy:$xyt) => do {
+def tranclo:$xyt(xy:$xyt) => do {
     $ttt := xy .select{ *z := y } compose xy .select{ *z := x } union xy
     if($ttt = xy, $ttt, tranclo($ttt))
 }

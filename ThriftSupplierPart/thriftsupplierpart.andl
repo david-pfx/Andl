@@ -19,7 +19,9 @@
 'thriftsupplierpart.andl -- set up for access by Thrift API'
 
 // load initial data
-var S(csv), P(csv), SP(csv)
+var S:{S#,SNAME,STATUS:number,CITY}(csv)
+var P:{P#,PNAME,COLOR,WEIGHT:number,CITY}(csv)
+var SP:{S#,P#,QTY:number}(csv)
 
 Supplier := S .select{ *Sid:=S# }
 Part := P .select{ *Pid := P# }
@@ -28,30 +30,30 @@ Tquery := {{ Key:text,Value:text }}
 
 // CRUD interface for supplier table
 
-find_supplier(sid:text) => do {
+def find_supplier(sid:text) => do {
     Supplier .where(Sid = sid)
 }
 
-findall_supplier() => do {
+def findall_supplier() => do {
     Supplier .order(Sid)
 }
 
-create_supplier(s:Supplier) => do {
+def create_supplier(s:Supplier) => do {
     update Supplier union s
 }
 
-delete_supplier(sid:text) => do {
+def delete_supplier(sid:text) => do {
     update Supplier .where(Sid = sid) .select{}
 }
 
-update_supplier(sid:text, s:Supplier) => do {
+def update_supplier(sid:text, s:Supplier) => do {
     update Supplier .where(Sid = sid) .select{}
     update Supplier union s
 }
 
-findall_part() => Part
+def findall_part() => Part
 
-findsome_part(query:Tquery) => do {
+def findsome_part(query:Tquery) => do {
     pattern := query .where(Key = 'PNAME') .select{ (Value) }
     Part .where(PNAME =~ pattern)
 }

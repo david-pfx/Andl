@@ -6,7 +6,7 @@ start($filename$)
 
 //-- relations
 //ROQN := rel({ N:0 })
-ROQ1 := rel(       {A0:0, A1:'', A2:0, A3:time})
+ROQ1 := rel:{A0:0, A1:'', A2:0, A3:time}()
 ROQ5 := rel:ROQ1( (1, 'abc-', 6, t'2016-01-02'), 
                     (2, 'def-', 5, t'2016-01-03'), 
                     (3, 'g-',   5, t'2016-01-01'), 

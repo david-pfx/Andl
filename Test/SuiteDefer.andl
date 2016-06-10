@@ -13,20 +13,20 @@ dv2 => av1*2 + dv1*2
 test_true($lineno$, 88 = dv2)
 
 //--- arguments
-fn1(x:0) => x*10
+def fn1(x:0) => x*10
 test_true($lineno$, 30 = fn1(3))
 
-fn3(x:0) => seq(x)
+def fn3(x:0) => seq(x)
 test_true($lineno$, seq(4) = fn3(4))
 
-fact:0(n:0) => if(n<=1,1,n*fact(n-1))
+def fact:0(n:0) => if(n<=1,1,n*fact(n-1))
 test_true($lineno$, 720 = fact(6))
 
 //--- do blocks
-pot:0(n:0) => do { if(n<=0,1,10*pot(n-1)) }
+def pot:0(n:0) => do { if(n<=0,1,10*pot(n-1)) }
 test_true($lineno$, 1000000 = pot(6))
 
-dfact:0(n:0) => do {
+def dfact:0(n:0) => do {
   nn => n*dfact(n-1)
   if(n<=1,1,nn)
 }
@@ -34,20 +34,20 @@ test_true($lineno$, 720 = dfact(6))
 test_true($lineno$, 2432902008176640000 = dfact(20))
 
 //--- scopes
-fns0(t:'') => do {
+def fns0(t:'') => do {
   a := t & 'xxx'
   a
 }
 test_true($lineno$, 'xyzxxx' = fns0('xyz'))
 
-fns1(n:0) => do {
+def fns1(n:0) => do {
   a := n+2
   a - 2
 }
 test_true($lineno$, 7 = fns1(7))
 
 rv1 := {{ A1:='abc', A2:=17 }}
-fns2(rr:rv1) => do {
+def fns2(rr:rv1) => do {
   a := rr
   rr
 }
@@ -55,30 +55,30 @@ test_true($lineno$, rv1 = fns2(rv1))
 
 // --- user types as parameters
 
-rv1 := {{ A2:number, A1:text }}
-rv2 := {{ A1:='abc', A2:=17 }}
-def usr1(A2:number, A1:text)
-def usr2(A1:text, A2:number)
+rv3 := {{ A2:number, A1:text }}
+rv4 := {{ A1:='abc', A2:=17 }}
+type usr1(A2:number, A1:text)
+type usr2(A1:text, A2:number)
 
-fr1(arg:rv1) => do {
+def fr1(arg:rv3) => do {
   a := arg
   a
 }
-fr2(arg:rv2) => do {
+def fr2(arg:rv4) => do {
   a := arg
   a
 }
-fr3(arg:usr1) => do {
+def fr3(arg:usr1) => do {
   a := arg
   a
 }
-fr4(arg:usr2) => do {
+def fr4(arg:usr2) => do {
   a := arg
   a
 }
 
-test_true($lineno$, rv2            = fr1(rv2))
-test_true($lineno$, rv2            = fr2(rv2))
+test_true($lineno$, rv4            = fr1(rv4))
+test_true($lineno$, rv4            = fr2(rv4))
 test_true($lineno$, usr1(3, 'abc')  = fr3(usr1(3, 'abc')))
 test_true($lineno$, usr2('abc', 4)  = fr4(usr2('abc', 4)))
 
@@ -93,12 +93,28 @@ stv3 := fnret2
 test_true($lineno$, 1111 = stv3)
 
 fnret3 => do {
-    def ut3(C1:0, C2:'')
+    type ut3(C1:0, C2:'')
     1112
 }
 test_true($lineno$, 1112 = fnret3)
-stv3 := fnret3
-test_true($lineno$, 1112 = stv3)
+stv4 := fnret3
+test_true($lineno$, 1112 = stv4)
+
+// -- overloads
+
+def fov() => ''
+def fov(a:'') => a
+def fov(a:0) => '' & a
+def fov(a:0,b:'') => a & b
+def fov(a:'',b:0) => a & b
+def fov(a:bool,b:number,c:text) => a & b & c
+
+test_true($lineno$, '' = fov())
+test_true($lineno$, 'xxx' = fov('xxx'))
+test_true($lineno$, '0.2' = fov(1/5))
+test_true($lineno$, 'xxx0.2' = fov('xxx',1/5))
+test_true($lineno$, '0.2xxx' = fov(1/5,'xxx'))
+test_true($lineno$, 'true0.2xxx' = fov(true,1/5,'xxx'))
 
 finish($filename$)
 //andl_catalog

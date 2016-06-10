@@ -56,11 +56,9 @@ namespace Andl.Peg {
       var match = false;
       var hasoverloads = symbol.CallInfo.OverLoad != null;
       for (var cinf = symbol.CallInfo; cinf != null && !match; cinf = cinf.OverLoad) {
-        var argts = cinf.Arguments;
-        var nargsi = Math.Min(symbol.NumArgs, argts.Length); // max no to check
+        var nargsi = Math.Min(symbol.NumArgs, cinf.NumArgs); // max no to check
         if (datatypes.Length == nargsi
-          && Enumerable.Range(0, nargs).All(x => TypeMatch(argts[x].DataType, datatypes[x]))) {  
-        //match = Enumerable.Range(0, nargs).All(x => TypeMatch(argts[x].DataType, datatypes[x]));
+          && Enumerable.Range(0, nargsi).All(x => TypeMatch(cinf.Arguments[x].DataType, datatypes[x]))) {  
           if (match)
             Parser.ParseError("'{0}' ambiguous type match", symbol.Name);
           match = true;
@@ -72,17 +70,13 @@ namespace Andl.Peg {
         }
       }
       if (!match)
-        Parser.ParseError("'{0}' no matching function definition", symbol.Name);
+        Parser.ParseError("no definition matches call to '{0}'", symbol.Name);
       if (symbol.IsDyadic)
         CheckDyadicType(symbol, datatypes[0], datatypes[1], ref datatype);
       else if (datatype == DataTypes.Table || datatype == DataTypes.Infer)
         CheckInferType(symbol, datatypes, ref datatype);
       else if (datatype == DataTypes.Unknown)
         Parser.ParseError($"{symbol.Name}: cannot infer return type");
-      //if (nargs >= 1 && (datatype == DataTypes.Table && datatypes[0] is DataTypeRelation
-      //                   || datatype == DataTypes.Unknown))
-      //  datatype = datatypes[0];
-      //if (datatype == DataTypes.Table || datatype == DataTypes.Unknown) Parser.ParseError("cannot determine return type: {0}", symbol.Name);
       Logger.Assert(datatype.Flags.HasFlag(TypeFlags.Variable) || datatype == DataTypes.Void, datatype.Name);
     }
 

@@ -27,7 +27,7 @@ namespace Andl.Peg {
     // function name
     public string Name { get; private set; }
     // system specific caller info
-    public DataType ReturnType { get; private set; }
+    public DataType ReturnType { get; set; }
     // array of arguments as columns
     public DataColumn[] Arguments { get; private set; }
     // chain for overloaded functions with same name
@@ -35,7 +35,7 @@ namespace Andl.Peg {
     // number of accumulators used
     public int AccumCount { get; set; }
     // declared number of arguments
-    public int NumArgs { get { return Arguments.Length; } }
+    public int NumArgs { get { return Arguments == null ? 0 : Arguments.Length; } }
     // return true if a fold was used
     public bool HasFold { get { return AccumCount > 0; } }
     // return true if an ordered func was used
@@ -63,12 +63,13 @@ namespace Andl.Peg {
     }
 
     // Create for user defined
-    public static CallInfo Create(string name, DataType rettype, DataColumn[] argcols, int accums = 0) {
+    public static CallInfo Create(string name, DataType rettype, DataColumn[] argcols, int accums = 0, CallInfo overload = null) {
       var ci = new CallInfo {
         Name = name,
         ReturnType = rettype,
         Arguments = argcols,
         AccumCount = accums,
+        OverLoad = overload,
       };
       return ci;
     }

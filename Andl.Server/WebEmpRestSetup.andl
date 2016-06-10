@@ -6,31 +6,29 @@
 
 // load initial data
 var WebEmp(csv)
-//def WebEmp:db(csv)
-//WebEmp
 
-newempno := WebEmp .select{ fold(max,EmpNo)}
+newempno := WebEmp .select{ fold(max,EmpNo) }
 //newempno
 
 // this is the CRUD interface using REST
-get_employee_id(empno:text) => do {
+def get_employee_id(empno:text) => do {
     WebEmp .where(EmpNo.text = empno)
 }
 
-get_employee() => do {
+def get_employee() => do {
     WebEmp .order(EmpNo)
 }
 
-add_employee(emp:WebEmp) => do {
+def add_employee(emp:WebEmp) => do {
     update WebEmp union emp .select{ * EmpNo := newempno}
     newempno := newempno+1
 }
 
-delete_employee_id(empno:text) => do {
+def delete_employee_id(empno:text) => do {
     update WebEmp .where(EmpNo.text = empno) .select{}
 }
 
-put_employee_id(empno:text, emp:WebEmp) => do {
+def put_employee_id(empno:text, emp:WebEmp) => do {
     update WebEmp .where(EmpNo.text = empno) .select{}
     update WebEmp union emp
 }

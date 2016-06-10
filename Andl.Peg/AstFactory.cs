@@ -79,11 +79,11 @@ namespace Andl.Peg {
       };
     }
 
-    public AstDefine DefBlock(IList<AstDefine> defines) {
-      return new AstDefine { DataType = DataTypes.Void };
+    public AstTypedef DefBlock(IList<AstTypedef> defines) {
+      return new AstTypedef { DataType = DataTypes.Void };
     }
 
-    public AstDefine UserType(string ident, AstField[] fields) {
+    public AstTypedef UserType(string ident, AstField[] fields) {
       var ff = fields.Select(a => DataColumn.Create(a.Name, a.DataType)).ToArray();
       var ut = DataTypeUser.Get(ident, ff);
       Symbols.AddUserType(ident, ut);
@@ -91,44 +91,64 @@ namespace Andl.Peg {
       return new AstUserType { DataType = DataTypes.Void };
     }
 
-    public AstDefine SubType(string ident, AstType super) {
+    public AstTypedef SubType(string ident, AstType super) {
       var cols = new DataColumn[] { DataColumn.Create("super", super.DataType) };
       var ut = DataTypeUser.Get(ident, cols);
       Symbols.AddUserType(ident, ut);
       return new AstSubType { DataType = DataTypes.Void };
     }
 
-    public AstStatement Source(string ident, AstLiteral source, bool star, IList<AstField> fields) {
-      var what = (star) ? "*" : ident;
-      var datatype = (fields == null) 
-        ? Cat.GetRelvarType(source.ToString(), what) // peek the file
-        : DataTypeRelation.Get(Headingof(fields));
-      if (datatype == null) Parser.ParseError("cannot find '{0}' as '{1}'", ident, source);
-      Symbols.AddVariable(ident, datatype, SymKinds.CATVAR);
+    // name, type and source of a single VAR declaration, can be
+    // a) VAR ident : type
+    // b) VAR ident [: typewithheading] (source)
+    public AstStatement VarDecl(string ident, AstType type, AstLiteral source) {
+      var what = ident; // reserved for future use
+      var isimport = (source != null);
+      var datatype = (type == null) ? null
+        : isimport ? Types.Relof(type.DataType)
+        : type.DataType;
+      if (isimport && datatype == null) {
+        if (type != null) Parser.ParseError($"type with heading required for '{ident}'");
+        datatype = Cat.GetRelvarType(source.ToString(), what); // peek the file
+        if (datatype == null) Parser.ParseError("cannot find '{0}' as '{1}'", ident, source);
+      }
+      Symbols.AddVariable(ident, datatype, SymKinds.CATVAR, true);
       Symbols.AddCatalog(Symbols.FindIdent(ident));
-      return GenFunCall(FindFunc(SymNames.Import), Args(source, Text(ident), Text(what), Text(Parser.Cat.SourcePath)));
+      return (isimport) ? GenFunCall(FindFunc(SymNames.Import), Args(source, Text(ident), Text(what), Text(Parser.Cat.SourcePath)))
+        : GenFunCall(FindFunc(SymNames.Assign), Args(Text(ident), Literal(datatype.DefaultValue())));
     }
 
+    // finalise function definition, from basic definition previously created
+    // set or check return type
+    // BUG: a persistent function must not reference a non-persistent global
     public AstStatement Deferred(string ident, AstType rettype, IList<AstField> arguments, AstBodyStatement body) {
       var op = FindDefFunc(ident);
       if (op.DataType == DataTypes.Unknown) op.DataType = body.DataType;
+      else if (op.DataType != body.DataType) Parser.ParseError($"{ident} return type mismatch");
+
+      // assume top overload is the one being defined
+      op.CallInfo.ReturnType = op.DataType;
       op.CallInfo.AccumCount = body.AccumCount;
       op.CallInfo.HasWin = body.HasWin;
-      if (op.NumArgs == 2 && arguments[0].DataType == op.DataType && arguments[1].DataType == op.DataType)
-        op.Foldable = FoldableFlags.ANY;
+      // symbol is foldable if all overloads are foldable
+      var foldable = (op.NumArgs == 2 && arguments[0].DataType == op.DataType && arguments[1].DataType == op.DataType)
+        && (op.CallInfo.OverLoad == null || op.IsFoldable);
+      if (foldable && !op.IsFoldable) op.Foldable = FoldableFlags.ANY;
       Symbols.AddCatalog(op);
-      Types.CheckTypeMatch(body.DataType, op.DataType);
-      var code = Code(body.Statement as AstValue, Headingof(arguments), ident, true, body.AccumCount, body.HasWin);
+
+      // assemble node
+      var code = Code(body.Statement as AstValue, Headingof(arguments), op.CallInfo.Name, true, body.AccumCount, body.HasWin);
       return GenFunCall(FindFunc(SymNames.Defer), Args(code));
     }
 
-    public AstStatement Assignment(string ident, AstValue value) {
+    public AstStatement Assignment(string ident, AstValue value, string varopt) {
       if (Symbols.CanDefGlobal(ident)) {
-        Symbols.AddVariable(ident, value.DataType, SymKinds.CATVAR);
+        Symbols.AddVariable(ident, value.DataType, SymKinds.CATVAR, varopt != null);
         Symbols.AddCatalog(Symbols.FindIdent(ident));
+        //if (varopt != null) Symbols.AddCatalog(Symbols.FindIdent(ident));
       } else {
         var sym = FindCatVar(ident);
-        if (sym == null || sym.IsCallable) Parser.ParseError("cannot assign to '{0}'", sym.Name);
+        if (sym == null || sym.IsCallable || !sym.Mutable) Parser.ParseError("cannot assign to '{0}'", sym.Name);
         if (sym.DataType != value.DataType) Parser.ParseError("type mismatch: '{0}'", sym.Name);
       }
       return GenFunCall(FindFunc(SymNames.Assign), Args(Text(ident), value));
@@ -451,10 +471,11 @@ namespace Andl.Peg {
       return new AstType { DataType = type };
     }
 
+    // A field name and optional type
     public AstField FieldTerm(string ident, AstType type) {
       return new AstField() {
         Name = ident,
-        DataType = (type == null) ? Types.Find("text") : type.DataType
+        DataType = (type == null) ? DataTypes.Default : type.DataType
       };
     }
 
@@ -557,13 +578,13 @@ namespace Andl.Peg {
       return FunCall(op, datatype, args, 0, callinfo);
     }
 
-    // Call user function
+    // Call user function via Invoke
     AstDefCall DefCall(Symbol op, DataType datatype, AstNode[] args, CallInfo callinfo) {
       var accbase = _accum.Total;
       _accum.Add(callinfo.AccumCount);
       _accum.HasWin |= callinfo.HasWin;
       return new AstDefCall {
-        Func = FindFunc(SymNames.Invoke), DataType = datatype, DefFunc = op, Arguments = args,
+        Func = FindFunc(SymNames.Invoke), DataType = datatype, Callinfo = callinfo, Arguments = args,
         NumVarArgs = args.Length, CallInfo = callinfo, AccumBase = accbase,
       };
     }
@@ -710,7 +731,7 @@ namespace Andl.Peg {
     // find a symbol that matches a predicate, or error
     public Symbol FindIdent(string name, Func<Symbol, bool> reqtype) {
       var ret = Symbols.FindIdent(name);
-      if (!(reqtype(ret))) Parser.ParseError("unknown or invalid: {0}", name);
+      if (ret == null || !(reqtype(ret))) Parser.ParseError("unknown or invalid: {0}", name);
       return ret;
     }
 
@@ -740,15 +761,31 @@ namespace Andl.Peg {
 
     // Enter scope for a function definition, with accumulator tracking
     public bool Enter(string ident, AstType rettype, IList<AstField> arguments) {
-      if (!Symbols.CanDefGlobal(ident)) Parser.ParseError("already defined: {0}", ident);
-      var args = (arguments == null) ? new DataColumn[0] : arguments.Select(a => DataColumn.Create(a.Name, a.DataType)).ToArray();
+      // if the symbols if found, it's an overload; else check it can be defined
+      var overfunc = Symbols.FindIdent(ident) != null && Symbols.FindIdent(ident).IsCallable 
+        ? Symbols.FindIdent(ident) : null;
+      if (overfunc == null && !Symbols.CanDefGlobal(ident)) Parser.ParseError("already defined: {0}", ident);
+
+      // missing args means lazy; else check for dups
+      if (arguments != null) {
+        var dups = arguments.GroupBy(a => a.Name).Where(g => g.Count() > 1).Select(d => d.Key);
+        if (dups.Count() > 0) Parser.ParseError($"duplicate parameter '{dups.First()}'");
+      }
+      var args = (arguments == null) ? null
+        : arguments.Select(a => DataColumn.Create(a.Name, a.DataType)).ToArray();
       var rtype = (rettype == null) ? DataTypes.Unknown : rettype.DataType;
-      var dups = args.GroupBy(a => a.Name).Where(g => g.Count() > 1).Select(d => d.Key);
-      if (dups.Count() > 0) Parser.ParseError($"duplicate parameter '{dups.First()}'");
-      Symbols.AddDeferred(ident, rtype, args);
+
+      // create new symbol or add an overload
+      if (overfunc == null) Symbols.AddDeferred(ident, rtype, args);
+      else {
+        if (rtype == DataTypes.Unknown) rtype = overfunc.DataType;
+        else if (rtype != overfunc.DataType) Parser.ParseError($"overload must be same return type: '{ident}'");
+        if (args == null) Parser.ParseError($"overload not allowed: '{ident}'");
+        if (!Symbols.AddOverload(overfunc, args)) Parser.ParseError($"overload argument type conflict: '{ident}'");
+      }
       Symbols.CurrentScope.Push();
-      foreach (var a in args)
-        Symbols.AddVariable(a.Name, a.DataType, SymKinds.PARAM);
+      if (args != null) foreach (var a in args)
+        Symbols.AddVariable(a.Name, a.DataType, SymKinds.PARAM, false);
       _accum = _accum.Push();
       return true;
     }

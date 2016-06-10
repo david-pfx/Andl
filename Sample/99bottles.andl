@@ -1,6 +1,6 @@
 // An implementation of 99 bottles
 
-bottlesdemo(bottles:0) => do {
+def bottlesdemo(bottles:0) => do {
     hundred := seq(bottles) .select{ nbot := N+1 }
     line1 := hundred .select{ seq := nbot*2+1, 
                         text := nbot & " bottle" & 

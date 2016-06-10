@@ -5,8 +5,7 @@
 start($filename$)
 
 // load CSV data
-#source 'd:\mydocs\dev\vs14\andl\test'
-var S(csv,{S#,SNAME,STATUS:number,CITY})
+var S:{S#,SNAME,STATUS:number,CITY}(csv)
 
 //--- literals
 
@@ -16,17 +15,19 @@ tup2 := tup(A1 := 'abc', A4 := 44)
 tup3 := { A := tup1 } 
 tup4 := { A := { A := 'abc' } } 
 tup5 := { A := tup(A := 'abc') } 
-def ust6(C1:0, C2:'')
+type ust6(C1:0, C2:'')
 tup6 := { A := ust6(77,'xxx') } 
+//tup7 := tup(ust6(42, 'abc'))
 
 // tuple values
 test_true($lineno$, tup1 = {A2 := 16+1, A1 := 'ab' & 'c', A3 := 0})
 test_true($lineno$, {A2 := 18-1, A1 := 'a''bc', A3 := 0}    = tup1)
 test_true($lineno$, ({A2 := 17, A1 := "abc", A3 := 0})      = tup1)
 test_true($lineno$, tup(A2 := 17, A1 := "abc", A3 := 0)     = tup1)
-test_true($lineno$, tup4                                   = tup5)
+test_true($lineno$, tup4                                    = tup5)
 test_true($lineno$, { A := tup(A := 'abc') }                = tup5)
-test_true($lineno$, { A := ust6(77,'xxx') }                = tup6)
+test_true($lineno$, { A := ust6(77,'xxx') }                 = tup6)
+//test_true($lineno$, tup(ust6(42, 'abc'))                    = tup7)
 
 // tuple set ops
 test_true($lineno$, { A1 := 'abc', A2 := 17, A3 := 0, A4 := 44 } = tup1 union tup2)
@@ -34,21 +35,25 @@ test_true($lineno$, { A1 := 'abc', A2 := 17, A3 := 0, A4 := 44 } = tup2 union tu
 test_true($lineno$, { A1 := 'abc' }                              = tup1 intersect tup2)
 test_true($lineno$, { A1 := 'abc' }                              = tup2 intersect tup1)
 test_true($lineno$, { A2 := 17, A3 := 0 }                        = tup1 minus tup2)
-test_true($lineno$, { A4 := 44 }                                 = tup1 rminus tup2)
+test_true($lineno$, { A2 := 17, A3 := 0 }                        = tup2 rminus tup1)
 test_true($lineno$, { A4 := 44 }                                 = tup2 minus tup1)
+test_true($lineno$, { A4 := 44 }                                 = tup1 rminus tup2)
 test_true($lineno$, { A2 := 17, A3 := 0, A4 := 44 }              = tup1 symdiff tup2)
 test_true($lineno$, { A2 := 17, A3 := 0, A4 := 44 }              = tup2 symdiff tup1)
 
 //-- relations
-rel0 := {{A2:0, A1:'', A3:0}}  
+rel0 := rel:{A2:0, A1:'', A3:0}()
 rel1 := rel({A2 := 17, A1 := 'abc', A3 := 0})
 rel2 := {{A1 := 'def', A2 := 35, A3 := 0},
-          {A2 := 199, A1 := 'ghij', A3 := 0 }} 
-rel3 := {{A1:'', A2:0, A3:0} 
+         {A2 := 199, A1 := 'ghij', A3 := 0 }} 
+rel3 := rel:{A1:'', A2:0, A3:0} (
           ('abc', 17, 0), 
           ('def', 35, 0), 
-          ('ghij', 199, 0)} 
-def usr0(A2:0, A1:'', A3:0)
+          ('ghij', 199, 0) )
+var rel4:=rel0
+var rel5:{A2:0, A1:'', A3:0}
+var rel6:{{A2:0, A1:'', A3:0}}
+type usr0(A2:0, A1:'', A3:0)
 
 test_true($lineno$, {{ A1 := 'abc', A2 := 17, A3 := 0 }}         = rel1)
 test_true($lineno$, {{ A2 := 1+16, A1 := 'ab'&'c', A3 := 0 }}    = rel1)
@@ -71,7 +76,7 @@ asvte := 'abc def' d'33'
 asvti := t'2015-12-31 23:59:59.999'
 asvtu := { A1 := 'abd def', A2 := 99 }
 asvre  := {{ A1 := 'abd def', A2 := 99}, { A2 := 98, A1 := 'Pqr'}}
-def astus(C1:0, C2:'')
+type astus(C1:0, C2:'')
 asvus := astus(45, 'x-y%z')
 
 // repeating literals ensures test of value semantics
@@ -89,10 +94,10 @@ test_true($lineno$, asvall = ASVREL)
 test_true($lineno$, ASVREL = asvall)
 
 //-- heading forms
-test_true($lineno$, rel1 = {{ A1:'', A2:0, A3:0 } ('abc', 17, 0)})
-test_true($lineno$, rel1 = {{ A1:text, A2:number, A3:number } ('abc', 17, 0)})
-test_true($lineno$, rel3 = {{ A1:'', A2:0, A3:0 } ('abc', 17, 0), ('def', 35, 0), ('ghij',199, 0)})
-test_true($lineno$, rel3 = rel({ A1:'', A2:0, A3:0 } ('abc', 17, 0), ('def', 35, 0), ('ghij',199, 0)))
+test_true($lineno$, rel1 = rel:{ A1:'', A2:0, A3:0 } (('abc', 17, 0)) )
+test_true($lineno$, rel1 = rel:{ A1:text, A2:number, A3:number } (('abc', 17, 0)) )
+test_true($lineno$, rel3 = rel:{ A1:'', A2:0, A3:0 } (('abc', 17, 0), ('def', 35, 0), ('ghij',199, 0)) )
+test_true($lineno$, rel3 = rel:{ A1:'', A2:0, A3:0 } (('abc', 17, 0), ('def', 35, 0), ('ghij',199, 0)) )
 
 //--- simple operators
 
@@ -141,8 +146,8 @@ test_true($lineno$, schema(rel3) = rel2_meta)
 test_true($lineno$, rel3 .schema = rel2_meta)
 //--- monadic RA
 
-rel3_A1 := {{ A1:''} ('abc'), ('def'), ('ghij'), }
-rel3_A1X := {{ X:''} ('abc'), ('def'), ('ghij'), }
+rel3_A1 := rel:{ A1:''} (('abc'), ('def'), ('ghij'))
+rel3_A1X := rel:{ X:''} (('abc'), ('def'), ('ghij'))
 
 //--- where
 test_true($lineno$, rel3  = rel3 .where(true))
@@ -175,7 +180,7 @@ test_true($lineno$, {{ X := 0 }}  = rel3 .select{ *A1, A2, X := A3 } )
 test_true($lineno$, rel3_A1X     = rel3 .select{ X := A1 } )
 
 //--- extend
-rel3_A1Y := {{ Y:''} ('abcY'), ('defY'), ('ghijY'), }
+rel3_A1Y := rel:{ Y:''} (('abcY'), ('defY'), ('ghijY'))
 test_true($lineno$, rel3_A1Y     = rel3 .select{ Y := A1 & 'Y' } )
 test_true($lineno$, rel3_A1Y     = rel3 .select{ *A1, A2, A3, Y := A1 & 'Y' } )
 
@@ -186,12 +191,12 @@ test_true($lineno$, rel:{A2:0}((5))         = rel2_lift .where(A1 = 'b') .select
 test_true($lineno$, 5                       = rel2_lift .where(A1 = 'b') .select((A2)) )
 test_true($lineno$, rel:{A2:0}((5),(1),(2)) = rel2_lift .select{A2} )
 test_true($lineno$, rel:{A2:0}((5))         = rel2_lift .where(A1 = 'b') .select{A2} )
-test_true($lineno$, 5                       = rel2_lift .where(A1 = 'b') .select{(A2)} )
+test_true($lineno$, 5                       = rel2_lift .where(A1 = 'b') .select{(A2) } )
 
 
 //--- skip take
-//get_s(s:S) => s .order(S#)  .select{ fold(&,S#) }
-test_s(s:S,t:'') => s .order(S#)  .select{ fold(&,S#) } = t
+//def get_s(s:S) => s .order(S#)  .select{ fold(&,S#) }
+def test_s(s:S,t:'') => s .order(S#)  .select{ fold(&,S#) } = t
 
 test_true($lineno$, test_s(S, 'S1S2S3S4S5'))
 test_true($lineno$, test_s(S .take(2), 'S1S2'))
@@ -206,23 +211,23 @@ test_true($lineno$, S .skip(3)  .select{ S# } = {{ S# := 'S4'}, { S# := 'S5' }} 
 test_true($lineno$, S  .select{ S# } = {{ S# := 'S1' }, { S# := 'S2'}, { S# := 'S3'}, { S# := 'S4'}, { S# := 'S5' }} )
 
 //--- function types -- incomplete
-fn1bo(a:bool) => a
-fn1bi(a:binary) => a
-fn1nu(a:number) => a
-fn1te(a:text) => a
-fn1ti(a:time) => a
+def fn1bo(a:bool) => a
+def fn1bi(a:binary) => a
+def fn1nu(a:number) => a
+def fn1te(a:text) => a
+def fn1ti(a:time) => a
 
-fn2bo(a:bool) => not a
-fn2bi(a:binary) => b'05040302'  // no available func
-fn2nu(a:number) => a+1
-fn2te(a:text) => before(a,'world') & 'fred'
-fn2ti(a:time) => t'2016-12-31 23:59:59.999' // no available func
+def fn2bo(a:bool) => not a
+def fn2bi(a:binary) => b'05040302'  // no available func
+def fn2nu(a:number) => a+1
+def fn2te(a:text) => before(a,'world') & 'fred'
+def fn2ti(a:time) => t'2016-12-31 23:59:59.999' // no available func
 
-fn3bo(a:bool) => fold(or,a)
-fn3bi(a:binary) => a // no available func
-fn3nu(a:number) => fold(+,a)
-fn3te(a:text) => fold(&,a)
-fn3ti(a:time) => a // no available func
+def fn3bo(a:bool) => fold(or,a)
+def fn3bi(a:binary) => a // no available func
+def fn3nu(a:number) => fold(+,a)
+def fn3te(a:text) => fold(&,a)
+def fn3ti(a:time) => a // no available func
 
 r1 := {{ bo:=true, bi:=b'0102030405', nu:=123456789.123456789, te:='hello world', ti:=t'2015-12-31 23:59:59.999' }}
 r2 := {{ bo:=false, bi:=b'05040302', nu:=123456790.123456789, te:='hello fred', ti:=t'2016-12-31 23:59:59.999' }}
@@ -236,25 +241,25 @@ test_true($lineno$, r3 = R .select{ bo := fn3bo(bo), bi := fn3bi(bi), nu := fn3n
 
 //-- scopes (particularly SQL)
 // scope is param only
-fsc1(a:0,b:0) => do {
+def fsc1(a:0,b:0) => do {
   a > b  
 }
 // scope is param and local var
-fsc1a(a:0,b:0) => do {
+def fsc1a(a:0,b:0) => do {
   c:=b
   a > c
 }
 // scope is attribute and param
-fsc2(a:0) => do {
+def fsc2(a:0) => do {
   rel3 .where(A2 > a)
 }
 // scope is attribute and local
-fsc3(a:0) => do {
+def fsc3(a:0) => do {
   b := a
   rel3 .where(A2 > b)
 }
 // scope is param, no block
-fsc4(a:0) => rel3 .where(A2 > a)
+def fsc4(a:0) => rel3 .where(A2 > a)
 
 test_true($lineno$, 2 = rel3 .where(fsc1(A2, 17)) .count)
 test_true($lineno$, 2 = rel3 .where(fsc1a(A2, 17)) .count)

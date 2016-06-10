@@ -5,7 +5,9 @@
 'SupplierSetup.andl -- set up for supplier data'
 
 // load initial data
-var S(csv), P(csv), SP(csv)
+var S:{S#,SNAME,STATUS:number,CITY}(csv)
+var P:{P#,PNAME,COLOR,WEIGHT:number,CITY}(csv)
+var SP:{S#,P#,QTY:number}(csv)
 
 andl_catalog
 #stop

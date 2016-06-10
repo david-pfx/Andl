@@ -90,7 +90,7 @@ namespace Andl.Peg {
     INTERSECT = SET | COMMON | SETC,
     SYMDIFF = SET | COMMON | SETL | SETR,
     MINUS = SET | COMMON | SETL,
-    RMINUS = SET | COMMON | SETR | REV,
+    RMINUS = SET | COMMON | SETR | REV,   // BUG: ? please test
   };
 
   // Defines a foldable function
@@ -145,7 +145,9 @@ namespace Andl.Peg {
         : null;
     } }
     public string Name { get; set; }
+    // only for binops
     public int Precedence { get; set; }
+    // actual number of args; or number to check; or max in any overload
     public int NumArgs { get; set; }
     public TypedValue Value { get; set; }
     public CallInfo CallInfo { get; set; }
@@ -157,6 +159,7 @@ namespace Andl.Peg {
     public FoldableFlags Foldable { get; set; }
     public Symbol Link { get; set; }
     public int Level { get; set; }
+    public bool Mutable { get; set; }
 
     public override string ToString() {
       return String.Format("{0}:{1}:{2}:{3}", Name, Kind, CallKind, Level);
@@ -255,6 +258,7 @@ namespace Andl.Peg {
     // current scope
     public Scope CurrentScope { get; set; }
 
+    const string _overload_delimiter = "+";  // valid for filename, not for ident
     Scope _predefscope; // level = 0
     Scope _globalscope; // level = 1
     Catalog _catalog;
@@ -275,20 +279,21 @@ namespace Andl.Peg {
     //--- publics
 
     // Add a symbol to the catalog, but only if it is global
+    // assume top overload is the one being defined here
     public void AddCatalog(Symbol symbol) {
       if (CurrentScope.IsGlobal) {
         var kind = symbol.IsUserType ? EntryKinds.Type
           : symbol.IsDefFunc ? EntryKinds.Code
           : EntryKinds.Value;
         var flags = EntryFlags.Public;  // FIX: when visibility control implemented
-        _catalog.GlobalVars.AddNewEntry(symbol.Name, symbol.DataType, kind, flags);
+        var name = (symbol.IsCallable) ? symbol.CallInfo.Name : symbol.Name;
+        _catalog.GlobalVars.AddNewEntry(name, symbol.DataType, kind, flags);
       }
     }
 
     // Find existing symbol by name
     public Symbol FindIdent(string name) {
-      var sym = CurrentScope.FindAny(name);
-      return (sym != null && sym.Kind == SymKinds.ALIAS) ? sym.Link : sym;
+      var sym = CurrentScope.FindAny(name);      return (sym != null && sym.Kind == SymKinds.ALIAS) ? sym.Link : sym;
     }
 
     // Check if symbol can be defined globally without conflict
@@ -312,12 +317,29 @@ namespace Andl.Peg {
       CurrentScope.Add(MakeUserType(name, datatype));
     }
 
-    public void AddVariable(string name, DataType datatype, SymKinds kind) {
-      CurrentScope.Add(MakeVariable(name, datatype, kind));
+    public void AddVariable(string name, DataType datatype, SymKinds kind, bool mutable) {
+      CurrentScope.Add(MakeVariable(name, datatype, kind, mutable));
     }
 
     public void AddDeferred(string name, DataType rettype, DataColumn[] args) {
       CurrentScope.Add(MakeDeferred(name, rettype, args, 0));
+    }
+
+    // Add an overload. Give it a unique name
+    // return false if duplicate list of types, cannot add
+    public bool AddOverload(Symbol sym, DataColumn[] args) {
+      var nover = 0;
+      for (var ci = sym.CallInfo; ci != null; ci = ci.OverLoad, nover++) {
+        if (args.Length == ci.NumArgs
+          && Enumerable.Range(0, args.Length)
+            .Select(x => args[x].DataType == ci.Arguments[x].DataType)
+            .All(b => b))
+          return false;
+      }
+      var callinfo = CallInfo.Create($"{sym.Name}{_overload_delimiter}{nover}", sym.DataType, args, 0, sym.CallInfo);
+      sym.CallInfo = callinfo;
+      if (sym.NumArgs < callinfo.NumArgs) sym.NumArgs = callinfo.NumArgs;
+      return true;
     }
 
     ///-------------------------------------------------------------------
@@ -336,11 +358,12 @@ namespace Andl.Peg {
     }
 
     // Create a symbol for a variable
-    public static Symbol MakeVariable(string name, DataType datatype, SymKinds kind) {
+    public static Symbol MakeVariable(string name, DataType datatype, SymKinds kind, bool mutable) {
       Symbol sym = new Symbol {
         Name = name,
         Kind = kind,
         DataType = datatype,
+        Mutable = mutable,
       };
       return sym;
     }
@@ -353,7 +376,7 @@ namespace Andl.Peg {
         DataType = datatype,
         CallKind = CallKinds.EFUNC,
         CallInfo = CallInfo.Create(name, datatype, args, accums),
-        NumArgs = args.Length,
+        NumArgs = args?.Length ?? 0,
       };
       return sym;
     }
@@ -389,7 +412,7 @@ namespace Andl.Peg {
         if (entry.Kind == EntryKinds.Type)
           _globalscope.Add(MakeUserType(entry.Name, entry.DataType as DataTypeUser));
         else if (entry.Kind == EntryKinds.Value)
-          _globalscope.Add(MakeVariable(entry.Name, entry.DataType, SymKinds.CATVAR));
+          _globalscope.Add(MakeVariable(entry.Name, entry.DataType, SymKinds.CATVAR, true));
         else if (entry.Kind == EntryKinds.Code)
           _globalscope.Add(MakeDeferred(entry.Name, entry.DataType, 
             entry.CodeValue.Value.Lookup.Columns, entry.CodeValue.Value.AccumCount));
@@ -507,11 +530,11 @@ namespace Andl.Peg {
       AddAlias("joincr", "rsemijoin");
       AddAlias("joinr", "rdivide");
 
+      AddSource(Catalog.DefaultDatabaseSource);
       AddSource("csv");
       AddSource("txt");
       AddSource("sql");
       AddSource("con");
-      AddSource("file");
       AddSource("oledb");
       AddSource("odbc");
     }

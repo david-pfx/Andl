@@ -332,7 +332,7 @@ namespace Andl.Runtime {
 
     // Import a linked or externally held relvar
     public VoidValue Import(TextValue sourcearg, TextValue namearg, TextValue whatarg, TextValue locatorarg) {
-      if (sourcearg.Value == "") {
+      if (sourcearg.Value == Catalog.DefaultDatabaseSource) {
         if (!_catvars.Catalog.LinkRelvar(namearg.Value))
           throw ProgramError.Fatal("Connect", "cannot link to '{0}'", namearg.Value);
       } else if (!_catvars.Catalog.ImportRelvar(sourcearg.Value, namearg.Value, whatarg.Value, locatorarg.Value))

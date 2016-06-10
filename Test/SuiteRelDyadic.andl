@@ -4,10 +4,9 @@
 
 start($filename$)
 
-#source 'd:\mydocs\dev\vs14\andl\test'
-var S(csv,{S#,SNAME,STATUS:number,CITY})
-var P(csv,{P#,PNAME,COLOR,WEIGHT:number,CITY})
-var SP(csv,{S#,P#,QTY:number})
+var S:{S#,SNAME,STATUS:number,CITY}(csv)
+var P:{P#,PNAME,COLOR,WEIGHT:number,CITY}(csv)
+var SP:{S#,P#,QTY:number}(csv)
 
 // simply one of each
 
@@ -63,5 +62,8 @@ test_true($lineno$, 4=(sr union snr).count)
 // more complicated
 test_true($lineno$, {{ SNAME:='Adams' }} = (S ajoin SP .where(P# = 'P2')) .select{ SNAME })
 test_true($lineno$, 30 = (S .select{ S# } join P .select{ P# }) .count) // cross join
+
+// generic tests
+
 
 finish($filename$)

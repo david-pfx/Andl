@@ -1,4 +1,4 @@
-﻿// setup-Chinook.andl -- using sample database in Sqlite
+// setup-Chinook.andl -- using sample database in Sqlite
 //
 // C>Andl.exe setup-Chinook.andl Chinook_sqlite.sqandl
 // C>Andl.exe Chinook.andl Chinook_sqlite.sqandl
@@ -6,7 +6,7 @@
 #catalog new update
 
 // import tables into the catalog
-var Album(), Employee(), InvoiceLine(), PlaylistTrack(), Artist(), Genre(), MediaType()
-var Track(), Customer(), Invoice(), Playlist()
+var Album(db), Employee(db), InvoiceLine(db), PlaylistTrack(db), Artist(db), Genre(db), MediaType(db)
+var Track(db), Customer(db), Invoice(db), Playlist(db)
 
 andl_catalog

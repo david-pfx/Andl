@@ -18,9 +18,9 @@
 
 #catalog new update
 
-def ut2(AN:number,AS:text)
-def ut4(AB:bool,AD:time,AN:number,AS:text)
-def ut3(AN:number,AS:text,AU:ut2)
+type ut2(AN:number,AS:text)
+type ut4(AB:bool,AD:time,AN:number,AS:text)
+type ut3(AN:number,AS:text,AU:ut2)
 
 VB := true
 VD := t'31/12/2015'
@@ -64,28 +64,28 @@ GetVT2 => VT2
 GetVConcat => VB & VD & VI & VN & VS
 //GetTofR5 => VR5 .select{*} 
 
-GetFB(v:VB) => v
-GetFD(v:VD) => v
-GetFI(v:VI) => v
-GetFN(v:VN) => v
-GetFS(v:VS) => v
-GetFU(v:VU) => v
-GetFUU(v:VUU) => v
-GetFT5(v:VT5) => v 
-GetFR5(v:VR5) => v 
-GetFT4(v:VT4) => v
-GetFR4(v:VR4) => v 
-GetFT2(v:VT2) => v
-GetFR2(v:VR2) => v 
-GetFConcat(v1:VB,v2:VD,v3:VI,v4:VN,v5:VS) => v1 & v2 & v3 & v4 & v5
+def GetFB(v:VB) => v
+def GetFD(v:VD) => v
+def GetFI(v:VI) => v
+def GetFN(v:VN) => v
+def GetFS(v:VS) => v
+def GetFU(v:VU) => v
+def GetFUU(v:VUU) => v
+def GetFT5(v:VT5) => v 
+def GetFR5(v:VR5) => v 
+def GetFT4(v:VT4) => v
+def GetFR4(v:VR4) => v 
+def GetFT2(v:VT2) => v
+def GetFR2(v:VR2) => v 
+def GetFConcat(v1:VB,v2:VD,v3:VI,v4:VN,v5:VS) => v1 & v2 & v3 & v4 & v5
 
-AddVR2(r:VR2) => do {
+def AddVR2(r:VR2) => do {
     update VR2 union r
 }
-AddVR4(r:VR4) => do {
+def AddVR4(r:VR4) => do {
     update VR4 union r
 }
-AddVR5(r:VR5) => do {
+def AddVR5(r:VR5) => do {
     update VR5 union r
 }
 

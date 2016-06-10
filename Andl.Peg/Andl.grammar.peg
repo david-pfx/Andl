@@ -5,6 +5,7 @@
 @classname PegParser
 @using System.Linq
 
+//--- block and statement machinery
 // start rule: Init for error handling, Start to load catalog
 MainStart <AstStatement> = &{ PrintLine(state) } &{ SetState(state) } DirectiveOrBlank* &{ Start() } v:MainNext { v }
     / MainRestart;  // suppress warning -- never taken
@@ -24,9 +25,8 @@ DoBody <IList<AstStatement>> = WSO LCexp &{ AST(state).Enter() } WSC v:DoBodyLin
 DoBodyLine <AstStatement> = DirectiveOrBlank { AST(state).Empty() } // Note: DoBlock must discard these
     / WSO !RC v:Statement WSO (&RC / EOLchk EOLX) { v };
 
-// directives
+//--- # directives
 DirectiveOrBlank = BlankLine / DirectiveLine;
-//DirectiveOrBlank <AstStatement> = (BlankLine / DirectiveLine)  { AST(state).Empty() };
 BlankLine = WSO &EOL EOLX;
 DirectiveLine = Directive WSO EOLchk EOLX;      // take directive and end of line
 
@@ -56,33 +56,40 @@ BadDirective = &{ Error(state, "bad directive") };
 //--- statements
 Statement <AstStatement> = v:(Deferred 
     / Typedef 
-    / Import 
     / Update
-    / Assignment 
+    / Assignment        // must precede Variable
+    / VariableDecl
     / Expression 
     / BadStatement) { v };
 
 BadStatement <AstStatement> = WSO RC &{ Error(state, "mismatched right brace") }  { null }
     / . &{ Error(state, "bad statement") }  { null };
 
-Typedef <AstDefine> = DEF v:(UserType / Subtype)<0,,SEP> { AST(state).DefBlock(v) };
+    //TODO: list
+Typedef <AstTypedef> = TYPE v:(UserType / Subtype)<0,,SEP> { AST(state).DefBlock(v) };
 
-UserType <AstDefine> = v:DefGlobalExp LP 
-    &{ AST(state).Enter() } w:FieldList &{ AST(state).Exit() } RPexp 
+UserType <AstTypedef> = 
+    v:DefGlobalExp LP &{ AST(state).Enter() } w:FieldList &{ AST(state).Exit() } RPexp 
     { AST(state).UserType(v, w.ToArray()) } ;
 
-Subtype <AstDefine> = v:DefGlobalExp COLON w:TypeRef 
-    { AST(state).SubType(v, w) };
+Subtype <AstTypedef> = 
+    v:DefGlobalExp COLON w:TypeRef { AST(state).SubType(v, w) };
 
-Import <AstBlock> = VAR v:ImportSource<0,,SEP> { AST(state).VarBlock(v) };
+VariableDecl <AstBlock> = 
+      VAR v:Vardecl<1,,SEP> { AST(state).VarBlock(v) }
+    / VAR &{ Error(state, "identifier expected") }  { null };
 
-ImportSource <AstStatement> = v:DefGlobalExp LP w:SourceName x:STAR? y:SourceFields RPexp 
-    { AST(state).Source(v,AST(state).Text(w),x.Count>0,y) };
-SourceFields <IList<AstField>> = SEP LCexp v:FieldList RCexp { v }
-    / &. { null }
+Vardecl <AstStatement> = 
+    v:DefGlobalExp w:VarTypeRef? x:VarSource?
+    { AST(state).VarDecl(v,Single(w),Single(x)) };
+VarTypeRef <AstType> = 
+    COLON &{ AST(state).Enter() } a:TypeRef &{ AST(state).Exit() } { a } 
+    / COLON &{ Error(state, "type reference expected") }  { null };
+VarSource <AstLiteral> =
+    LP a:SourceName RPexp { AST(state).Text(a) } 
+    / LP &{ Error(state, "source expected") }  { null };
 
 SourceName = v:Ident  &{ IsSourceName(v) } { v }
-    / &RP { "" }
     / &{ Error(state, "source name expected") } { "" };
 
 Update <AstStatement> = 
@@ -97,23 +104,28 @@ TransformOrDelete <AstTransformer> = DOT LC RC { null }
     / x:Transformer { x }
     / . &{ Error(state, "missing update action") }  { null };
 
+// updateable variable
 CatVar <AstValue> = v:Ident &{ IsCatVar(v) } { AST(state).Variable(v) };
 
-// Assignment -- does its own type check
-Assignment <AstStatement> = &(Ident LA) v:Ident LA w:Expression { AST(state).Assignment(v,w) }
+// Assignment -- must preced other uses of VAR
+Assignment <AstStatement> = x:VAR? &(Ident LA) v:Ident LA w:Expression { AST(state).Assignment(v,w,Single(x)) }
     / Ident LA &{ Error(state, "expression expected") } { null };
 
-// Deferred requires a field list either empty or ident colon
-// otherwise backtrack to function call
-Deferred <AstStatement> = v:Ident 
-    w:(<AstType> COLON a:TypeRef { a } / { null }) 
-    x:(<IList<AstField>> LP &(RP RA / Ident COLON) b:FieldList RP { b })? RA 
-    &{ AST(state).Enter(v, w, Single(x)) } y:DeferredBody &{ AST(state).Exit(true) } { AST(state).Deferred(v,w,Single(x),y) };
+// Deffun requires a field list either empty or ident colon
+// otherwise will backtrack to function call
+Deferred <AstStatement> = 
+    v:Ident RA &{ AST(state).Enter(v,null,null) } y:DeferredBody &{ AST(state).Exit(true) } 
+        { AST(state).Deferred(v,null,null,y) }
+    / DEF v:Ident 
+        w:(<AstType> COLON a:TypeRef { a } / { null }) 
+        x:(<IList<AstField>> LP &(RP / Ident) &{ AST(state).Enter() } b:FieldList &{ AST(state).Exit() } RPexp { b }) RA 
+        &{ AST(state).Enter(v,w,x) } y:DeferredBody &{ AST(state).Exit(true) } 
+            { AST(state).Deferred(v,w,x,y) };
 
 DeferredBody <AstBodyStatement> = v:Statement { AST(state).BodyStatement(v) }
     / BadStatement { null };
 
-//----- expressions
+//--- expressions
 ExpressionList = v:Expression<0,,SEP>;
 Expression <AstValue> = v:Primary w:BinopTail* { AST(state).Binop(v,w) } 
 
@@ -187,22 +199,38 @@ DoBlock <AstValue> = v:Ident &{ IsDo(v) } w:DoBody { AST(state).DoBlock(v,w) }
 
 Function <AstValue> = v:Funcop LP w:ExpressionList RPexp { AST(state).Function(v, w.ToArray()) };
 
-Table <AstValue> = &(LC WSL LC) &{ AST(state).Enter() } LC WSC v:TableBody RCexp &{ AST(state).Exit() } { v }
+// table literal
+// resolve {{ ident : }} as headed body only if COLON seen
+Table <AstValue> = 
+    LC WSL &(LC COLON) v:TableHeadedBody RCexp { v }
+    / LC WSL &(LC Ident COLON) &{ AST(state).Enter() } v:TableHeadedBody &{ AST(state).Exit() } RCexp { v }
+    / LC WSL &LC &{ AST(state).Enter() } v:TableBody &{ AST(state).Exit() } RCexp { v }
     / REL LP &{ AST(state).Enter() } v:TableBody RPexp &{ AST(state).Exit() } { v }
-    / REL COLON &{ AST(state).Enter() } v:TypeRef LP w:TableExprList SEP? RPexp &{ AST(state).Exit() } { AST(state).Table(v,w) }
+    / REL COLON &{ AST(state).Enter() } v:TypeRef WSL LP w:TableExprList SEP? RPexp &{ AST(state).Exit() } { AST(state).Table(v,w) }
     / (REL / LC WSC LC) &{ Error(state, "invalid table body") } { null };
 
-TableBody <AstValue> = LC STAR RCexp  { AST(state).Table() }
-    / v:Heading WSC w:TableExprList SEP? { AST(state).Table(v,w) }
-    / v:RowList SEP? { AST(state).Table(v) };
+// special {{*}} or list of rows
+TableBody <AstValue> = 
+    LC STAR RCexp  { AST(state).Table() }
+    / v:RowList SEP? { AST(state).Table(v) }
+    / &{ Error(state, "table body expected") } { null };
 
+// special {{ heading } (),(),() }
+TableHeadedBody <AstValue> = 
+    v:Heading WSC w:TableExprList SEP? { AST(state).Table(v,w) }
+    / &{ Error(state, "heading type expected") } { null };
+
+// list of expression rows: (a,b),etc [same as arg list for fun call]
 TableExprList = v:TableExprRow<0,,SEP>;
-TableExprRow <AstValue> = LP v:ExpressionList SEP? RPexp { AST(state).TableExprRow(v) };
+TableExprRow <AstValue> = LP v:ExpressionList SEP? RPexp { AST(state).TableExprRow(v) }
+    / LP &{ Error(state, "expression list expected") } { null };
 
+// list of tuple rows: (A:=a,B:=b),etc
 RowList = v:RowOrIdent<0,,SEP>;
 RowOrIdent <AstValue> = v:Row { v }
     / v:VarIdent  { AST(state).Variable(v) };
 
+// tuple that can be used as a literal, closed or open expression
 Row <AstValue> = LC STAR RCexp { AST(state).Row() }
     / LC v:RowTransList RCexp { AST(state).Row(AST(state).Transformer(v)) }
     / TUP LPexp v:RowTransList RPexp { AST(state).Row(AST(state).Transformer(v)) };
@@ -213,19 +241,24 @@ RowTrans <AstField> = v:FieldIdent &(SEP / RC) { AST(state).Transfield(v) }
 
 //--- type reference (after COLON)
 TypeRef <AstType> = v:Ident &{ IsTypename(v) } { AST(state).FindType(v) }
-    / v:Heading { AST(state).TupType(v) }               // one LC
-    / LC v:Heading RCexp { AST(state).RelType(v) }      // two LC
+    / LC &LC v:Heading RCexp { AST(state).RelType(v) }      // two LC
+    / &LC v:Heading { AST(state).TupType(v) }               // one LC
+    / TUP !LP { AST(state).FindType("tuple") }
+    / REL !LP { AST(state).FindType("relation") }
     / TUP LPexp v:TypeRef RPexp { AST(state).TupType(v) }
     / REL LPexp v:TypeRef RPexp { AST(state).RelType(v) }
     / v:SimplePrimary { AST(state).GetType(v) }
     / &{ Error(state, "type expected") } { null };
 
+// Heading is {: or {ident -- resolve ambiguity elsewhere
+// Main thing is to bail before {ident:= or any expr
 Heading <AstType> = LC COLON RC { AST(state).Heading(null) }
-    / LC &(Ident COLON) v:FieldList RCexp { AST(state).Heading(v) };
+    / LC &Ident v:FieldList RCexp { AST(state).Heading(v) };
 
+// list of fields, optionally followed by COLON and type
 FieldList = v:FieldTerm<0,,SEP>;
 FieldTerm <AstField> = v:DefLocal COLON w:TypeRef { AST(state).FieldTerm(v, w) }
-    / v:DefLocalExp { AST(state).FieldTerm(v, null) };  // default type is 'text'
+    / v:DefLocalExp { AST(state).FieldTerm(v, null) };
 
 //--- expecteds
 DefGlobalExp = DefGlobal 
@@ -262,10 +295,12 @@ Literals<AstValue> = TRUE { AST(state).Bool("true") }
     / v:TextString { AST(state).Text(v) };
 Integer = IntegerString WSO;
 
-KEYWORD = DEF / VAR / TUP / REL / TRUE / FALSE;
+// these are the only reserved words, but perhaps others could cause trouble?
+KEYWORD = TUP / REL / TRUE / FALSE;
 
 // these are reserved words
 DEF = "def" IDX;
+TYPE = "type" IDX;
 REL = ("rel" / "relation") IDX;
 TUP = ("tup" / "tuple") IDX;
 VAR = "var" IDX;
