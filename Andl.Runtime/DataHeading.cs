@@ -72,6 +72,13 @@ namespace Andl.Runtime {
       //return String.Format("{{{0}}}", s);
     }
 
+    public bool EqualByType(object obj) {
+      var other = obj as DataHeading;
+      if (other == null || other.Degree != Degree) return false;
+      return Enumerable.Range(0, Degree)
+        .All(x => other.Columns[x].DataType.Equals(Columns[x].DataType));
+    }
+
     internal string Format() {
       var s = String.Join(",", _columns.Select(c => c.Format()).ToArray());
       return "{" + s + "}";
@@ -138,7 +145,8 @@ namespace Andl.Runtime {
       Logger.Assert(values.Length == Degree, "values length");
       Func<DataType, DataType, bool> match = (act, exp) => act == exp 
         || act is DataTypeRelation && exp.Heading.Degree == 0 
-        || act is DataTypeTuple && exp.Heading.Degree == 0;
+        || act is DataTypeTuple && exp.Heading.Degree == 0
+        || act is DataTypeCode && exp == DataTypes.Code;  // FIX:code
       Logger.Assert(values.Select((v, x) => match(v.DataType, Columns[x].DataType)).All(b => b), "values type");
       //Logger.Assert(values.Select((v, x) => v.DataType == Columns[x].DataType).All(b => b), "values type"); // HACK:
     }
@@ -147,7 +155,7 @@ namespace Andl.Runtime {
 
     // from existing columns, with normalisation by default
     public static DataHeading Create(IEnumerable<DataColumn> columns, bool istuple = true) {
-      Logger.Assert(columns.All(c => c.DataType.IsVariable));
+      Logger.Assert(columns != null && columns.All(c => c.DataType.IsVariable), "bad columns");
       var dh = new DataHeading() {
         _columns = columns.ToArray(),
         IsTuple = istuple,
@@ -165,7 +173,7 @@ namespace Andl.Runtime {
 
     // from expressions -- assume tuple since caller can track order
     public static DataHeading Create(IEnumerable<ExpressionBlock> exprs) {
-      return Create(exprs.Select(e => DataColumn.Create(e.Name, e.DataType)));
+      return Create(exprs.Select(e => DataColumn.Create(e.Name, e.ReturnType)));
     }
 
     // Merge two tuple headings

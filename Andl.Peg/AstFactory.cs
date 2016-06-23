@@ -91,6 +91,12 @@ namespace Andl.Peg {
       return new AstUserType { DataType = DataTypes.Void };
     }
 
+    public AstType FunvalType(AstType rtntype, AstField[] argtypes) {
+      var ff = argtypes.Select(a => DataColumn.Create(a.Name, a.DataType)).ToArray();
+      var type = DataTypeCode.Get(rtntype.DataType, ff);
+      return new AstType { DataType = type };
+    }
+
     public AstTypedef SubType(string ident, AstType super) {
       var cols = new DataColumn[] { DataColumn.Create("super", super.DataType) };
       var ut = DataTypeUser.Get(ident, cols);
@@ -109,43 +115,62 @@ namespace Andl.Peg {
         : type.DataType;
       if (isimport && datatype == null) {
         if (type != null) Parser.ParseError($"type with heading required for '{ident}'");
-        datatype = Cat.GetRelvarType(source.ToString(), what); // peek the file
+        datatype = Cat.GetRelvarType(source.Value.ToString(), what); // peek the file
         if (datatype == null) Parser.ParseError("cannot find '{0}' as '{1}'", ident, source);
       }
       Symbols.AddVariable(ident, datatype, SymKinds.CATVAR, true);
       Symbols.AddCatalog(Symbols.FindIdent(ident));
       return (isimport) ? GenFunCall(FindFunc(SymNames.Import), Args(source, Text(ident), Text(what), Text(Parser.Cat.SourcePath)))
-        : GenFunCall(FindFunc(SymNames.Assign), Args(Text(ident), Literal(datatype.DefaultValue())));
+        : GenFunCall(FindFunc(SymNames.Assign), Args(Text(ident), LitValue(datatype.DefaultValue())));
     }
 
     // finalise function definition, from basic definition previously created
     // set or check return type
+    // null body just defines type
+    // Note: null arguments means argless (lazy) rather than deffun
     // BUG: a persistent function must not reference a non-persistent global
-    public AstStatement Deferred(string ident, AstType rettype, IList<AstField> arguments, AstBodyStatement body) {
+    public AstStatement Deffun(string ident, AstType rettype, IList<AstField> arguments, AstBodyStatement body) {
       var op = FindDefFunc(ident);
-      if (op.DataType == DataTypes.Unknown) op.DataType = body.DataType;
-      else if (op.DataType != body.DataType) Parser.ParseError($"{ident} return type mismatch");
+      var callinfo = op.CallInfo;
+      if (callinfo.ReturnType == DataTypes.Unknown) callinfo.ReturnType = body.DataType;
+      else if (callinfo.ReturnType != body.DataType) Parser.ParseError($"{ident} return type mismatch");
+      if (op.DataType == DataTypes.Unknown) {
+        if (arguments == null) op.DataType = callinfo.ReturnType;
+      } else if (op.DataType != callinfo.ReturnType) Parser.ParseError("body does not match declared type");
 
       // assume top overload is the one being defined
-      op.CallInfo.ReturnType = op.DataType;
-      op.CallInfo.AccumCount = body.AccumCount;
-      op.CallInfo.HasWin = body.HasWin;
+      //op.callinfo.ReturnType = op.DataType;
+      callinfo.AccumCount = body.AccumCount;
+      callinfo.HasWin = body.HasWin;
       // symbol is foldable if all overloads are foldable
-      var foldable = (op.NumArgs == 2 && arguments[0].DataType == op.DataType && arguments[1].DataType == op.DataType)
-        && (op.CallInfo.OverLoad == null || op.IsFoldable);
+      // FIX: put this test where it's used
+      var foldable = (callinfo.NumArgs== 2 && arguments[0].DataType == callinfo.ReturnType && arguments[1].DataType == callinfo.ReturnType)
+        && (callinfo.OverLoad == null || op.IsFoldable);
       if (foldable && !op.IsFoldable) op.Foldable = FoldableFlags.ANY;
       Symbols.AddCatalog(op);
 
       // assemble node
-      var code = Code(body.Statement as AstValue, Headingof(arguments), op.CallInfo.Name, true, body.AccumCount, body.HasWin);
+      var code = Code(body.Statement as AstValue, Headingof(arguments), callinfo.Name, true, body.AccumCount, body.HasWin);
       return GenFunCall(FindFunc(SymNames.Defer), Args(code));
     }
 
+    // create a function value
+    // BUG: a persistent function must not reference a non-persistent global
+    public AstValue Funval(AstType rettype, IList<AstField> arguments, AstBodyStatement body) {
+      var code = Code(body.Statement as AstValue, Headingof(arguments), "λ", false, body.AccumCount, body.HasWin);
+      return new AstFunval { Value = code, DataType = DataTypeCode.Get(code.DataType, code.Lookup) };
+    }
+
+    // Assignment:: VAR? ident := value
+    // If ident does not exist, creates a typed catalog entry (using return type if Funval)
+    // Sets initial value, or updates but only if was VAR and same type
     public AstStatement Assignment(string ident, AstValue value, string varopt) {
       if (Symbols.CanDefGlobal(ident)) {
-        Symbols.AddVariable(ident, value.DataType, SymKinds.CATVAR, varopt != null);
+        if (value is AstFunval) {
+          var cvalue = (value as AstFunval).Value;
+          Symbols.AddDeffun(ident, cvalue.DataType, cvalue.Lookup.Columns, cvalue.Accums, varopt != null);
+        } else Symbols.AddVariable(ident, value.DataType, SymKinds.CATVAR, varopt != null);
         Symbols.AddCatalog(Symbols.FindIdent(ident));
-        //if (varopt != null) Symbols.AddCatalog(Symbols.FindIdent(ident));
       } else {
         var sym = FindCatVar(ident);
         if (sym == null || sym.IsCallable || !sym.Mutable) Parser.ParseError("cannot assign to '{0}'", sym.Name);
@@ -155,7 +180,7 @@ namespace Andl.Peg {
     }
 
     // UPDATE rel <set op> relexpr
-    public AstStatement UpdateSetop(AstValue relvar, string joinop, string joinop2, AstValue expr) {
+    public AstStatement UpdateSetop(AstValue relvar, string joinop, AstValue expr) {
       var joinsym = FindFunc(joinop);
       var joinnum = Number((int)joinsym.JoinOp);
       return FunCall(FindFunc(SymNames.UpdateJoin), DataTypes.Void, Args(relvar, expr, joinnum));
@@ -193,7 +218,7 @@ namespace Andl.Peg {
     // Where is just a funcall with a code predicate (that may have a fold)
     public AstWhere Where(string name, AstValue predicate) {
       var lookup = DataHeading.Create(Symbols.CurrentScope.LookupItems.Items);
-      var code = Code(predicate, lookup, "?", false, _accum.Total, _accum.HasWin);
+      var code = Code(predicate, lookup, "&p", false, _accum.Total, _accum.HasWin);
       _accum = _accum.Push();
       return new AstWhere {
         Func = FindFunc(name),
@@ -310,6 +335,10 @@ namespace Andl.Peg {
             newvalue = FunCall(FindFunc(SymNames.Lift), tran.DataType, Args(newvalue));
           tail = tail.Skip(1).ToList();
         } else newvalue = PostFixTranRel(value, null, ops[0] as AstOrderer);
+      } else if (ops[0] is AstFunvalCall) {
+        var op = ops[0] as AstFunvalCall;
+        if (value.DataType as DataTypeCode == null) Parser.ParseError("operator type expected");
+        newvalue = FunvalCall(value, value.DataType as DataTypeCode, op.Arguments);
       } else {
         var op = ops[0] as AstOpCall;
         newvalue = GenFunCall(op.Func, Args(value, op.Arguments));
@@ -317,20 +346,37 @@ namespace Andl.Peg {
       return PostFix(newvalue, tail);
     }
 
-    // Dot that is a function call
-    public AstOpCall DotFunc(string name, IList<AstValue> args = null) {
-      var op = FindFunc(name);
-      return new AstOpCall() { Func = op, DataType = op.DataType, Arguments = (args == null) ? Args() : args.ToArray() };
+    // Any dot that looks like a function call
+    public AstOpCall DotFunc(string name, AstValue[] args = null) {
+      var op = Symbols.FindIdent(name);
+      if (op.IsComponent) return DotComponent(op, args);
+      if (op.IsField) return DotField(op, args);
+      if (op.IsCallable) return DotFunc(op, args);
+      if (op.IsCallVar) return DotCallVar(op, args);
+      Parser.ParseError($"function, field or component expected: {name}");
+      return null;
     }
 
-    public AstOpCall DotComponent(string name) {
-      var op = FindComponent(name);
-      return new AstOpCall() { Func = op, DataType = op.DataType, Arguments = Args() };
+    public AstOpCall DotComponent(Symbol op, AstValue[] args) {
+      if (args != null && !op.IsCallVar) Parser.ParseError($"unexpected arguments: {op.Name}");
+      return new AstOpCall() { Func = op, DataType = op.DataType, Arguments = args ?? Args() };
     }
 
-    public AstOpCall DotField(string name) {
-      var op = FindField(name);
-      return new AstOpCall() { Func = op, DataType = op.DataType, Arguments = Args() };
+    public AstOpCall DotField(Symbol op, AstValue[] args) {
+      if (args != null && !op.IsCallVar) Parser.ParseError($"unexpected arguments: {op.Name}");
+      return new AstOpCall() { Func = op, DataType = op.DataType, Arguments = args ?? Args() };
+    }
+
+    public AstOpCall DotFunc(Symbol op, AstValue[] args) {
+      return new AstOpCall() { Func = op, DataType = op.DataType, Arguments = args ?? Args() };
+    }
+
+    public AstOpCall DotCallVar(Symbol op, AstValue[] args) {
+      return new AstOpCall() { Func = op, DataType = op.DataType, Arguments = args ?? Args() };
+    }
+
+    public AstOpCall FunvalCall(AstValue[] args) {
+      return new AstFunvalCall() { Arguments = args };
     }
 
     public AstFunCall If(string name, AstValue condition, AstValue iftrue, AstValue iffalse) {
@@ -340,10 +386,10 @@ namespace Andl.Peg {
 
     public AstFoldCall Fold(string name, string oper, AstValue expression) {
       var op = FindFunc(oper);
-      if (!op.IsFoldable) Parser.ParseError("not foldable");
       DataType datatype;
       CallInfo callinfo;
       Types.CheckTypeError(op, out datatype, out callinfo, expression.DataType, expression.DataType); // as if there were two
+      if (datatype != expression.DataType) Parser.ParseError($"not foldable: {name}");
       var accndx = _accum.Total;
       _accum.Add(1);
       return new AstFoldCall {
@@ -353,18 +399,33 @@ namespace Andl.Peg {
       };
     }
 
-    public AstFunCall Function(string name, params AstValue[] args) {
+    // function call on named function
+    public AstFunCall FunCall(string name, params AstValue[] args) {
       var op = FindFunc(name);
       return GenFunCall(op, args);
     }
 
-    public AstFunCall Unop(string name, params AstValue[] args) {
+    // function call on variable
+    public AstFunCall VarCall(string name, params AstValue[] args) {
+      var op = FindVariable(name);
+      return GenFunCall(op, args);
+    }
+
+    // function call on anon function Funval
+    public AstFunCall FunCall(AstValue expr, params AstValue[] args) {
+      var code = expr as AstFunval;
+      if (code == null) Parser.ParseError($"callable expression expected");
+      return FunvalCall(code.Value, code.DataType as DataTypeCode, args);
+    }
+
+    public AstFunCall UnopCall(string name, params AstValue[] args) {
       var op = FindFunc(name == "-" ? SymNames.UnaryMinus : name);
       return GenFunCall(op, args);
     }
 
-    public AstOpCall OpCall(string name, params AstValue[] args) {
+    public AstOpCall BinopCall(string name, params AstValue[] args) {
       var op = FindFunc(name);
+      // FIX: s/b FunCall?
       var type = op.DataType;
       return new AstOpCall() { Func = op, Arguments = args, DataType = type };
     }
@@ -482,10 +543,13 @@ namespace Andl.Peg {
     ///--------------------------------------------------------------------------------------------
     ///--- internal functions
     ///
-    AstValue Code(AstValue value, DataHeading lookup = null, string name = "?", 
+
+    // Code node: Datatype used as return value
+    AstCode Code(AstValue value, DataHeading lookup = null, string name = "&c", 
       bool ascode = false, int accums = -1, bool hasord = false) {
       return new AstCode {
-        Name = name, Value = value, DataType = DataTypes.Code, Accums = accums, Lookup = lookup, AsCode = ascode, HasWin = hasord,
+        Name = name, Value = value, DataType = value.DataType, Lookup = lookup,
+        Accums = accums, AsCode = ascode, HasWin = hasord,
       };
     }
 
@@ -557,13 +621,19 @@ namespace Andl.Peg {
 
     // Generic function call, handles type checking, overloads and def funcs
     AstFunCall GenFunCall(Symbol op, AstNode[] args) {
-      if (op.IsComponent) return Component(op, args);
-      if (op.IsField) return FieldOf(op, args);
+      // not really function calls, cannot type check without callinfo
+      if (op.CallInfo == null) {
+        if (op.IsComponent) return ComponentCall(op, args);
+        if (op.IsField) return FieldCall(op, args);
+        Parser.ParseError("not a function or operator: {0}", op.Name);
+      }
+
       DataType datatype;
       CallInfo callinfo;
       Types.CheckTypeError(op, out datatype, out callinfo, args.Select(a => a.DataType).ToArray());
-      // deferred function
-      if (op.IsDefFunc) return DefCall(op, datatype, args, callinfo);
+
+      // variable Funval
+      if (op.IsDefFunc) return DeffunCall(datatype, args, callinfo);
       // WHERE
       if (op.IsRestrict) return FunCall(op, datatype, args, 1);
       //if (op.IsRestFunc) return FunCall(op, datatype, Args(args[0], Code(args[1] as AstValue, CurrentHeading())), 1);
@@ -575,35 +645,58 @@ namespace Andl.Peg {
       if (op.IsSkipTake) return FunCall(op, datatype, args);
       // user selector
       if (op.IsUserSel) return UserCall(op, args);
+      // punt!
       return FunCall(op, datatype, args, 0, callinfo);
     }
 
-    // Call user function via Invoke
-    AstDefCall DefCall(Symbol op, DataType datatype, AstNode[] args, CallInfo callinfo) {
+    // Call user function from symbol via Invoke
+    // note: already type checked: use return type for result
+    AstDefCall DeffunCall(DataType datatype, AstNode[] args, CallInfo callinfo) {
       var accbase = _accum.Total;
       _accum.Add(callinfo.AccumCount);
       _accum.HasWin |= callinfo.HasWin;
       return new AstDefCall {
-        Func = FindFunc(SymNames.Invoke), DataType = datatype, Callinfo = callinfo, Arguments = args,
+        Func = FindFunc(SymNames.Invoke), Name = callinfo.Name, DataType = callinfo.ReturnType, Arguments = args,
         NumVarArgs = args.Length, CallInfo = callinfo, AccumBase = accbase,
       };
     }
 
-    AstComponent Component(Symbol op, AstNode[] args) {
-      Logger.Assert(args.Length == 1);
-      Types.CheckTypeMatch(DataTypes.User, args[0].DataType);
-      // FIX: check if component of type?
-      return new AstComponent {
-        Func = op, DataType = op.DataType, Arguments = args,
+    // Call user function from expression value (no callinfo)
+    // Type check against FullDataType
+    AstDefCall FunvalCall(AstValue value, DataTypeCode datatype, AstNode[] args) {
+      return new AstDefCall {
+        Func = FindFunc(SymNames.Invoke), Code = value, DataType = datatype.Returns, Arguments = args,
+        NumVarArgs = args.Length,
       };
     }
 
-    AstFieldOf FieldOf(Symbol op, AstNode[] args) {
-      Logger.Assert(args.Length == 1);
-      Types.CheckTypeMatch(DataTypes.Row, args[0].DataType);
-      return new AstFieldOf {
-        Func = op, DataType = op.DataType, Arguments = args,
+    // A call on a user type component
+    //  :: value.op
+    //  || value.op(args)
+    AstFunCall ComponentCall(Symbol op, AstNode[] args) {
+      Logger.Assert(args.Length >= 1);
+      Types.CheckTypeMatch(DataTypes.User, args[0].DataType);
+      // FIX: check if component of type?
+      var compval = new AstComponent {
+        Func = op, DataType = op.DataType, Arguments = Args(args[0]),
       };
+      if (args.Length == 1) return compval;
+      Logger.Assert(op.DataType is DataTypeCode);
+      return FunvalCall(compval, op.DataType as DataTypeCode, args.Skip(1).ToArray());
+    }
+
+    // A call on a field of a tuple
+    //  :: value.op
+    //  || value.op(args)
+    AstFunCall FieldCall(Symbol op, AstNode[] args) {
+      Logger.Assert(args.Length >= 1);
+      Types.CheckTypeMatch(DataTypes.Row, args[0].DataType);
+      var fldval = new AstFieldOf {
+        Func = op, DataType = op.DataType, Arguments = Args(args[0]),
+      };
+      if (args.Length == 1) return fldval;
+      Logger.Assert(op.DataType is DataTypeCode);
+      return FunvalCall(fldval, op.DataType as DataTypeCode, args.Skip(1).ToArray());
     }
 
     // Call selector for UDT
@@ -635,17 +728,19 @@ namespace Andl.Peg {
     ///--------------------------------------------------------------------------------------------
     /// Variables and literals
     /// 
-    public AstVariable Variable(string name) {
+    /// Note: literals must return type AstLiteralto be used in #directive
+    /// 
+    public AstValue VarValue(string name) {
       var v = FindVariable(name);
+      if (!v.DataType.IsPassable) Parser.ParseError("invalid value: {0}", name);
       if (v.IsField) Symbols.CurrentScope.LookupItems.Add(v.AsColumn());
-      return new AstVariable { Variable = v, DataType = v.DataType };
+      return new AstVariable { Variable = v, DataType = v.DataType, IsArgless = v.IsArgLess };
     }
 
-    public AstLiteral Literal(TypedValue value) {
+    public AstLiteral LitValue(TypedValue value) {
       return new AstLiteral { Value = value, DataType = value.DataType };
     }
-
-    public AstValue Binary(string value) {
+    public AstLiteral Binary(string value) {
       var b = new byte[value.Length / 2];
       for (var i = 0; i < b.Length; ++i) {
         int n;
@@ -653,16 +748,16 @@ namespace Andl.Peg {
           return null;
         b[i] = (byte)n;
       }
-      return Literal(BinaryValue.Create(b));
+      return LitValue(BinaryValue.Create(b));
 
     }
-    public AstValue Bool(string value) {
-      return Literal(BoolValue.Create(value[0] == 't'));
+    public AstLiteral Bool(string value) {
+      return LitValue(BoolValue.Create(value[0] == 't'));
     }
-    public AstValue Number(decimal value) {
-      return Literal(NumberValue.Create(value));
+    public AstLiteral Number(decimal value) {
+      return LitValue(NumberValue.Create(value));
     }
-    public AstValue Number(string value) {
+    public AstLiteral Number(string value) {
       Int64 iret;
       if (value[0] == '$' && Int64.TryParse(value.Substring(1), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out iret))
         return Number(Convert.ToDecimal(iret));
@@ -673,12 +768,12 @@ namespace Andl.Peg {
       return null;
     }
     public AstLiteral Text(string value) {
-      return Literal(TextValue.Create(value));
+      return LitValue(TextValue.Create(value));
     }
-    public AstValue Time(string value) {
+    public AstLiteral Time(string value) {
       DateTime tret;
       if (DateTime.TryParse(value, out tret))
-        return Literal(TimeValue.Create(tret));
+        return LitValue(TimeValue.Create(tret));
       Parser.ParseError("invalid date or time: {0}", value);
       return null;
     }
@@ -749,7 +844,7 @@ namespace Andl.Peg {
     }
     // get a heading type
     public DataHeading Headingof(IEnumerable<AstField> fields) {
-      if (fields == null) return DataHeading.Empty;
+      if (fields == null) return null;
       var typelist = fields.Select(f => DataColumn.Create(f.Name, f.DataType));
       return DataHeading.Create(typelist, false);
     }
@@ -761,11 +856,6 @@ namespace Andl.Peg {
 
     // Enter scope for a function definition, with accumulator tracking
     public bool Enter(string ident, AstType rettype, IList<AstField> arguments) {
-      // if the symbols if found, it's an overload; else check it can be defined
-      var overfunc = Symbols.FindIdent(ident) != null && Symbols.FindIdent(ident).IsCallable 
-        ? Symbols.FindIdent(ident) : null;
-      if (overfunc == null && !Symbols.CanDefGlobal(ident)) Parser.ParseError("already defined: {0}", ident);
-
       // missing args means lazy; else check for dups
       if (arguments != null) {
         var dups = arguments.GroupBy(a => a.Name).Where(g => g.Count() > 1).Select(d => d.Key);
@@ -775,14 +865,26 @@ namespace Andl.Peg {
         : arguments.Select(a => DataColumn.Create(a.Name, a.DataType)).ToArray();
       var rtype = (rettype == null) ? DataTypes.Unknown : rettype.DataType;
 
-      // create new symbol or add an overload
-      if (overfunc == null) Symbols.AddDeferred(ident, rtype, args);
-      else {
-        if (rtype == DataTypes.Unknown) rtype = overfunc.DataType;
-        else if (rtype != overfunc.DataType) Parser.ParseError($"overload must be same return type: '{ident}'");
-        if (args == null) Parser.ParseError($"overload not allowed: '{ident}'");
-        if (!Symbols.AddOverload(overfunc, args)) Parser.ParseError($"overload argument type conflict: '{ident}'");
+      // ident means it's func def not funval
+      if (ident != null) {
+        // if cannot define, then see if can overload
+        Symbol overfunc = null;
+        if (!Symbols.CanDefGlobal(ident)) {
+          overfunc = Symbols.FindIdent(ident);
+          if (!overfunc.IsCallable) overfunc = null;
+          if (overfunc == null) Parser.ParseError("already defined: {0}", ident);
+        }
+
+        // create new symbol or add an overload
+        // error if dup on args; return type not counter
+        if (overfunc == null) Symbols.AddDeffun(ident, rtype, args, 0, false);
+        else {
+          if (args == null) Parser.ParseError($"overload not allowed: '{ident}'");
+          if (!Symbols.AddOverload(overfunc, rtype, args)) Parser.ParseError($"overload argument type conflict: '{ident}'");
+        }
       }
+
+      // now prepare scope
       Symbols.CurrentScope.Push();
       if (args != null) foreach (var a in args)
         Symbols.AddVariable(a.Name, a.DataType, SymKinds.PARAM, false);

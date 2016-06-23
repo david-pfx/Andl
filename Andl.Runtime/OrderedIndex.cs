@@ -110,7 +110,7 @@ namespace Andl.Runtime {
     // Create from expressions and heading
     public static OrderedIndex Create(ExpressionBlock[] exprs, DataHeading heading) {
       var seginfo = exprs.Select(e => new SegmentInfo {
-        datatype = e.DataType,
+        datatype = e.ReturnType,
         descending = e.IsDesc,
         grouped = e.IsGrouped,
         columnno = heading.FindIndex(e.ToDataColumn()),

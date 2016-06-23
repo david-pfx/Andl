@@ -74,10 +74,10 @@ namespace Andl.Runtime {
     }
 
     public static TypedValue Parse(DataType type, string value) {
-      if (type == DataTypes.Bool) return Create(bool.Parse(value));
-      if (type == DataTypes.Number) return Create(Decimal.Parse(value));
-      if (type == DataTypes.Time) return Create(DateTime.Parse(value));
-      if (type == DataTypes.Text) return Create(value);
+      if (type == DataTypes.Bool) return BoolValue.Create(bool.Parse(value));
+      if (type == DataTypes.Number) return NumberValue.Create(Decimal.Parse(value));
+      if (type == DataTypes.Time) return TimeValue.Create(DateTime.Parse(value));
+      if (type == DataTypes.Text) return TextValue.Create(value);
       return TypedValue.Empty;
     }
 
@@ -86,7 +86,7 @@ namespace Andl.Runtime {
       { "bool", o => BoolValue.Create((bool)o) },
       { "number", o => NumberValue.Create((decimal)o) },
       { "text", o => TextValue.Create(o as string) },
-      { "time", o => BinaryValue.Create((DateTime)o) },
+      { "time", o => TimeValue.Create((DateTime)o) },
     };
 
     public static TypedValue Convert(DataType type, object value) {
@@ -95,42 +95,38 @@ namespace Andl.Runtime {
       return _convertdict[type.BaseName](value);
     }
 
-    public static BinaryValue Create(byte[] value) {
-      Logger.Assert(value != null);
-      return new BinaryValue { Value = value };
-    }
-    public static PointerValue Create(object value) {
-      return new PointerValue { Value = value };
-    }
-    public static BoolValue Create(bool value) {
-      return new BoolValue { Value = value };
-    }
-    public static CodeValue Create(ExpressionBlock value) {
-      Logger.Assert(value != null);
-      return new CodeValue { Value = value };
-    }
-    public static NumberValue Create(decimal value) {
-      return new NumberValue { Value = value };
-    }
-    public static TimeValue Create(DateTime value) {
-      return new TimeValue { Value = value };
-    }
-    public static TextValue Create(string value) {
-      Logger.Assert(value != null);
-      return new TextValue { Value = value };
-    }
-    public static HeadingValue Create(DataHeading value) {
-      Logger.Assert(value != null);
-      return new HeadingValue { Value = value };
-    }
-    public static TupleValue Create(DataRow value) {
-      Logger.Assert(value != null);
-      return new TupleValue { Value = value };
-    }
-    public static RelationValue Create(DataTable value) {
-      Logger.Assert(value != null);
-      return new RelationValue { Value = value };
-    }
+    //public static BinaryValue Create(byte[] value) {
+    //  Logger.Assert(value != null);
+    //  return new BinaryValue { Value = value };
+    //}
+    //public static PointerValue Create(object value) {
+    //  return new PointerValue { Value = value };
+    //}
+    //public static BoolValue Create(bool value) {
+    //  return new BoolValue { Value = value };
+    //}
+    //public static NumberValue Create(decimal value) {
+    //  return new NumberValue { Value = value };
+    //}
+    //public static TimeValue Create(DateTime value) {
+    //  return new TimeValue { Value = value };
+    //}
+    //public static TextValue Create(string value) {
+    //  Logger.Assert(value != null);
+    //  return new TextValue { Value = value };
+    //}
+    //public static HeadingValue Create(DataHeading value) {
+    //  Logger.Assert(value != null);
+    //  return new HeadingValue { Value = value };
+    //}
+    //public static TupleValue Create(DataRow value) {
+    //  Logger.Assert(value != null);
+    //  return new TupleValue { Value = value };
+    //}
+    //public static RelationValue Create(DataTable value) {
+    //  Logger.Assert(value != null);
+    //  return new RelationValue { Value = value };
+    //}
 
   }
 
@@ -189,6 +185,7 @@ namespace Andl.Runtime {
       Default = False;
     }
 
+    //--- over
     public override string ToString() {
       return Value ? "true" : "false";
     }
@@ -204,6 +201,12 @@ namespace Andl.Runtime {
     public override int GetHashCode() {
       return Value ? 1 : 0;
     }
+
+    //--- ctor
+    public static BoolValue Create(bool value) {
+      return new BoolValue { Value = value };
+    }
+
   }
 
   ///-------------------------------------------------------------------
@@ -245,6 +248,11 @@ namespace Andl.Runtime {
       }
       return _hashcode;
     }
+    public static BinaryValue Create(byte[] value) {
+      Logger.Assert(value != null);
+      return new BinaryValue { Value = value };
+    }
+
   }
 
   ///-------------------------------------------------------------------
@@ -259,6 +267,7 @@ namespace Andl.Runtime {
       Default = new PointerValue { Value = new byte[0] };
     }
 
+    //--- over
     public override string Format() {
       return ToString();
     }
@@ -270,6 +279,11 @@ namespace Andl.Runtime {
     }
     public override int GetHashCode() {
       return Value.GetHashCode();
+    }
+
+    //--- ctor
+    public static PointerValue Create(object value) {
+      return new PointerValue { Value = value };
     }
   }
 
@@ -293,6 +307,7 @@ namespace Andl.Runtime {
       Default = new NumberValue { Value = Decimal.Zero };
     }
 
+    //--- over
     public override string ToString() {
       return Value.ToString();
     }
@@ -309,7 +324,12 @@ namespace Andl.Runtime {
       return Value.GetHashCode();
     }
 
-    // IOrdinal
+    //--- ctor
+    public static NumberValue Create(decimal value) {
+      return new NumberValue { Value = value };
+    }
+
+    //--- IOrdinal
     public bool IsLess(object other) {
       return Value < ((NumberValue)other).Value;
     }
@@ -343,6 +363,7 @@ namespace Andl.Runtime {
       Default = new TimeValue { Value = DateTime.MinValue };
     }
 
+    //--- over
     public override string ToString() {
       return Format();
     }
@@ -364,7 +385,12 @@ namespace Andl.Runtime {
       return Value.GetHashCode();
     }
 
-    // IOrdinal
+    //--- ctor
+    public static TimeValue Create(DateTime value) {
+      return new TimeValue { Value = value };
+    }
+
+    //--- IOrdinal
     public bool IsLess(object other) {
       return Value < ((TimeValue)other).Value;
     }
@@ -393,6 +419,7 @@ namespace Andl.Runtime {
       Default = new TextValue { Value = "" };
     }
 
+    //--- over
     public override string ToString() {
       return Value;
     }
@@ -409,7 +436,13 @@ namespace Andl.Runtime {
       return Value.GetHashCode();
     }
 
-    // IOrdinal
+    //--- ctor
+    public static TextValue Create(string value) {
+      Logger.Assert(value != null);
+      return new TextValue { Value = value };
+    }
+
+    //--- IOrdinal
     // Compare strings using current culture. May be not what you expected.
     public bool IsLess(object other) {
       return String.Compare(Value, ((TextValue)other).Value, StringComparison.CurrentCulture) < 0;
@@ -433,6 +466,7 @@ namespace Andl.Runtime {
       Default = new TupleValue { Value = DataRow.Empty };
     }
 
+    //--- over
     // delegate formatting to DataRow
     public override string Format() {
       return Value.Format();
@@ -449,13 +483,20 @@ namespace Andl.Runtime {
     public override bool Equals(object other) {
       return ((TupleValue)other).Value.Equals(Value);
     }
+    public override int GetHashCode() {
+      return Value.GetHashCode();
+    }
+
+    //--- ctor
+    public static TupleValue Create(DataRow value) {
+      Logger.Assert(value != null);
+      return new TupleValue { Value = value };
+    }
+
     // support LDFIELDT
     public TypedValue GetFieldValue(string name) {
       var index = Heading.FindIndex(name);
       return index == -1 ? TypedValue.Empty : Value.Values[index];
-    }
-    public override int GetHashCode() {
-      return Value.GetHashCode();
     }
   }
 
@@ -471,6 +512,7 @@ namespace Andl.Runtime {
       Default = new RelationValue { Value = DataTable.Empty };
     }
 
+    //--- over
     // delegate formatting to DataTable
     public override string ToString() {
       return Value.ToString();
@@ -492,6 +534,12 @@ namespace Andl.Runtime {
       return Value.GetHashCode();
     }
 
+    //--- ctor
+    public static RelationValue Create(DataTable value) {
+      Logger.Assert(value != null);
+      return new RelationValue { Value = value };
+    }
+
   }
 
   ///-------------------------------------------------------------------
@@ -506,6 +554,7 @@ namespace Andl.Runtime {
       Default = new HeadingValue { Value = DataHeading.Empty };
     }
 
+    //--- over
     // delegate formatting to DataHeading
     public override string ToString() {
       return Value.ToString();
@@ -525,6 +574,13 @@ namespace Andl.Runtime {
     public override int GetHashCode() {
       return Value.GetHashCode();
     }
+
+    //--- ctor
+    public static HeadingValue Create(DataHeading value) {
+      Logger.Assert(value != null);
+      return new HeadingValue { Value = value };
+    }
+
   }
 
   ///-------------------------------------------------------------------
@@ -535,9 +591,17 @@ namespace Andl.Runtime {
     public static CodeValue Default;
     public ExpressionEval AsEval { get { return Value as ExpressionEval; } }
     public ExpressionBlock Value { get; set; }
+    DataTypeCode _datatype;
 
     static CodeValue() {
       Default = new CodeValue { Value = ExpressionBlock.Empty };
+    }
+    static public CodeValue Create(ExpressionBlock expr) {
+      var ret = new CodeValue {
+        Value = expr,
+        _datatype = expr.FullDataType,
+      };
+      return ret;
     }
 
     public override string ToString() {
@@ -547,7 +611,8 @@ namespace Andl.Runtime {
       return Value.ToFormat();
     }
     public override DataType DataType {
-      get { return DataTypes.Code; }
+      get { return _datatype; }
+      //get { return DataTypes.Code; }
     }
     public override bool Equals(object other) {
       return ((CodeValue)other).Value.Equals(Value);
@@ -593,13 +658,10 @@ namespace Andl.Runtime {
       // special case, please avoid
       if (Value == null) return "()";
       return Value.Join(",");
-      //var str = String.Join(",", Value.Select(s => s.ToString()));
-      //return str;
     }
     public override string Format() {
       if (Value == null) return "()";
       var str = _datatype.Name + "(" + Value.Select(s => s.Format()).Join(",") + ")";
-      //var str = _datatype.Name + "(" + String.Join(",", Value.Select(s => s.Format())) + ")";
       return str;
     }
 

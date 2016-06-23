@@ -15,7 +15,13 @@ using Andl.Common;
 namespace Andl.Runtime {
   [Flags]
   public enum TypeFlags {
-    None = 0, Ordered = 1, Ordinal = 4, Variable = 8, Generated = 16, HasHeading = 32, HasName = 64
+    None = 0,
+    Ordered = 1,        // type implements less than
+    Passable = 2,       // can be passed as parameter or returned as value
+    Variable = 8,       // can be stored in a variable (and printed)
+    Generated = 16,     // type instancs are generated
+    HasHeading = 32,    // has a heading
+    HasName = 64,       // has a user-defined name
   }
 
   //////////////////////////////////////////////////////////////////////
@@ -25,8 +31,6 @@ namespace Andl.Runtime {
   public interface IDataType {
     // Name of this type
     string Name { get; }
-    // parse a string to return a value of this type
-    TypedValue CreateValue(object value);
     // provide a default value for the type
     TypedValue DefaultValue();
     // return a heading if available OBS:?
@@ -53,7 +57,6 @@ namespace Andl.Runtime {
     public static readonly DataType CodeArray;
     public static readonly DataType Heading;
     public static readonly DataType Ordered;
-    public static readonly DataType Ordinal;
     public static readonly DataType Pointer;
     public static readonly DataType ValueArray;
     public static readonly DataType Void;
@@ -79,45 +82,43 @@ namespace Andl.Runtime {
     static DataTypes() {
       Dict = new Dictionary<string, DataType>();
       TypeDict = new Dictionary<Type, DataType>();
-      //Default = Text;
 
       // specials for the compiler
       Unknown = DataType.Create("unknown", null);
       Infer = DataType.Create("infer", null);
       Any = DataType.Create("any", typeof(TypedValue));
-      Ordered = DataType.Create("ordered", typeof(IOrderedValue));
-      Ordinal = DataType.Create("ordinal", typeof(IOrdinalValue));
+      Ordered = DataType.Create("ordered", typeof(IOrderedValue), TypeFlags.Ordered);
       CodeArray = DataType.Create("code[]", typeof(CodeValue[]));
       ValueArray = DataType.Create("value[]", typeof(TypedValue[]));
       Void = DataType.Create("void", typeof(VoidValue), null,
-        null, () => VoidValue.Default);
-      Code = DataType.Create("code", typeof(CodeValue), null, 
-        v => CodeValue.Create((ExpressionBlock)v), () => CodeValue.Default);
+        () => VoidValue.Default, TypeFlags.Passable);
       Pointer = DataType.Create("reference", typeof(PointerValue), typeof(IntPtr),
-        v => null, () => PointerValue.Default, TypeFlags.Variable);
+        () => PointerValue.Default, TypeFlags.Passable);
 
       // types allowed for declarations
       Bool = DataType.Create("bool", typeof(BoolValue), typeof(bool),
-        v => BoolValue.Create((bool)v), () => BoolValue.Default, TypeFlags.Variable);
+        () => BoolValue.Default, TypeFlags.Variable);
       Binary = DataType.Create("binary", typeof(BinaryValue), typeof(byte[]),
-        v => null, () => BinaryValue.Default, TypeFlags.Variable);
+        () => BinaryValue.Default, TypeFlags.Variable);
       Number = DataType.Create("number", typeof(NumberValue), typeof(decimal),
-        v => NumberValue.Create((decimal)v), () => NumberValue.Default, TypeFlags.Ordered | TypeFlags.Ordinal | TypeFlags.Variable);
+        () => NumberValue.Default, TypeFlags.Ordered | TypeFlags.Variable);
       Time = DataType.Create("time", typeof(TimeValue), typeof(DateTime),
-        v => TimeValue.Create((DateTime)v), () => TimeValue.Default, TypeFlags.Ordered | TypeFlags.Ordinal | TypeFlags.Variable);
+        () => TimeValue.Default, TypeFlags.Ordered | TypeFlags.Variable);
       Text = DataType.Create("text", typeof(TextValue), typeof(string),
-        v => TextValue.Create((string)v), () => TextValue.Default, TypeFlags.Ordered | TypeFlags.Variable);
+        () => TextValue.Default, TypeFlags.Ordered | TypeFlags.Variable);
       Heading = DataType.Create("heading", typeof(HeadingValue), null,
-        v => HeadingValue.Create((DataHeading)v), () => HeadingValue.Default, TypeFlags.HasHeading);
+        () => HeadingValue.Default, TypeFlags.HasHeading | TypeFlags.Passable);
 
-      // specials -- actually subtypes, one created here, more by user code
+      // specials -- actually subtypes, one created here, more by user calls
       // defaults will be overwritten for generated types
       Row = DataType.Create("tuple", typeof(TupleValue), null,
-        v => TupleValue.Create((DataRow)v), () => TupleValue.Default, TypeFlags.HasHeading | TypeFlags.Variable);
+        () => TupleValue.Default, TypeFlags.HasHeading | TypeFlags.Variable);
       Table = DataType.Create("relation", typeof(RelationValue), null,
-        v => RelationValue.Create((DataTable)v), () => RelationValue.Default, TypeFlags.HasHeading | TypeFlags.Variable);
+        () => RelationValue.Default, TypeFlags.HasHeading | TypeFlags.Variable);
       User = DataType.Create("user", typeof(UserValue), null,
-        v => UserValue.Create((TypedValue)v), () => UserValue.Default, TypeFlags.HasHeading | TypeFlags.HasName | TypeFlags.Variable);
+        () => UserValue.Default, TypeFlags.HasHeading | TypeFlags.HasName | TypeFlags.Variable);
+      Code = DataType.Create("code", typeof(CodeValue), null,
+        () => CodeValue.Default, TypeFlags.Variable);
     }
 
     // dummy to force class construction
@@ -157,16 +158,16 @@ namespace Andl.Runtime {
     public Type NativeType { get; protected set; }
 
     // private
-    protected ConvertDelegate _converter;
     protected DefaultDelegate _defaulter;
     protected IsSubclassDelegate _issubclass;
 
     public bool IsOrdered { get { return Flags.HasFlag(TypeFlags.Ordered); } }
-    public bool IsOrdinal { get { return Flags.HasFlag(TypeFlags.Ordinal); } }
     public bool IsVariable { get { return Flags.HasFlag(TypeFlags.Variable); } }
+    public bool IsPassable { get { return IsVariable || Flags.HasFlag(TypeFlags.Passable); } }
     public bool IsGenerated { get { return Flags.HasFlag(TypeFlags.Generated); } }
     public bool HasHeading { get { return Flags.HasFlag(TypeFlags.HasHeading); } }
     public bool HasName { get { return Flags.HasFlag(TypeFlags.HasName); } }
+    public bool HasNative { get { return IsVariable; } }
 
     public override bool Equals(object obj) {
       return obj is DataType && (obj as DataType).Name == Name;
@@ -181,20 +182,19 @@ namespace Andl.Runtime {
     }
 
     // Create minimal type and add to dictionary
-    public static DataType Create(string name, Type valuetype) {
-      return Create(name, valuetype, null, null, null);
+    public static DataType Create(string name, Type valuetype, TypeFlags flags = TypeFlags.None) {
+      return Create(name, valuetype, null, null, flags);
     }
 
     // Create type and add to dictionary
-    public static DataType Create(string name, Type valuetype, Type nativetype, ConvertDelegate converter, DefaultDelegate defaulter, TypeFlags flags = TypeFlags.None) {
-      return Create(name, valuetype, nativetype, converter, defaulter, x => false, flags);
+    public static DataType Create(string name, Type valuetype, Type nativetype, DefaultDelegate defaulter, TypeFlags flags = TypeFlags.None) {
+      return Create(name, valuetype, nativetype, defaulter, x => false, flags);
     }
 
     // Create type and add to dictionary
-    public static DataType Create(string name, Type valuetype, Type nativetype, ConvertDelegate converter, DefaultDelegate defaulter, IsSubclassDelegate issubclass, TypeFlags flags = TypeFlags.None) {
+    public static DataType Create(string name, Type valuetype, Type nativetype, DefaultDelegate defaulter, IsSubclassDelegate issubclass, TypeFlags flags = TypeFlags.None) {
       var dt = new DataType {
         Name = name,
-        _converter = converter,
         _defaulter = defaulter,
         _issubclass = issubclass,
         NativeType = nativetype,
@@ -204,10 +204,6 @@ namespace Andl.Runtime {
       DataTypes.Dict[name] = dt;
       if (valuetype != null) DataTypes.TypeDict[valuetype] = dt;
       return dt;
-    }
-
-    public TypedValue CreateValue(object value) {
-      return _converter(value);
     }
 
     // Override this and return true as needed
@@ -226,14 +222,13 @@ namespace Andl.Runtime {
 
     // Is other a type match where this is what is needed?
     public bool IsTypeMatch(DataType other) {
-      var ok = this == other  
+      var ok = this == other
         || this == DataTypes.Any  // runtime to handle
-        //|| this == DataTypes.Text // coercion -- too hard for now
+                                  //|| this == DataTypes.Text // coercion -- too hard for now
         || other.IsSubtype(this)
         || this == DataTypes.Table && other is DataTypeRelation
         || this == DataTypes.Row && other is DataTypeTuple
-        || this == DataTypes.Ordered && other.IsOrdered
-        || this == DataTypes.Ordinal && other.IsOrdinal;
+        || this == DataTypes.Ordered && other.IsOrdered;
       if (!ok) Logger.WriteLine(5, "Type mismatch this:{0} other:{1}", this, other);
       return ok;
     }
@@ -282,7 +277,6 @@ namespace Andl.Runtime {
 
     public override string ToString() {
       return "tup" + Heading.ToString();
-      //return base.ToString() + ":" + Heading.ToString();
     }
 
     public override DataType BaseType { get { return DataTypes.Row; } }
@@ -299,11 +293,10 @@ namespace Andl.Runtime {
     // Create a new relation type for a particular heading
     // Called once for the generic, then once for each specific
     static DataTypeTuple Create(string name, DataHeading heading, TypeFlags flags, ConvertDelegate converter = null, DefaultDelegate defaulter = null) {
+      //var basetype = DataTypes.Row as DataTypeTuple;
       var dt = new DataTypeTuple {
         Name = name,
         Heading = heading,
-        _converter = converter ?? (v => TupleValue.Create((DataTable)v)),
-        //_defaulter = defaulter ?? (() => TupleValue.Default), //BUG:xxx
         Flags = flags,
       };
       return dt;
@@ -356,7 +349,6 @@ namespace Andl.Runtime {
 
     public override string ToString() {
       return "rel" + Heading.ToString();
-      //return base.ToString() + ":" + Heading.ToString();
     }
 
     public override DataType BaseType { get { return DataTypes.Table; } }
@@ -373,11 +365,10 @@ namespace Andl.Runtime {
     // Create a new relation type for a particular heading
     // Called once for the generic, then once for each specific
     public static DataTypeRelation Create(string name, DataHeading heading, TypeFlags flags, ConvertDelegate converter = null, DefaultDelegate defaulter = null) {
+      //var basetype = DataTypes.Table as DataTypeRelation;
       var dt = new DataTypeRelation {
         Name = name,
         Heading = heading,
-        _converter = converter ?? (v => RelationValue.Create((DataTable)v)),
-        //_defaulter = defaulter ?? (() => RelationValue.Default), //BUG:xxx
         Flags = flags,
       };
       return dt;
@@ -431,7 +422,6 @@ namespace Andl.Runtime {
 
     public override string ToString() {
       return Name + Heading.ToString();
-      //return Name + ":" + Heading.ToString();
     }
 
     public override DataType BaseType { get { return DataTypes.User; } }
@@ -449,8 +439,6 @@ namespace Andl.Runtime {
       var dt = new DataTypeUser {
         Name = name,
         Heading = heading,
-        _converter = converter ?? (v => UserValue.Create((TypedValue[])v)),
-        //_defaulter = defaulter,
         Flags = flags,
       };
       dt.NativeType = TypeMaker.CreateType(dt);
@@ -481,4 +469,67 @@ namespace Andl.Runtime {
     }
   }
 
-}
+  //////////////////////////////////////////////////////////////////////
+  /// <summary>
+  /// Code is a callable type that includes an ordered Heading, return type and byte code
+  /// </summary>
+  public class DataTypeCode : DataType {
+    CodeValue _default;
+
+    public static DataTypeCode Empty { get { return DataTypeCode.Get(DataTypes.Void, new DataColumn[0]); } } 
+    public DataHeading Arguments { get; protected set; }
+    public DataType Returns { get; protected set; }
+
+    public override bool Equals(object obj) {
+      var udto = obj as DataTypeCode;
+      return udto != null && Arguments.EqualByType(udto.Arguments) && Returns.Equals(udto.Returns);
+    }
+
+    public override int GetHashCode() {
+      return Arguments.GetHashCode();
+    }
+
+    public override string ToString() {
+      return $"{Returns}({Arguments})";
+    }
+
+    public override DataType BaseType { get { return DataTypes.Code; } }
+    public override string GetUniqueName { get { return Name; } }
+    public override string GetNiceName { get { return Name; } }
+
+    public override TypedValue DefaultValue() {
+      if (_default == null)
+        _default = CodeValue.Create(new ExpressionBlock()); // TODO:
+      return _default;
+    }
+
+    // Create a new Code type for a particular heading
+    public static DataTypeCode Create(string name, DataHeading heading, TypeFlags flags, ConvertDelegate converter = null, DefaultDelegate defaulter = null) {
+      var dt = new DataTypeCode {
+        Name = name,
+        Heading = heading,
+        Flags = flags,
+      };
+      dt.NativeType = TypeMaker.CreateType(dt);
+      return dt;
+    }
+
+    // Create and return new type
+    // Note: heading must have IsTuple=false to preserve order
+    public static DataTypeCode Get(DataType type, DataColumn[] columns) {
+      var dt = new DataTypeCode {
+        Returns = type,
+        Arguments = (columns == null) ? DataHeading.Empty : DataHeading.Create(columns, false),
+        Flags = TypeFlags.Variable,
+      };
+      //dt.NativeType = TypeMaker.CreateType(dt); // TODO:
+      return dt;
+    }
+    public static DataTypeCode Get(DataType type, DataHeading heading) {
+      return Get(type, heading?.Columns);
+    }
+
+
+    }
+
+  }

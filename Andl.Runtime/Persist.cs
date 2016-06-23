@@ -210,14 +210,14 @@ namespace Andl.Runtime {
       Write(eblock.Serial);
       switch (eblock.Kind) {
       case ExpressionKinds.Project:
-        Write(eblock.DataType);
+        Write(eblock.ReturnType);
         break;
       case ExpressionKinds.Rename:
         Write(eblock.OldName);
-        Write(eblock.DataType);
+        Write(eblock.ReturnType);
         break;
       case ExpressionKinds.IsOrder:
-        Write(eblock.DataType);
+        Write(eblock.ReturnType);
         Write(eblock.IsGrouped);
         Write(eblock.IsDesc);
         break;
@@ -225,11 +225,11 @@ namespace Andl.Runtime {
         WriteValue(eblock.Value);
         break;
       default:
+
         Write(eblock.Code);
-        Write(eblock.DataType);
-        Write(eblock.AccumCount);
+        Write(eblock.ReturnType);
         WriteArgType(eblock.Lookup);
-        Write(eblock.IsLazy);
+        Write(eblock.AccumCount);
         break;
       }
     }
@@ -260,9 +260,9 @@ namespace Andl.Runtime {
     }
 
     void WriteArgType(DataHeading argtype) {
-      var numargs = argtype == null ? 0 : argtype.Degree;
-      Write((byte)numargs);
-      if (numargs > 0)
+      var isargless = (argtype == null);
+      Write(isargless);
+      if (!isargless)
         Write(argtype);
     }
 
@@ -405,8 +405,8 @@ namespace Andl.Runtime {
                                         return BinaryValue.Create(bytes); } },
       { DataTypes.Code,   (pr, dt, dh) => CodeValue.Create(pr.ReadExpr()) },
       { DataTypes.Heading,(pr, dt, dh) => HeadingValue.Create(pr.ReadHeading()) },
-      { DataTypes.Table,  (pr, dt, dh) => TypedValue.Create(pr.ReadTable(dh)) },
-      { DataTypes.Row,    (pr, dt, dh) => TypedValue.Create(pr.ReadRow(dh)) },
+      { DataTypes.Table,  (pr, dt, dh) => RelationValue.Create(pr.ReadTable(dh)) },
+      { DataTypes.Row,    (pr, dt, dh) => TupleValue.Create(pr.ReadRow(dh)) },
       { DataTypes.User,   (pr, dt, dh) => UserValue.Create(pr.ReadUser(dh), dt as DataTypeUser) },
     };
 
@@ -443,7 +443,7 @@ namespace Andl.Runtime {
         eb = ExpressionBlock.Create(name, ReadValue());
         break;
       default:
-        eb = ExpressionBlock.Create(name, kind, ReadByteCode(), ReadDataType(), ReadInteger(), ReadArgType(), _reader.ReadBoolean(), serial);
+        eb = ExpressionBlock.Create(name, kind, ReadByteCode(), ReadDataType(), ReadArgType(), ReadInteger(), serial);
         break;
       }
       return eb;
@@ -457,8 +457,8 @@ namespace Andl.Runtime {
 
     // read a function signature
     DataHeading ReadArgType() {
-      var numargs = ReadByte();
-      return (numargs > 0) ? ReadHeading() : null;
+      var isargless = ReadBool();
+      return (isargless) ? null : ReadHeading();
     }
 
     // read a full data type

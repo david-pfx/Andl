@@ -61,7 +61,7 @@ namespace Andl.Peg {
         case Opcodes.LDAGG:
           var value = preader.ReadValue();
           Logger.WriteLine(3, "{0}{1}", prefix, value);
-          if (value.DataType == DataTypes.Code)
+          if (value.DataType is DataTypeCode)
             Decode((value as CodeValue).Value.Code);
           break;
         case Opcodes.LDSEG: //TODO: recurse
@@ -71,6 +71,7 @@ namespace Andl.Peg {
           break;
         case Opcodes.LDCAT:
         case Opcodes.LDCATR:
+        case Opcodes.LDCATV:
         case Opcodes.LDFIELD:
         case Opcodes.LDCOMP:
         case Opcodes.LDFIELDT:

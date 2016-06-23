@@ -54,7 +54,7 @@ PanicDirective = "panic" IDX #ERROR{ "panic" };
 BadDirective = &{ Error(state, "bad directive") };
 
 //--- statements
-Statement <AstStatement> = v:(Deferred 
+Statement <AstStatement> = v:(Deffun 
     / Typedef 
     / Update
     / Assignment        // must precede Variable
@@ -65,7 +65,7 @@ Statement <AstStatement> = v:(Deferred
 BadStatement <AstStatement> = WSO RC &{ Error(state, "mismatched right brace") }  { null }
     / . &{ Error(state, "bad statement") }  { null };
 
-    //TODO: list
+//TODO: list
 Typedef <AstTypedef> = TYPE v:(UserType / Subtype)<0,,SEP> { AST(state).DefBlock(v) };
 
 UserType <AstTypedef> = 
@@ -93,7 +93,7 @@ SourceName = v:Ident  &{ IsSourceName(v) } { v }
     / &{ Error(state, "source name expected") } { "" };
 
 Update <AstStatement> = 
-      UPDATE v:CatVar w:Funcop x:Funcop? y:ExpressionExp { AST(state).UpdateSetop(v,w,Single(x),y) }
+      UPDATE v:CatVar w:Funcop &{ IsDyadic(w) } x:ExpressionExp { AST(state).UpdateSetop(v,w,x) }
     / UPDATE v:CatVar &{ AST(state).Enter(v) } 
              w:Restrict? x:TransformOrDelete &{ AST(state).Exit(true) } { AST(state).UpdateWhere(v,Single(w),x) }
     / UPDATE &{ Error(state, "bad update") }  { null };
@@ -105,102 +105,156 @@ TransformOrDelete <AstTransformer> = DOT LC RC { null }
     / . &{ Error(state, "missing update action") }  { null };
 
 // updateable variable
-CatVar <AstValue> = v:Ident &{ IsCatVar(v) } { AST(state).Variable(v) };
+CatVar <AstValue> = v:Ident &{ IsCatVar(v) } { AST(state).VarValue(v) };
 
-// Assignment -- must preced other uses of VAR
-Assignment <AstStatement> = x:VAR? &(Ident LA) v:Ident LA w:Expression { AST(state).Assignment(v,w,Single(x)) }
-    / Ident LA &{ Error(state, "expression expected") } { null };
+// :: VAR? ident := value
+Assignment <AstStatement> = x:VAR? v:Ident LA w:Expression { AST(state).Assignment(v,w,Single(x)) }
+    / VAR? Ident LA &{ Error(state, "expression expected") } { null };
 
-// Deffun requires a field list either empty or ident colon
-// otherwise will backtrack to function call
-Deferred <AstStatement> = 
-    v:Ident RA &{ AST(state).Enter(v,null,null) } y:DeferredBody &{ AST(state).Exit(true) } 
-        { AST(state).Deferred(v,null,null,y) }
-    / DEF v:Ident 
-        w:(<AstType> COLON a:TypeRef { a } / { null }) 
-        x:(<IList<AstField>> LP &(RP / Ident) &{ AST(state).Enter() } b:FieldList &{ AST(state).Exit() } RPexp { b }) RA 
-        &{ AST(state).Enter(v,w,x) } y:DeferredBody &{ AST(state).Exit(true) } 
-            { AST(state).Deferred(v,w,x,y) };
+// :: ident => expr           // argless (lazy)
+// :: DEF ident(args) => expr // deffun
+// [todo: :: DEF ident(args)         // type def -- not impl -- needs persistence mechanism]
+Deffun <AstStatement> = 
+    v:Ident RA &{ AST(state).Enter(v,null,null) } y:DeffunBody &{ AST(state).Exit(true) } 
+        { AST(state).Deffun(v,null,null,y) }
+    / DEF v:Ident w:DeffunType x:DeffunArguments
+        RA &{ AST(state).Enter(v,w,x) } y:DeffunBody &{ AST(state).Exit(true) } 
+        { AST(state).Deffun(v,w,x,y) };
 
-DeferredBody <AstBodyStatement> = v:Statement { AST(state).BodyStatement(v) }
+DeffunType <AstType> = 
+    COLON v:TypeRef { v } 
+    / { null };
+
+// Args must be empty or ident, otherwise will backtrack to function call
+DeffunArguments <IList<AstField>> = 
+    LP &(RP / Ident) &{ AST(state).Enter() } v:FieldList &{ AST(state).Exit() } RPexp { v };
+
+DeffunBody <AstBodyStatement> = 
+    v:Statement { AST(state).BodyStatement(v) }
     / BadStatement { null };
 
 //--- expressions
-ExpressionList = v:Expression<0,,SEP>;
-Expression <AstValue> = v:Primary w:BinopTail* { AST(state).Binop(v,w) } 
 
-BinopTail <AstOpCall> = v:Funcop &{ IsBinop(v) } WSC w:Primary { AST(state).OpCall(v,w) } 
+//  :: expression (comma expression)*
+ExpressionList = 
+    v:Expression<0,,SEP>;
 
-Primary <AstValue> = v:Funcop &{ IsUnop(v) } w:Primary { AST(state).Unop(v,w) }
+//  :: primary (binop primary)*
+Expression <AstValue> = 
+    v:Primary w:BinopTail* { AST(state).Binop(v,w) } 
+BinopTail <AstOpCall> = 
+    v:Funcop &{ IsBinop(v) } WSC w:Primary { AST(state).BinopCall(v,w) } 
+
+//  :: prefix* simple postfix*
+Primary <AstValue> = 
+    v:Funcop &{ IsUnop(v) } w:Primary { AST(state).UnopCall(v,w) }
     / v:SimplePrimary &{ AST(state).Enter(v) } w:PostFix* &{ AST(state).Exit(true) } { AST(state).PostFix(v,w) };
 
-//--- post fix operators
-PostFix <AstCall> = &(WSL DOT) WSC v:PostFixBody { v }
-    / DOT &{ Error(state, "component or function expected") } { null };
+//  :: DOT body
+//  :: LP args RP       -- funval call as postfix op
+PostFix <AstCall> = 
+    &(WSL DOT) WSC v:PostFixBody { v }
+    / DOT &{ Error(state, "component or function expected") } { null }
+    / LP v:ExpressionList RPexp { AST(state).FunvalCall(v.ToArray()) };
 
 PostFixBody <AstCall> = v:Whiler { v }
     / v:Transformer { v }
     / v:Restrict { v }
     / v:Orderer { v }
     / v:DotFunc { v }
-    / DOT v:Ident &{ IsComponent(v) } { AST(state).DotComponent(v) }
-    / DOT v:FieldIdent { AST(state).DotField(v) };
+    / DOT v:Ident &{ Error(state, "undefined identifier: '{0}'", v) } { null }
+    / DOT &{ Error(state, "identifier expected") } { null };
 
 //--- Tuple generators
 
-Whiler <AstOpCall> = DOT v:Ident &{ IsWhile(v) } 
+//  :: .while(expr)
+Whiler <AstOpCall> = 
+    DOT v:Ident &{ IsWhile(v) } 
     &{ AST(state).Enter() } LPexp w:ExpressionExp &{ AST(state).Exit() } RPexp 
     { AST(state).While(v,w) };
 
-Restrict <AstWhere> = DOT v:Ident &{ IsRestrict(v) } 
+//  :: .where(pred)
+Restrict <AstWhere> = 
+    DOT v:Ident &{ IsRestrict(v) } 
     &{ AST(state).Enter() } LPexp w:Expression &{ AST(state).Exit() } RPexp 
     { AST(state).Where(v,w) };
 
-DotFunc <AstOpCall> = DOT v:Funcop LP w:ExpressionList RPexp { AST(state).DotFunc(v, w.ToArray()) }
-    / DOT v:Funcop !LP { AST(state).DotFunc(v) };
+//  :: .ident(args)
+//  :: .ident
+DotFunc <AstOpCall> = 
+    DOT v:Ident &{ IsDef(v) } LP w:ExpressionList RPexp { AST(state).DotFunc(v, w.ToArray()) }
+    / DOT v:Ident &{ IsDef(v) } !LP { AST(state).DotFunc(v) };
 
-Orderer <AstOrderer> = DOT ORDER LPexp v:OrderTermList RPexp { AST(state).Orderer(v) };
+//  :: .order(terms)
+Orderer <AstOrderer> = 
+    DOT ORDER LPexp v:OrderTermList RPexp { AST(state).Orderer(v) };
 
+//  :: <%? -? field ,>+
 OrderTermList = OrderTerm<0,,SEP>;
-OrderTerm <AstOrderField> = w:PERCENT? v:MINUS? x:FieldIdent { AST(state).OrderField(x, v.Count > 0, w.Count > 0) };
+OrderTerm <AstOrderField> = 
+    w:PERCENT? v:MINUS? x:FieldIdent { AST(state).OrderField(x, v.Count > 0, w.Count > 0) };
 
-Transformer <AstTransformer> = DOT SELECT? LC WSC v:STAR? WSC w:TransformList SEP? RCexp { AST(state).Transformer(v.Count > 0, w) }
+Transformer <AstTransformer> = 
+    DOT SELECT? LC WSC v:STAR? WSC w:TransformList SEP? RCexp { AST(state).Transformer(v.Count > 0, w) }
     / DOT SELECT LPexp WSC v:STAR? WSC w:TransformList SEP? RPexp { AST(state).Transformer(v.Count > 0, w) };
 
 TransformList = Transform<0,,SEP>;
-Transform <AstField> = !RC &{ AST(state).Enter() } v:TransformPrel &{ AST(state).Exit() } { v }
-TransformPrel <AstField> = v:FieldIdent &(SEP / RC / RP) { AST(state).Transfield(v) }        // project
+Transform <AstField> = 
+    !RC &{ AST(state).Enter() } v:TransformPrel &{ AST(state).Exit() } { v }
+
+TransformPrel <AstField> = 
+    v:FieldIdent &(SEP / RC / RP) { AST(state).Transfield(v) }        // project
     / v:Ident LA WSC w:FieldIdent &(SEP / RC / RP) { AST(state).Transfield(v, w) }       // rename
     / v:Ident LA WSC w:OpenAttrExprExp { AST(state).Transfield(v, null, w) }        // extend
     / v:OpenAttrExprExp { AST(state).Transfield(null, null, v) };                   // lift
 
-OpenAttrExprExp = (Expression 
-    / &{ Error(state, "invalid attribute expression") } { null });
-ExpressionExp = Expression
+OpenAttrExprExp = 
+    Expression 
+    / &{ Error(state, "invalid attribute expression") } { null };
+
+ExpressionExp = 
+    Expression
     / &{ Error(state, "invalid expression") } { null };
 
 //----- Primaries
-SimplePrimary = DoBlock 
+SimplePrimary = 
+    DoBlock 
     / LP v:Expression RPexp { v }
     / Table / Row
     / Fold / If
-    / Function
+    / Funval
+    / FunCall 
     / v:Literal { v }
-    / v:VarIdent  { AST(state).Variable(v) }
-    / v:Ident &{ Error(state, "undefined '{0}'", v) } { null };
+    / v:VarIdent  { AST(state).VarValue(v) }
+    / v:Ident &{ Error(state, "variable expected: '{0}'", v) } { null };
 
-If <AstValue> = v:Ident &{ IsIf(v) } LPexp w:Expression SEPexp x:Expression SEPexp y:Expression RPexp { AST(state).If(v,w,x,y) }
-    / v:Ident &{ IsIf(v) } LP  &{ Error(state, "expression expected") } { null };
+DoBlock <AstValue> = 
+    v:Ident &{ IsDo(v) } w:DoBody { AST(state).DoBlock(v,w) }
 
-Fold <AstValue> = v:Ident &{ IsFold(v) } LPexp w:Funcop &{ IsFoldable(w) } SEPexp x:Expression RPexp { AST(state).Fold(v,w,x) }
+If <AstValue> = 
+    v:Ident &{ IsIf(v) } LPexp w:Expression SEPexp x:Expression SEPexp y:Expression RPexp { AST(state).If(v,w,x,y) }
+    / v:Ident &{ IsIf(v) } &{ Error(state, "boolean expression expected") } { null };
+
+Fold <AstValue> = 
+    v:Ident &{ IsFold(v) } LPexp w:Funcop SEPexp x:Expression RPexp { AST(state).Fold(v,w,x) }
     / v:Ident &{ IsFold(v) } &{ Error(state, "foldable operator expected") } { null };
 
-DoBlock <AstValue> = v:Ident &{ IsDo(v) } w:DoBody { AST(state).DoBlock(v,w) }
+Funval <AstValue> = 
+    DEF v:DeffunType w:DeffunArguments 
+        RA &{ AST(state).Enter(null,v,w) } x:DeffunBody &{ AST(state).Exit(true) } 
+        { AST(state).Funval(v,w,x) }
+    / DEF &{ Error(state, "function expression expected") } { null }
 
-Function <AstValue> = v:Funcop LP w:ExpressionList RPexp { AST(state).Function(v, w.ToArray()) };
+FunCall <AstValue> = 
+    v:Funcop LP w:ExpressionList RPexp { AST(state).FunCall(v, w.ToArray()) };
 
 // table literal
 // resolve {{ ident : }} as headed body only if COLON seen
+//  :: { { : } }
+//  :: { { ident:type,... } (expr,...),... }
+//  :: { { ident:=expr,... },... }
+//  :: rel({ ident:type,... } (expr,...),... )
+//  :: rel:type(tupexpr,...)
 Table <AstValue> = 
     LC WSL &(LC COLON) v:TableHeadedBody RCexp { v }
     / LC WSL &(LC Ident COLON) &{ AST(state).Enter() } v:TableHeadedBody &{ AST(state).Exit() } RCexp { v }
@@ -228,7 +282,7 @@ TableExprRow <AstValue> = LP v:ExpressionList SEP? RPexp { AST(state).TableExprR
 // list of tuple rows: (A:=a,B:=b),etc
 RowList = v:RowOrIdent<0,,SEP>;
 RowOrIdent <AstValue> = v:Row { v }
-    / v:VarIdent  { AST(state).Variable(v) };
+    / v:VarIdent  { AST(state).VarValue(v) };
 
 // tuple that can be used as a literal, closed or open expression
 Row <AstValue> = LC STAR RCexp { AST(state).Row() }
@@ -240,15 +294,26 @@ RowTrans <AstField> = v:FieldIdent &(SEP / RC) { AST(state).Transfield(v) }
     / v:Ident LA w:Expression { AST(state).Transfield(v, null, w) }
 
 //--- type reference (after COLON)
-TypeRef <AstType> = v:Ident &{ IsTypename(v) } { AST(state).FindType(v) }
-    / LC &LC v:Heading RCexp { AST(state).RelType(v) }      // two LC
-    / &LC v:Heading { AST(state).TupType(v) }               // one LC
-    / TUP !LP { AST(state).FindType("tuple") }
-    / REL !LP { AST(state).FindType("relation") }
-    / TUP LPexp v:TypeRef RPexp { AST(state).TupType(v) }
-    / REL LPexp v:TypeRef RPexp { AST(state).RelType(v) }
+TypeRef <AstType> = 
+    TypeRefSimple
+    / REL !LP { AST(state).FindType("relation") }           // generic rel
+    / TUP !LP { AST(state).FindType("tuple") }              // generic tup
+    / REL LPexp v:TypeRefSimple RPexp { AST(state).RelType(v) }
+    / TUP LPexp v:TypeRefSimple RPexp { AST(state).TupType(v) }
     / v:SimplePrimary { AST(state).GetType(v) }
     / &{ Error(state, "type expected") } { null };
+
+// Simple type ref is a pure type, typed ident or literal
+TypeRefSimple <AstType> = 
+    TypeRefPure
+    / v:Literal { AST(state).GetType(v) }
+    / v:VarIdent  { AST(state).GetType(AST(state).VarValue(v)) };
+
+// Pure type ref is a type name or type literal
+TypeRefPure <AstType> = 
+    v:Ident &{ IsTypename(v) } { AST(state).FindType(v) }
+    / LC &LC v:Heading RCexp { AST(state).RelType(v) }      // two LC
+    / &LC v:Heading { AST(state).TupType(v) };              // one LC
 
 // Heading is {: or {ident -- resolve ambiguity elsewhere
 // Main thing is to bail before {ident:= or any expr
@@ -330,7 +395,7 @@ MINUS = '-' !OpChar WSO;
 IDX = !ID WS*;              // end of ident possibly followed by WS
 
 Skip = (!EOL .)* (EOFX / EOLX);       // skip the rest of the line and hope it then makes sense
-WSL = WSO (EOL WSO)*;       // suitable for lookahead
+WSL = WSO (EOLX WSO)*;       // suitable for lookahead
 WSC = WSO (EOLX WSO)*;      // continuation, take eol if found, plus WS
 WSO = WS*;                  // optional whitespace between tokens
 WS = (SP / Comment) { "" };

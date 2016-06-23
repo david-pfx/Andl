@@ -17,6 +17,7 @@ namespace Andl.Runtime {
     /// Relation is convered to a generic list of class instances
     /// 
     /// All native values are cast to or from object.
+    /// NOTE: like the type system itself, this module is not thread-safe.
     /// </summary>
     static AssemblyName _assemblyname = new AssemblyName("TypeMakerAssembly");
     static AssemblyBuilder _assbuilder = AppDomain.CurrentDomain.DefineDynamicAssembly(_assemblyname, AssemblyBuilderAccess.RunAndCollect);
@@ -41,7 +42,8 @@ namespace Andl.Runtime {
 
     void DefineMembers(DataColumn[] columns) {
       foreach (var col in columns)
-        if (col.Name != "")   // special for anonymous in Lift
+        // exclude anonymous (Lift) and those with no native
+        if (col.Name != "" && col.DataType.NativeType != null)
           DefineField(col.Name, col.DataType);
     }
 

@@ -48,10 +48,12 @@ namespace Andl.Runtime {
   /// </summary>
   public class ExpressionBlock : IApiExpression {
     public string Name { get; protected set; }
+    // project/rename/extend etc
     public ExpressionKinds Kind { get; protected set; }
-    public DataType DataType { get; set; }
+    // Datatype returned from expression
+    public DataType ReturnType { get; set; }
     // substitution values: attributes or arg list
-    public DataHeading Lookup { get; protected set; }
+    public DataHeading Lookup { get { return InternalLookup ?? DataHeading.Empty; } }
     // previous name for when field is renamed (current is new name)
     public string OldName { get; protected set; }
     // no of accumulators needed for this expression
@@ -63,13 +65,19 @@ namespace Andl.Runtime {
     // unique number for use by runtime
     public int Serial { get; protected set; }
 
-    public bool IsLazy { get; set; }              // OBS:true to defer evaluation (set later)
     public bool IsGrouped { get; protected set; } // true to perform grouping
     public bool IsDesc { get; protected set; }    // true to sort descending
+    // 'real' value of lookup can be null if argless
+    public DataHeading InternalLookup { get; protected set; }
+
+    // true for 'lazy' function that looks like a variable
+    public bool IsArgless { get { return InternalLookup == null; } }
+    // full datatype is the function signature
+    public DataTypeCode FullDataType { get { return DataTypeCode.Get(ReturnType, Lookup); } }
 
     static int _serialcounter = 0;
 
-    public int NumArgs { get { return Lookup == null ? 0 : Lookup.Degree; } }
+    public int NumArgs { get { return (InternalLookup == null) ? 0 : Lookup.Degree; } }
     public bool IsValue { get { return Kind == ExpressionKinds.Value; } }
     public bool IsRename { get { return Kind == ExpressionKinds.Rename; } }
     public bool IsProject { get { return Kind == ExpressionKinds.Project; } }
@@ -83,11 +91,10 @@ namespace Andl.Runtime {
     public string SubtypeName { get { return "(" + Serial + ")"; } }
 
     public static ExpressionBlock Empty {
-      get { return Create(":empty", ExpressionKinds.Nul, new ByteCode(), DataTypes.Void); }
+      get { return Create("&e", ExpressionKinds.Nul, new ByteCode(), DataTypes.Void); }
     }
     public static ExpressionBlock True {
-      get { return Create(":true", BoolValue.True); }
-      //get { return Create(":true", ExpressionKinds.Nul, new ByteCode(), DataTypes.Bool); }
+      get { return Create("&t", BoolValue.True); }
     }
 
     public override string ToString() {
@@ -97,8 +104,8 @@ namespace Andl.Runtime {
         return String.Format("{0} {1}<-{2} @{3}", Kind, Name, OldName, Lookup.ToString());
       if (Kind == ExpressionKinds.IsOrder)
         return String.Format("{0} {1} {2} {3}", Kind, Name, IsGrouped ? "grp" : "ord", IsDesc ? "desc" : "asc");
-      return String.Format("{0} {1}:{2} @{3} ac:{4} code:{5} #{6}", Kind, Name,
-        DataType, Lookup, AccumCount, Code.Length, Serial);
+      return String.Format("{0} {1}:{2} ac:{3} code:{4} #{5}", Kind, Name,
+        FullDataType, AccumCount, Code.Length, Serial);
     }
 
     public string ToFormat() {
@@ -106,38 +113,38 @@ namespace Andl.Runtime {
     }
 
     // Create an expression block with code to evaluate.
-    public static ExpressionBlock Create(string name, ExpressionKinds kind, ByteCode code, DataType type, 
-                                         int accums = 0, DataHeading lookup = null, bool lazy = false, int serial = 0) {
+    public static ExpressionBlock Create(string name, ExpressionKinds kind, ByteCode code, 
+        DataType rtntype, DataHeading lookup = null, int accums = 0, int serial = 0) {
+      //Logger.Assert(!(rtntype is DataTypeCode), "expr code");
       return new ExpressionBlock { 
         Name = name ?? "!", 
         Kind = kind,
         Serial = serial == 0 ? ++_serialcounter : serial,
-        DataType = type, 
+        ReturnType = rtntype, 
         Code = code, 
         AccumCount = accums,
-        Lookup = lookup ?? DataHeading.Empty,
-        IsLazy = lazy,
+        InternalLookup = lookup,
       };
     }
 
     // Create a codeless expression block for renames and projects
     // Create a lookup so later code can easily track total set of inputs
-    public static ExpressionBlock Create(string name, string oldname, DataType type) {
+    public static ExpressionBlock Create(string name, string oldname, DataType rtntype) {
       return new ExpressionBlock {
         Kind = (name == oldname) ? ExpressionKinds.Project : ExpressionKinds.Rename,
         Name = name,
-        DataType = type,
+        ReturnType = rtntype,
         OldName = oldname,
-        Lookup = DataHeading.Create(new DataColumn[] { DataColumn.Create(oldname, type) }),
+        InternalLookup = DataHeading.Create(new DataColumn[] { DataColumn.Create(oldname, rtntype) }),
       };
     }
 
     // Create a codeless expression block for sorts
-    public static ExpressionBlock Create(string name, DataType type, bool grouped, bool descending) {
+    public static ExpressionBlock Create(string name, DataType rtntype, bool grouped, bool descending) {
       return new ExpressionBlock {
         Kind = ExpressionKinds.IsOrder,
         Name = name,
-        DataType = type,
+        ReturnType = rtntype,
         IsGrouped = grouped,
         IsDesc = descending,
       };
@@ -148,13 +155,13 @@ namespace Andl.Runtime {
       return new ExpressionBlock {
         Kind = ExpressionKinds.Value,
         Name = name,
-        DataType = value.DataType,
+        ReturnType = value.DataType,
         Value = value,
       };
     }
 
     public DataColumn ToDataColumn() {
-      return DataColumn.Create(Name, DataType);
+      return DataColumn.Create(Name, ReturnType);
     }
 
   }
@@ -172,12 +179,11 @@ namespace Andl.Runtime {
         Evaluator = evaluator,
         Name = expr.Name,
         Kind = expr.Kind,
-        DataType = expr.DataType,
+        ReturnType = expr.ReturnType,
+        InternalLookup = expr.InternalLookup,
         OldName = expr.OldName,
         Code = expr.Code,
         AccumCount = expr.AccumCount,
-        Lookup = expr.Lookup,
-        IsLazy = expr.IsLazy,
         IsGrouped  = expr.IsGrouped,
         IsDesc = expr.IsDesc,
         Serial = expr.Serial,
@@ -197,7 +203,7 @@ namespace Andl.Runtime {
       if (IsValue)
         return Value;
       if (HasFold)
-        return DataType.DefaultValue();
+        return ReturnType.DefaultValue();
       TypedValue ret;
       if (IsRename || IsProject)
         ret = Evaluator.Lookup(OldName, lookup);
@@ -212,7 +218,7 @@ namespace Andl.Runtime {
 
     // evaluate an open predicate expression returning true/false
     public BoolValue EvalPred(ILookupValue lookup) {
-      Logger.Assert(DataType == DataTypes.Bool, Name);
+      Logger.Assert(ReturnType == DataTypes.Bool, Name);
       if (Code.Length == 0) return BoolValue.True;
       return EvalOpen(lookup) as BoolValue;
     }
@@ -237,9 +243,9 @@ namespace Andl.Runtime {
     // Check that return type matches, but allow null (needed in aggregation)
     // Check heading, but if null this is first usage to set it
     void CheckReturnType(TypedValue value) {
-      if (DataType == DataTypes.Unknown) return;    // suppress checking
-      if (!value.DataType.Equals(DataType))
-        throw new EvaluatorException("type mismatch: {0} instead of {1}", value.DataType, DataType);
+      if (ReturnType == DataTypes.Unknown) return;    // suppress checking why???
+      if (ReturnType == DataTypes.Code) return;    // suppress checking why???
+      Logger.Assert(value.DataType.Equals(ReturnType), "type mismatch");
     }
   }
 }

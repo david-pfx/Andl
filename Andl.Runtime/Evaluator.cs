@@ -23,7 +23,8 @@ namespace Andl.Runtime {
     LDACCBLK,   // load current accumulator block as object value
     LDAGG,      // load aggregation value
     LDCAT,      // load value from catalog by name
-    LDCATR,     // load raw (unevaluated) value from catalog by name
+    LDCATV,     // load value from catalog and evaluate
+    LDCATR,     // load raw (unevaluated) value as CodeValue
     LDCOMP,     // load value from UDT component by name
     LDFIELD,    // load field value via lookup
     LDLOOKUP,   // load current lookup as object value
@@ -189,14 +190,30 @@ namespace Andl.Runtime {
           PushStack(reader.ReadValue());
           break;
         // Known catalog variable, look up value
+        //case Opcodes.LDCAT:
+        //  var catnam = reader.ReadString();
+        //  var catval = CatVars.GetValue(catnam);
+        //  Logger.Assert(catval != null, $"{opcode}:{catnam}");
+        //  if (catval.DataType is DataTypeCode)
+        //    catval = this.Exec((catval as CodeValue).Value.Code);
+        //  _stack.Push(catval);
+        //  break;
+
+        // Catalog variable, look up value (could be code)
         case Opcodes.LDCAT:
           var catnam = reader.ReadString();
           var catval = CatVars.GetValue(catnam);
           Logger.Assert(catval != null, $"{opcode}:{catnam}");
-          if (catval.DataType == DataTypes.Code)
-            catval = this.Exec((catval as CodeValue).Value.Code);
           _stack.Push(catval);
           break;
+        // Catalog variable, must be code, evaluate
+        case Opcodes.LDCATV:
+          var ctvnam = reader.ReadString();
+          var ctvval = CatVars.GetValue(ctvnam) as CodeValue;
+          Logger.Assert(ctvval != null, $"{opcode}:{ctvnam}");
+          _stack.Push(this.Exec((ctvval as CodeValue).Value.Code));
+          break;
+        // Catalog variable, must be code, as code value
         case Opcodes.LDCATR:
           var ctrnam = reader.ReadString();
           var ctrval = CatVars.GetValue(ctrnam) as CodeValue;
@@ -229,11 +246,11 @@ namespace Andl.Runtime {
           PushStack(segval);
           break;
         case Opcodes.LDLOOKUP:
-          var lkpobj = TypedValue.Create(_lookups.Peek() as object);
+          var lkpobj = PointerValue.Create(_lookups.Peek() as object);
           PushStack(lkpobj);
           break;
         case Opcodes.LDACCBLK:
-          var acbobj = TypedValue.Create(accblock as object);
+          var acbobj = PointerValue.Create(accblock as object);
           PushStack(acbobj);
           break;
         case Opcodes.LDCOMP:

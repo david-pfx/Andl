@@ -238,7 +238,7 @@ namespace Andl.Runtime {
       // create empty catalog
       var table = DataTableLocal.Create(_catalogtableheading);
       GlobalVars.AddEntry(CatalogTableName, table.DataType, EntryKinds.Value,
-        EntryFlags.Public | EntryFlags.System, TypedValue.Create(table));
+        EntryFlags.Public | EntryFlags.System, RelationValue.Create(table));
       GlobalVars.FindEntry(CatalogTableName).Flags |= EntryFlags.Database;
 
       // Sql or not? Open it.
@@ -419,6 +419,7 @@ namespace Andl.Runtime {
       var table = GlobalVars.GetValue(centry).AsTable();
       foreach (var row in table.GetRows()) {
         var blob = (row.Values[3] as BinaryValue).Value;
+        // BUG: argLess is an attribute of a symbol but not of an ExpressionBlock, so does not round trip
         var entry = CatalogEntry.FromBinary(blob);
         PersistentVars.Add(entry);
         if (entry.IsDatabase) {
@@ -737,7 +738,9 @@ namespace Andl.Runtime {
     // Common code for setting a value
     public void Set(TypedValue value) {
       Value = value;
-      if (value.DataType != DataTypes.Code) {
+#if false // FIX:code
+      if (!(value.DataType is DataTypeCode)) {
+      //if (value.DataType != DataTypes.Code) {
         Logger.Assert(value.DataType == DataType);
         // TEMP: following code is just so it gets exercised
         NativeValue = TypeMaker.ToNativeValue(value);
@@ -745,6 +748,7 @@ namespace Andl.Runtime {
           Value = TypeMaker.FromNativeValue(NativeValue, DataType);
         TypedValueBuilderTest.Test(value);
       }
+#endif
     }
 
     public override string ToString() {
@@ -758,7 +762,7 @@ namespace Andl.Runtime {
     }
     public string CodeToStringValue() {
       Logger.Assert(Kind == EntryKinds.Code, Kind);
-      return String.Format("{0} [{1}]", CodeValue.Value.DataType.BaseName, CodeValue.Value.NumArgs);
+      return String.Format("{0} [{1}]", CodeValue.Value.ReturnType.BaseName, CodeValue.Value.NumArgs);
     }
     public string TypeToStringValue() {
       Logger.Assert(Kind == EntryKinds.Type, Kind);
@@ -851,8 +855,8 @@ namespace Andl.Runtime {
     DataRow MakeOperator(string name, DataType datatype, ExpressionBlock value) {
       return DataRow.Create(Table.Heading, new TypedValue[]
           { TextValue.Create(name),
-            TextValue.Create(value.DataType.BaseType.Name),
-            TextValue.Create(value.DataType.GetUniqueName ?? ""),
+            TextValue.Create(value.ReturnType.BaseType.Name),
+            TextValue.Create(value.ReturnType.GetUniqueName ?? ""),
             TextValue.Create(value.NumArgs == 0 ? "" : value.SubtypeName) }); // suppress empty arg list
     }
 
@@ -895,8 +899,10 @@ namespace Andl.Runtime {
     public void WriteThrift(TextWriter tw, string basename, IEnumerable<CatalogEntry> entries) {
       var operators = entries.Where(e => e.IsCode)
         .Select(e => e.CodeValue.Value).ToArray();
-      AddTypes(operators.Select(e => e.DataType));
-      AddTypes(operators.SelectMany(e => e.Lookup.Columns.Select(c => c.DataType)));
+      AddTypes(operators
+        .Select(e => e.ReturnType));
+      AddTypes(operators
+        .SelectMany(e => e.Lookup.Columns.Select(c => c.DataType)));
       ThriftGen.Process(tw, basename, _datatypes.ToArray(), operators);
     }
 

@@ -630,7 +630,7 @@ namespace Andl.Runtime {
     // Creates new empty table, add seed, join op (only union for now) and expression
     public override DataTable Recurse(int flags, ExpressionEval expr) {
       Logger.WriteLine(4, "Recurse {0} {1}", flags, expr);
-      Logger.Assert(expr.DataType == DataType);
+      Logger.Assert(expr.ReturnType == DataType);
 
       var newtable = DataTableLocal.Create(Heading);
       foreach (var row in _rows)

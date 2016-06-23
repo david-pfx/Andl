@@ -89,16 +89,16 @@ namespace ThriftTest {
       RunTest("GetVR4", client.GetVR4());
 
       // errors
-      Console.WriteLine("Testing exceptions and errors");
+      Console.WriteLine("Testing error handling");
       try {
         client.DoErrorA();
       } catch (Exception ex) {
-        Console.WriteLine("  Test {0} exception {1}", "DoErrorA", ex.Message);
+        Console.WriteLine("  Test {0} catch {1}", "DoErrorA", ex.Message);
       }
       try {
         client.DoErrorB();
       } catch (Exception ex) {
-        Console.WriteLine("  Test {0} exception {1}", "DoErrorB", ex.Message);
+        Console.WriteLine("  Test {0} catch {1}", "DoErrorB", ex.Message);
       }
 
     }

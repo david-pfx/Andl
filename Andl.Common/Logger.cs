@@ -99,7 +99,8 @@ namespace Andl.Common {
     }
     public static void Assert(bool test, object thing = null) {
       if (!test) {
-        var msg = (thing == null ? "" : ("<" + thing.ToString() + ">"));
+        var msg = $"<<{thing}>>";
+        //var msg = (thing == null ? "" : ("<" + thing.ToString() + ">"));
         Flush();
         throw new UtilAssertException(msg);
       }

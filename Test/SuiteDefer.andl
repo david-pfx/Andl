@@ -5,24 +5,47 @@
 start($filename$)
 
 //--- defer
-dv1 => 22
-test_true($lineno$, 22 = dv1)
+df1 => 'ab'
+test_true($lineno$, 'ab' = df1)
 
-av1 := 22
-dv2 => av1*2 + dv1*2
-test_true($lineno$, 88 = dv2)
+var dv1 := 'cd'
+df2 => df1 & dv1
+test_true($lineno$, 'abcd' = df2)
+dv1 := 'ef'
+test_true($lineno$, 'abef' = df2)
 
-//--- arguments
-def fn1(x:0) => x*10
-test_true($lineno$, 30 = fn1(3))
+//--- arguments: 0
+def fn0() => 'ab'
+test_true($lineno$, 'ab' = fn0())
 
-def fn3(x:0) => seq(x)
-test_true($lineno$, seq(4) = fn3(4))
+var dv2 := 'cd'
+def fn0a() => fn0() & dv2
+test_true($lineno$, 'abcd' = fn0a())
+dv2 := 'ef'
+test_true($lineno$, 'abef' = fn0a())
+
+//--- arguments: 1+
+def fn1(x:text) => x & x
+test_true($lineno$, 'abab' = fn1('ab'))
+
+def fn6(pbi:binary, pbo:bool, pnu:number, pte:text, pti:time) => pbi & pbo & pnu & pte & pti
+test_true($lineno$, 'deadtrue42abc31/12/2016' = fn6(b'dead', true, 42, 'abc', t'2016-12-31'))
 
 def fact:0(n:0) => if(n<=1,1,n*fact(n-1))
 test_true($lineno$, 720 = fact(6))
 
 //--- do blocks
+def fndo1(a:'') => do { a & a }
+test_true($lineno$, 'abab' = fndo1('ab'))
+
+def fndo2(a:'') => do { 
+    a
+    42
+    a & a 
+}
+test_true($lineno$, 'abab' = fndo2('ab'))
+
+//--- recursive
 def pot:0(n:0) => do { if(n<=0,1,10*pot(n-1)) }
 test_true($lineno$, 1000000 = pot(6))
 
@@ -34,6 +57,15 @@ test_true($lineno$, 720 = dfact(6))
 test_true($lineno$, 2432902008176640000 = dfact(20))
 
 //--- scopes
+var dv3 := 'ab'
+var dv4 := 'cd'
+def fn2a(a:text, b:text) => a & b
+def fn2b(a:text, b:text) => a & dv3
+def fn2c(a:text, dv3:text) => a & dv3
+test_true($lineno$, 'abcd' = fn2a(dv3, dv4))
+test_true($lineno$, 'abab' = fn2b(dv3, dv4))
+test_true($lineno$, 'abcd' = fn2c(dv3, dv4))
+
 def fns0(t:'') => do {
   a := t & 'xxx'
   a
@@ -53,7 +85,7 @@ def fns2(rr:rv1) => do {
 }
 test_true($lineno$, rv1 = fns2(rv1))
 
-// --- user types as parameters
+//--- user types as parameters
 
 rv3 := {{ A2:number, A1:text }}
 rv4 := {{ A1:='abc', A2:=17 }}
@@ -100,21 +132,71 @@ test_true($lineno$, 1112 = fnret3)
 stv4 := fnret3
 test_true($lineno$, 1112 = stv4)
 
-// -- overloads
+//--- overloads
 
-def fov() => ''
-def fov(a:'') => a
-def fov(a:0) => '' & a
-def fov(a:0,b:'') => a & b
-def fov(a:'',b:0) => a & b
-def fov(a:bool,b:number,c:text) => a & b & c
+def fov1() => ''
+def fov1(a:'') => a
+def fov1(a:0) => '' & a
+def fov1(a:0,b:'') => a & b
+def fov1(a:'',b:0) => a & b
+def fov1(a:bool,b:number,c:text) => a & b & c
 
-test_true($lineno$, '' = fov())
-test_true($lineno$, 'xxx' = fov('xxx'))
-test_true($lineno$, '0.2' = fov(1/5))
-test_true($lineno$, 'xxx0.2' = fov('xxx',1/5))
-test_true($lineno$, '0.2xxx' = fov(1/5,'xxx'))
-test_true($lineno$, 'true0.2xxx' = fov(true,1/5,'xxx'))
+test_true($lineno$, '' = fov1())
+test_true($lineno$, 'xxx' = fov1('xxx'))
+test_true($lineno$, '0.2' = fov1(1/5))
+test_true($lineno$, 'xxx0.2' = fov1('xxx',1/5))
+test_true($lineno$, '0.2xxx' = fov1(1/5,'xxx'))
+test_true($lineno$, 'true0.2xxx' = fov1(true,1/5,'xxx'))
+
+def fov2(a:0) => a
+def fov2(a:'') => a
+def fov2(a:0,b:'') => a & b
+def fov2(a:0,b:0) => a + b
+test_true($lineno$, 42 = fov2(42) )
+test_true($lineno$, 'hello' = fov2('hello') )
+test_true($lineno$, '42hello' = fov2(fov2(42),fov2('hello')) )
+test_true($lineno$, 42 = fov2(41,1) )
+test_true($lineno$, 10 = seq(5) .{ fold(fov2,N) } )
+
+//--- funvals: function value and calls
+
+// literal
+test_true($lineno$, (def(a:'') => a & a) <> (def(a:'') => a & a) )
+test_true($lineno$, (def(a:'') => a & a) <> (def(b:'') => b & b) )
+test_true($lineno$, 'abab' = (def(a:'') => a & a)('ab') )
+
+// variable
+vfnv1a := def(a:'') => a & a
+vfnv1b := def(b:'') => b & b
+test_true($lineno$, vfnv1a = vfnv1a )
+test_true($lineno$, vfnv1a <> vfnv1b )
+test_true($lineno$, 'abab' = vfnv1a('ab') )
+
+// var variable
+var vfnv2a := def(a:'') => a & a
+var vfnv2b := def(b:'') => b & b
+test_true($lineno$, vfnv2a = vfnv2a )
+test_true($lineno$, vfnv2a <> vfnv2b )
+test_true($lineno$,'abab' = vfnv2a('ab') )
+
+// user type
+type tfnv(t:'',f:def(a:'')=>'')
+vfnv3a := tfnv('aaa', def(a:'')=>a & a)
+vfnv3b := tfnv('bbb', def(b:'')=>b & b)
+test_true($lineno$,vfnv3a = vfnv3a )
+test_true($lineno$,vfnv3a <> vfnv3b )
+test_true($lineno$,'abab' = vfnv3a.f('ab') )
+
+// tuple
+vfnv4 := { t:='aaa', f:=def(a:'')=>a & a }
+test_true($lineno$,'dede' = vfnv4.f('de') )
+
+// relation
+vfnv5 := {
+    { v:='a', f:=def(a:'')=>a & a },
+    { v:='b', f:=def(a:'')=>a & a & a },
+}
+test_true($lineno$,{{ x:='a', y:='fgfg' },{ x:='b', y:='fgfgfg' }} = vfnv5 .{ x:=v, y:=f('fg') } )
 
 finish($filename$)
 //andl_catalog

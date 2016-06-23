@@ -46,15 +46,20 @@ namespace Andl.Peg {
     // raises error if type error detected 
     // no of args: symbol table sets a limit because some builtins have extra trailing args
     public void CheckTypeError(Symbol symbol, out DataType datatype, out CallInfo callinfo, params DataType[] datatypes) {
+      Logger.Assert(symbol.CallInfo != null, "no callinfo");
+      // use symbol type as result type unless (a) not IsParameter or (b) Has Overloads
       datatype = symbol.DataType;
       callinfo = symbol.CallInfo;
       var nargs = symbol.NumArgs; // max no to check
       if (datatypes.Length > nargs)
         Parser.ParseError("'{0}' expected {1} arguments, found {2}", symbol.Name, nargs, datatypes.Length);
-      if (symbol.IsCompareOp && datatypes[0] != datatypes[1])
-        Parser.ParseError("'{0}' arguments must be same type", symbol.Name);
+      if (symbol.IsCompareOp && !datatypes[0].Equals(datatypes[1]))
+        Parser.ParseError("'{0}' arguments type mismatch: {1} and {2}", symbol.Name, datatypes[0], datatypes[1]);
+
+      // Must search for correct callinfo in order to make call
+      // If more than one (HasOverloads), then use return type as datatype
+      // Careful: may be argless
       var match = false;
-      var hasoverloads = symbol.CallInfo.OverLoad != null;
       for (var cinf = symbol.CallInfo; cinf != null && !match; cinf = cinf.OverLoad) {
         var nargsi = Math.Min(symbol.NumArgs, cinf.NumArgs); // max no to check
         if (datatypes.Length == nargsi
@@ -63,21 +68,22 @@ namespace Andl.Peg {
             Parser.ParseError("'{0}' ambiguous type match", symbol.Name);
           match = true;
           callinfo = cinf;
-          if (hasoverloads)   // assume symbol table correct unless using overloads
-            datatype = cinf.ReturnType; //FIX: bad feeling about this
-          else if (datatype == DataTypes.Ordered)
-            datatype = datatypes[0];  // FIX: ouch
         }
       }
       if (!match)
         Parser.ParseError("no definition matches call to '{0}'", symbol.Name);
+      // special functions to handle these two cases
       if (symbol.IsDyadic)
         CheckDyadicType(symbol, datatypes[0], datatypes[1], ref datatype);
-      else if (datatype == DataTypes.Table || datatype == DataTypes.Infer)
+      else if (datatype == DataTypes.Table || datatype == DataTypes.Infer || datatype == DataTypes.Ordered)
         CheckInferType(symbol, datatypes, ref datatype);
-      else if (datatype == DataTypes.Unknown)
+      // for overloads and deffunc assume the callinfo is correct
+      // note: sym for seq() has the heading info (callinfo less specific)
+      else if(symbol.HasOverloads || symbol.IsDefFunc)
+        datatype = callinfo.ReturnType;
+
+      if (!datatype.IsPassable)
         Parser.ParseError($"{symbol.Name}: cannot infer return type");
-      Logger.Assert(datatype.Flags.HasFlag(TypeFlags.Variable) || datatype == DataTypes.Void, datatype.Name);
     }
 
     // check dyadic ops and compute result type
@@ -105,7 +111,11 @@ namespace Andl.Peg {
         datatype = datatypes[0];
       else if (datatype == DataTypes.Infer)
         datatype = datatypes[0];
-      else Parser.ParseError($"{sym.Name}: cannot infer type from argument 1");
+      else if (datatype.IsOrdered) {
+        if (datatypes[0] != datatypes[1])
+          Parser.ParseError($"{sym.Name}: arguments must be same type");
+        datatype = datatypes[0];
+      } else Parser.ParseError($"{sym.Name}: cannot infer type from argument 1");
     }
 
     // check single type match
@@ -115,7 +125,7 @@ namespace Andl.Peg {
 
     // Is type2 a type match where type1 is what is needed?
     public bool TypeMatch(DataType typeexp, DataType typeis) {
-      var ok = typeexp == typeis
+      var ok = typeexp.Equals(typeis)
         || typeexp == DataTypes.Any  // runtime to handle
         || typeexp == DataTypes.Code  // runtime to handle
         || typeexp == DataTypes.CodeArray  // runtime to handle
@@ -123,8 +133,7 @@ namespace Andl.Peg {
         || typeexp == DataTypes.Table && typeis is DataTypeRelation
         || typeexp == DataTypes.Row && typeis is DataTypeTuple
         || typeexp == DataTypes.User && typeis is DataTypeUser
-        || typeexp == DataTypes.Ordered && typeis.IsOrdered
-        || typeexp == DataTypes.Ordinal && typeis.IsOrdinal;
+        || typeexp == DataTypes.Ordered && typeis.IsOrdered;
       return ok;
     }
 

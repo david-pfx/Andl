@@ -28,9 +28,9 @@ namespace Andl.Peg {
     }
 
     // create code segment wrapped for fold and deffunc, called via Invoke
-    public ByteCode Compile(Symbol invop, Symbol op, TypedValue seed) {
+    public ByteCode Compile(Symbol invop, string opname, TypedValue seed) {
       var e = new Emitter();
-      e.OutName(Opcodes.LDCATR, op.Name);  // FIX: overloads?
+      e.OutName(Opcodes.LDCATR, opname);
       e.Out(Opcodes.LDACCBLK);
       e.OutLoad(NumberValue.Create(-1));
       e.Out(Opcodes.LDAGG, seed);
@@ -59,7 +59,7 @@ namespace Andl.Peg {
 
   public class AstProject : AstField {
     public override string ToString() {
-      return string.Format("{0}", Name);
+      return string.Format("pro[{0}]", Name);
     }
     public override void Emit(Emitter e) {
       e.OutSeg(ExpressionBlock.Create(Name, Name, DataType));
@@ -69,7 +69,7 @@ namespace Andl.Peg {
   public class AstRename : AstField {
     public string OldName { get; set; }
     public override string ToString() {
-      return string.Format("{0}:={1}", Name, OldName);
+      return string.Format("ren[{0}:={1}]", Name, OldName);
     }
     public override void Emit(Emitter e) {
       e.OutSeg(ExpressionBlock.Create(Name, OldName, DataType));
@@ -82,19 +82,19 @@ namespace Andl.Peg {
     public int Accums { get; set; }
     public bool HasWin { get; set; }
     public override string ToString() {
-      return string.Format("{0}:={1}", Name, Value);
+      return string.Format("ext[{0}:={1}]", Name, Value);
     }
     public override void Emit(Emitter e) {
       var kind = (HasWin) ? ExpressionKinds.HasWin
         : (Accums > 0) ? ExpressionKinds.HasFold
         : (Lookup == null) ? ExpressionKinds.Closed : ExpressionKinds.Open;
-      e.OutSeg(ExpressionBlock.Create(Name, kind, Value.Compile(), Value.DataType, Accums, Lookup));
+      e.OutSeg(ExpressionBlock.Create(Name, kind, Value.Compile(), Value.DataType, Lookup, Accums));
     }
   }
 
   public class AstLift : AstExtend {
     public override string ToString() {
-      return string.Format("Lift({0})", Value);
+      return string.Format("lif[{0}]", Value);
     }
   }
 
@@ -102,7 +102,7 @@ namespace Andl.Peg {
     public bool Descending { get; set; }
     public bool Grouped { get; set; }
     public override string ToString() {
-      return string.Format("{0}{1}{2}", Descending ? "-" :"", Grouped ? "%" : "", Name);
+      return string.Format("orf[{0}{1}{2}]", Descending ? "-" :"", Grouped ? "%" : "", Name);
     }
     public override void Emit(Emitter e) {
       e.OutSeg(ExpressionBlock.Create(Name, DataType, Grouped, Descending));
@@ -116,18 +116,21 @@ namespace Andl.Peg {
 
   public class AstVariable : AstValue {
     public Symbol Variable { get; set; }
+    public bool IsArgless { get; set; }
     public override string ToString() {
-      return string.Format("{0}:{1}", Variable.Name, DataType);
+      return string.Format("var[{0}:{1}]", Variable.Name, DataType);
     }
     public override void Emit(Emitter e) {
-      e.OutLoad(Variable);
+      if (IsArgless)
+        e.OutName(Opcodes.LDCATV, Variable.Name);
+      else e.OutLoad(Variable);
     }
   }
 
   public class AstLiteral : AstValue {
     public TypedValue Value { get; set; }
     public override string ToString() {
-      return Value.ToString();
+      return $"lit[{Value}]";
     }
     public override void Emit(Emitter e) {
       e.OutLoad(Value);
@@ -137,7 +140,7 @@ namespace Andl.Peg {
   public class AstBlock : AstValue {
     public AstStatement[] Statements { get; set; }
     public override string ToString() {
-      return string.Format("[{0}]", Statements.Join("; "));
+      return string.Format("blk[{0}]", Statements.Join("; "));
     }
     public override void Emit(Emitter e) {
       foreach (var s in Statements) {
@@ -161,7 +164,7 @@ namespace Andl.Peg {
     public Symbol Func { get; set; }
     public AstValue Value { get; set; }
     public override void Emit(Emitter e) {
-      e.OutSeg(ExpressionBlock.Create(":d", ExpressionKinds.Closed, Value.Compile(), Value.DataType));
+      e.OutSeg(ExpressionBlock.Create("&d", ExpressionKinds.Closed, Value.Compile(), Value.DataType));
       e.Out(Opcodes.LDACCBLK);
       e.OutCall(Func);
     }
@@ -173,6 +176,10 @@ namespace Andl.Peg {
     public bool HasWin { get; set; }
   }
 
+  // Code node
+  // Ascode true outputs LDVALUE CodeValue, with no evaluator inserted
+  //        false outputs LDSEG and inserts evaluator
+  // Note: Datatype holds return value
   public class AstCode : AstValue {
     public string Name { get; set; }
     public AstValue Value { get; set; }
@@ -181,19 +188,28 @@ namespace Andl.Peg {
     public bool HasWin { get; set; }
     public bool AsCode { get; set; }   // output as code value not seg
     public override string ToString() {
-      return string.Format("{0}({1})[{2}] => {3}", Name, Lookup, Value, Value.DataType);
+      return string.Format("cod[{0}({1})={2}=>{3}]", Name, Lookup, Value, DataType);
     }
     public override void Emit(Emitter e) {
       var kind = (HasWin) ? ExpressionKinds.HasWin
         : (Accums > 0) ? ExpressionKinds.HasFold
         : (Lookup == null) ? ExpressionKinds.Closed : ExpressionKinds.Open;
-      var eb = ExpressionBlock.Create(Name, kind, Value.Compile(), Value.DataType, Accums, Lookup);
+      var eb = ExpressionBlock.Create(Name, kind, Value.Compile(), DataType, Lookup, Accums);
+      //var eb = ExpressionBlock.Create(Name, kind, Value.Compile(), Value.DataType, Lookup, Accums);
       if (AsCode) e.OutLoad(CodeValue.Create(eb));
       else e.OutSeg(eb);
     }
   }
 
-  // A Call identifies a function and how to call it
+  // Funval is just code with a wrapper so datatype is function type, not return type
+  public class AstFunval : AstValue {
+    public AstCode Value { get; set; }  // anything that emits a value
+    public override void Emit(Emitter e) {
+      Value.Emit(e);
+    }
+  }
+
+    // A Call identifies a function and how to call it
   public class AstCall : AstValue {
     public Symbol Func { get; set; }
     public CallInfo CallInfo { get; set; }
@@ -206,7 +222,7 @@ namespace Andl.Peg {
     public int NumVarArgs { get; set; }
 
     public override string ToString() {
-      return string.Format("{0}({1}) => {2}", Func.Name, Arguments.Join(", "), DataType);
+      return string.Format("fun[{0}({1})=>{2}]", Func.Name, Arguments.Join(", "), DataType);
     }
     public override void Emit(Emitter e) {
       Logger.Assert(DataType.IsVariable || DataType == DataTypes.Void, DataType);
@@ -217,14 +233,20 @@ namespace Andl.Peg {
 
   // An OpCall is a FunCall missing its first argument
   public class AstOpCall : AstFunCall { }
+  // A Funval call has arguments but no operator
+  public class AstFunvalCall : AstOpCall { }
 
   // Emit code to call a user defined function via Invoke
+  // Can use either Name or Code
   public class AstDefCall : AstFunCall {
-    public CallInfo Callinfo { get; set; }
+    public string Name { get; set; }
+    public AstNode Code { get; set; }
     public int AccumBase { get; set; }
     public override void Emit(Emitter e) {
       Logger.Assert(DataType.IsVariable || DataType == DataTypes.Void, DataType);
-      e.OutName(Opcodes.LDCATR, Callinfo.Name);
+      Logger.Assert(Name == null || Code == null);
+      if (Name != null) e.OutName(Opcodes.LDCATR, Name);
+      else Code.Emit(e);
       e.Out(Opcodes.LDACCBLK);
       e.OutLoad(NumberValue.Create(AccumBase));
       foreach (var a in Arguments) a.Emit(e);
@@ -239,7 +261,7 @@ namespace Andl.Peg {
     public int AccumIndex { get; set; }
     public Symbol InvokeOp { get; set; }
     public override string ToString() {
-      return string.Format("{0}({1},{2})#[{3}] => {4}", Func.Name, FoldedOp.Name, FoldedExpr, AccumIndex , DataType);
+      return string.Format("fol[{0}({1},{2})#{3}=>{4}]", Func.Name, FoldedOp.Name, FoldedExpr, AccumIndex , DataType);
     }
 
     public override void Emit(Emitter e) {
@@ -249,11 +271,10 @@ namespace Andl.Peg {
       e.OutLoad(NumberValue.Create(AccumIndex));
       e.OutLoad(DataType.DefaultValue());
       var seed = FoldedOp.GetSeed(DataType);
-      var eb = ExpressionBlock.Create(":i", ExpressionKinds.IsFolded, 
-        (FoldedOp.IsDefFunc) 
-          ? FoldedExpr.Compile(InvokeOp, FoldedOp, seed) 
-          : FoldedExpr.Compile(FoldedOp, seed, CallInfo),
-        FoldedExpr.DataType, AccumIndex);
+      var code = (FoldedOp.IsDefFunc)
+          ? FoldedExpr.Compile(InvokeOp, CallInfo.Name, seed)
+          : FoldedExpr.Compile(FoldedOp, seed, CallInfo);
+      var eb = ExpressionBlock.Create("&i", ExpressionKinds.IsFolded, code, FoldedExpr.DataType, null, AccumIndex);
       e.OutSeg(eb);
       e.OutCall(Func);
     }
@@ -286,7 +307,7 @@ namespace Andl.Peg {
   public class AstOrderer : AstCall {
     public AstOrderField[] Elements { get; set; }
     public override string ToString() {
-      return string.Format("$({0})", Elements.Join(","));
+      return string.Format("ord[{0}]", Elements.Join(","));
     }
   }
 
@@ -295,7 +316,7 @@ namespace Andl.Peg {
     public bool Lift { get; set; }
     public AstField[] Elements { get; set; }
     public override string ToString() {
-      return string.Format("{0}({1})", Lift ? "lift" : "tran", Elements.Join(","));
+      return string.Format("trn[{0}({1})]", Lift ? "lift" : "tran", Elements.Join(","));
     }
   }
 

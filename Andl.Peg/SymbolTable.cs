@@ -118,7 +118,6 @@ namespace Andl.Peg {
     public const string RowE = ":rowe";
     public const string RowV = ":rowv";
     public const string RowC = ":rowc";
-    //public const string RowR = ":rowr";
     public const string Table = ":table";
     public const string TableV = ":tablev";
     public const string TableC = ":tablec";
@@ -135,6 +134,17 @@ namespace Andl.Peg {
 
   /// <summary>
   /// Implements a symbol table entry.
+  /// 
+  /// Datatype usage
+  ///   Catvar and const: (Type.IsVariable) use as is
+  ///   Deffunc: (Code) Use callinfo.
+  ///   Op, Func, Dyadic:
+  ///     Type.IsParameter: use as return type
+  ///     HasOverload: use callinfo return type
+  ///     Table, Row, Infer: infer from first arg
+  ///     Ordered: infer from first arg, must be Type.IsOrdered
+  ///     Ordinal: not used
+  ///     Any, Unknown: infer from special code
   /// </summary>
   public class Symbol {
     public SymKinds Kind { get; set; }
@@ -167,7 +177,7 @@ namespace Andl.Peg {
 
     // series of tests used by parser
     public bool IsConst { get { return Kind == SymKinds.CONST; } }
-    public bool IsCatVar { get { return Kind == SymKinds.CATVAR; } } // note: includes deferred
+    public bool IsCatVar { get { return Kind == SymKinds.CATVAR; } } // note: includes deffun
     public bool IsField { get { return Kind == SymKinds.FIELD; } }
     public bool IsParam { get { return Kind == SymKinds.PARAM; } }
     public bool IsComponent { get { return Kind == SymKinds.COMPONENT; } }
@@ -186,9 +196,12 @@ namespace Andl.Peg {
     public bool IsWhile { get { return FuncKind == FuncKinds.WHILE; } }
 
     public bool IsCallable { get { return CallKind != CallKinds.NUL; } }
+    public bool IsCallVar { get { return DataType is DataTypeCode; } }
     public bool IsOperator { get { return IsCallable && Precedence != 0; } }
     public bool IsFoldable { get { return IsCallable && Foldable != FoldableFlags.NUL; } }
     public bool IsDyadic { get { return IsCallable && JoinOp != JoinOps.NUL; } }
+    public bool HasOverloads{ get { return IsCallable && CallInfo.OverLoad != null; } }
+    public bool IsArgLess { get { return IsCallable && CallInfo.IsArgLess; } }
     public bool IsUnary { get { return IsOperator && NumArgs == 1; } }
     public bool IsBinary { get { return IsOperator && NumArgs == 2; } }
     public bool IsCompareOp { get { return IsBinary && DataType == DataTypes.Bool && !IsFoldable; } }
@@ -287,13 +300,15 @@ namespace Andl.Peg {
           : EntryKinds.Value;
         var flags = EntryFlags.Public;  // FIX: when visibility control implemented
         var name = (symbol.IsCallable) ? symbol.CallInfo.Name : symbol.Name;
-        _catalog.GlobalVars.AddNewEntry(name, symbol.DataType, kind, flags);
+        var datatype = (symbol.IsCallable) ? symbol.CallInfo.ReturnType : symbol.DataType;
+        _catalog.GlobalVars.AddNewEntry(name, datatype, kind, flags);
       }
     }
 
-    // Find existing symbol by name
+    // Find existing symbol by name (or null)
     public Symbol FindIdent(string name) {
-      var sym = CurrentScope.FindAny(name);      return (sym != null && sym.Kind == SymKinds.ALIAS) ? sym.Link : sym;
+      var sym = CurrentScope.FindAny(name);
+      return (sym != null && sym.Kind == SymKinds.ALIAS) ? sym.Link : sym;
     }
 
     // Check if symbol can be defined globally without conflict
@@ -321,22 +336,23 @@ namespace Andl.Peg {
       CurrentScope.Add(MakeVariable(name, datatype, kind, mutable));
     }
 
-    public void AddDeferred(string name, DataType rettype, DataColumn[] args) {
-      CurrentScope.Add(MakeDeferred(name, rettype, args, 0));
+    public void AddDeffun(string name, DataType rettype, DataColumn[] args, int accums, bool mutable) {
+      CurrentScope.Add(MakeDeffun(name, rettype, args, 0, mutable));
     }
 
     // Add an overload. Give it a unique name
     // return false if duplicate list of types, cannot add
-    public bool AddOverload(Symbol sym, DataColumn[] args) {
+    public bool AddOverload(Symbol sym, DataType rettype, DataColumn[] argtypes) {
+      Logger.Assert(!sym.IsArgLess, sym);
       var nover = 0;
       for (var ci = sym.CallInfo; ci != null; ci = ci.OverLoad, nover++) {
-        if (args.Length == ci.NumArgs
-          && Enumerable.Range(0, args.Length)
-            .Select(x => args[x].DataType == ci.Arguments[x].DataType)
+        if (argtypes.Length == ci.NumArgs
+          && Enumerable.Range(0, argtypes.Length)
+            .Select(x => argtypes[x].DataType == ci.Arguments[x].DataType)
             .All(b => b))
           return false;
       }
-      var callinfo = CallInfo.Create($"{sym.Name}{_overload_delimiter}{nover}", sym.DataType, args, 0, sym.CallInfo);
+      var callinfo = CallInfo.Create($"{sym.Name}{_overload_delimiter}{nover}", rettype, argtypes, 0, sym.CallInfo);
       sym.CallInfo = callinfo;
       if (sym.NumArgs < callinfo.NumArgs) sym.NumArgs = callinfo.NumArgs;
       return true;
@@ -368,8 +384,8 @@ namespace Andl.Peg {
       return sym;
     }
 
-    // Create a sumbol for a deferred function
-    public static Symbol MakeDeferred(string name, DataType datatype, DataColumn[] args, int accums) {
+    // Create a symbol for a defined function
+    public static Symbol MakeDeffun(string name, DataType datatype, DataColumn[] args, int accums, bool mutable = false) {
       Symbol sym = new Symbol {
         Name = name,
         Kind = SymKinds.CATVAR,
@@ -377,6 +393,7 @@ namespace Andl.Peg {
         CallKind = CallKinds.EFUNC,
         CallInfo = CallInfo.Create(name, datatype, args, accums),
         NumArgs = args?.Length ?? 0,
+        Mutable = mutable,
       };
       return sym;
     }
@@ -414,7 +431,7 @@ namespace Andl.Peg {
         else if (entry.Kind == EntryKinds.Value)
           _globalscope.Add(MakeVariable(entry.Name, entry.DataType, SymKinds.CATVAR, true));
         else if (entry.Kind == EntryKinds.Code)
-          _globalscope.Add(MakeDeferred(entry.Name, entry.DataType, 
+          _globalscope.Add(MakeDeffun(entry.Name, entry.DataType, 
             entry.CodeValue.Value.Lookup.Columns, entry.CodeValue.Value.AccumCount));
       }
       Logger.WriteLine(3, "[SSTI {0}]", this);
@@ -463,7 +480,7 @@ namespace Andl.Peg {
       AddOperator("sup", 2, 4, DataTypes.Bool, "Superset");
       AddOperator("sep", 2, 4, DataTypes.Bool, "Separate");
 
-      AddFunction(SymNames.Assign, 2, DataTypes.Void, CallKinds.FUNC, "Assign2");
+      AddFunction(SymNames.Assign, 2, DataTypes.Void, CallKinds.FUNC, "Assign");
       AddFunction(SymNames.Defer, 1, DataTypes.Void, CallKinds.FUNC, "Defer");
       AddFunction("do", 1, DataTypes.Any, CallKinds.FUNC, "DoBlock", FuncKinds.DO);
       AddFunction(SymNames.Import, 4, DataTypes.Void, CallKinds.FUNC, "Import");

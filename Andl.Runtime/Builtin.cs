@@ -160,19 +160,8 @@ namespace Andl.Runtime {
     /// 
 
     // Assign a value to a variable 
-    // The variable is identified by a named expression. which must be evaluated
-    public VoidValue Assign(CodeValue exprarg) {
-      Logger.WriteLine(3, "Assign {0}", exprarg);
-      var name = exprarg.Value.Name;
-      var value = exprarg.AsEval.Evaluate();
-      _catvars.SetValue(name, value);
-      Logger.WriteLine(3, "[Ass]");
-      return VoidValue.Default;
-    }
-
-    // Assign a value to a variable 
     // The variable is identified by name, a value is stored
-    public VoidValue Assign2(TextValue name, TypedValue value) {
+    public VoidValue Assign(TextValue name, TypedValue value) {
       Logger.WriteLine(3, "Assign {0}:={1}", name, value);
       _catvars.SetValue(name.Value, value);
       Logger.WriteLine(3, "[Ass]");
@@ -222,6 +211,7 @@ namespace Andl.Runtime {
 
       // wrap raw value with evaluator
       var expr = funcarg.Value as ExpressionEval;
+      Logger.Assert(expr != null, "invoke eval");
       var args = DataRow.CreateNonTuple(expr.Lookup, valargs);
       TypedValue ret;
       if (expr.HasFold) {
@@ -409,7 +399,7 @@ namespace Andl.Runtime {
     public TypedValue CumFold(TypedValue accumulator, CodeValue expr) {
       // if accum is Empty this is a request for a default value
       if (accumulator == TypedValue.Empty)
-        return expr.AsEval.DataType.DefaultValue();
+        return expr.AsEval.ReturnType.DefaultValue();
       return expr.AsEval.EvalIsFolded(null, accumulator);
     }
 
@@ -777,14 +767,14 @@ namespace Andl.Runtime {
 
     // special for tables
     public TextValue PrettyPrint(TypedValue value) {
+      Logger.Assert(value.DataType.IsVariable, "pp non-var");
       Logger.WriteLine(3, "PrettyPrint {0}", value);
       var sb = new StringBuilder();
       if (value.DataType is DataTypeRelation) {
         var dss = DataSinkStream.Create(value.AsTable(), new StringWriter(sb));
         dss.OutputTable();
-      } else {
-        sb.Append(value.DataType.Name + ": " + value.Format());
-      }
+      } else
+        sb.Append($"{value.Format()} : {value.DataType}");
       var ret = TextValue.Create(sb.ToString());
       Logger.WriteLine(3, "[PP]");
       return ret;
@@ -792,7 +782,7 @@ namespace Andl.Runtime {
 
     // Return type name as text
     public TextValue Type(TypedValue arg) {
-      return TextValue.Create(arg.DataType.Name);
+      return TextValue.Create(arg.DataType.ToString());
     }
 
     // Return cardinality as scalar
@@ -1048,7 +1038,7 @@ namespace Andl.Runtime {
         DataTypes.TypeDict[typeof(DateValue)] = StaticDatatype;
       }
 
-      public static new DateValue Create(DateTime time) {
+      public static DateValue Create(DateTime time) {
         return new DateValue(time);
       }
 

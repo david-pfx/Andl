@@ -244,19 +244,19 @@ namespace Andl.Runtime {
       // may require sql to register (PG)
       // FIX: would be better in PostgresDatabase, but does not have access to sql gen (and data types).
       var args = expr.Lookup.Columns.Select(c => ToSqlCommon[c.DataType.BaseType]).ToArray();
-      var retn = ToSqlCommon[expr.DataType.BaseType];
+      var retn = ToSqlCommon[expr.ReturnType.BaseType];
       if (expr.HasFold) {
         // note: type must match low level wrappers
         var stype = DataTypes.Number;
         var init = NumberValue.Zero;
         var col0 = new DataColumn[] { DataColumn.Create("_state_", stype) };
         OptionalExpressionSql(_sqlgen.CreateFunction(name, col0.Concat(expr.Lookup.Columns).ToArray(), stype));
-        OptionalExpressionSql(_sqlgen.CreateFunction(name + "F", col0, expr.DataType));
+        OptionalExpressionSql(_sqlgen.CreateFunction(name + "F", col0, expr.ReturnType));
         OptionalExpressionSql(_sqlgen.CreateAggregate(name, expr.Lookup.Columns, stype, init, name, name + "F"));
         return FunctionCreator.CreateAggFunction(name, expr.Serial, naccum, args, retn);
       }
       // expr.IsOpen
-      OptionalExpressionSql(_sqlgen.CreateFunction(name, expr.Lookup.Columns, expr.DataType));
+      OptionalExpressionSql(_sqlgen.CreateFunction(name, expr.Lookup.Columns, expr.ReturnType));
       return FunctionCreator.CreateFunction(name, FuncTypes.Open, expr.Serial, args, retn);
     }
 
@@ -411,7 +411,7 @@ namespace Andl.Runtime {
       var accblk = GetAccum(serial, 0);
       FreeAccum(serial);
       if (accblk.Result == null)
-        return SqlTarget.ToObjectDict[expr.DataType.BaseType](expr.DataType.DefaultValue());
+        return SqlTarget.ToObjectDict[expr.ReturnType.BaseType](expr.ReturnType.DefaultValue());
       return SqlTarget.ToObjectDict[accblk.Result.DataType.BaseType](accblk.Result);
     }
 

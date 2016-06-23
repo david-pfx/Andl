@@ -73,9 +73,9 @@ Also take a look at:
     chinook.andl            -- popular relational database of songs (SQL only)
 
 You can run all the samples like this.
-    run-samples
-    run-samples sql         -- uses Sqlite
-    run-samples pg          -- requires a default installation of Postgres
+    runsamples
+    runsamples sql         -- uses Sqlite
+    runsamples pg          -- requires a default installation of Postgres
 
 
 WORKBENCH

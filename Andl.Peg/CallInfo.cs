@@ -35,14 +35,20 @@ namespace Andl.Peg {
     // number of accumulators used
     public int AccumCount { get; set; }
     // declared number of arguments
-    public int NumArgs { get { return Arguments == null ? 0 : Arguments.Length; } }
+    public int NumArgs { get { return IsArgLess ? 0 : Arguments.Length; } }
     // return true if a fold was used
     public bool HasFold { get { return AccumCount > 0; } }
     // return true if an ordered func was used
     public bool HasWin { get; set; }
+    // special condition when func was defined with no args (no parens)
+    public bool IsArgLess { get { return Arguments == null; } }
 
     // flag indicating final init
     bool _finalinit = false;
+
+    public override string ToString() {
+      return (IsArgLess) ? $"{Name}:{ReturnType}!" : $"{Name}:{ReturnType}({Arguments.Join(",")})";
+    }
 
     // find the call info by name (including overloads), return a chain
     public static CallInfo Get(string name) {

@@ -89,7 +89,7 @@ namespace Andl.Runtime {
 
     public string Entries(ExpressionBlock[] exprs, string indent) {
       var dict = new Dictionary<string, SubstituteDelegate> {
-        { "type", (x) => TypeName(exprs[x].DataType) },
+        { "type", (x) => TypeName(exprs[x].ReturnType) },
         { "name", (x) => exprs[x].Name },
         { "fields", (x) => Fields(exprs[x].Lookup.Columns, indent + "  ") },
         { "indent", (x) => indent },
